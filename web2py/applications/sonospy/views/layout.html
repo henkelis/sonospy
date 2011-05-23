@@ -1,0 +1,147 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="{{=T.accepted_language or 'en'}}">
+  <head>
+    
+    <title>{{=response.title or request.application}}</title>
+
+    {{if request.vars and (request.vars['M'] == 'P' or request.vars['M'] == 'L'):}}
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0"/>
+    {{else:}}    
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />     
+        {{pass}}
+
+    {{response.files.append(URL(request.application,'static','photogallery.js'))}}
+
+    <script language="JavaScript" type="text/javascript" src="/sonospy/static/ContentFlow/contentflow_src.js" load="sonos"></script>
+
+    {{response.files.append(URL(request.application,'static','base.css'))}}
+    {{response.files.append(URL(request.application,'static','sonos.css'))}}
+
+    {{response.files.append(URL(request.application,'static','ContentFlow/contentflow.css'))}}
+    
+    {{if request.vars and request.vars['M'] == 'P':}}
+        {{response.files.append(URL(request.application,'static','sonoslayoutmobp.css'))}}
+    {{elif request.vars and request.vars['M'] == 'L':}}
+        {{response.files.append(URL(request.application,'static','sonoslayoutmobl.css'))}}
+    {{else:}}    
+        {{response.files.append(URL(request.application,'static','sonoslayoutpc.css'))}}
+        {{pass}}
+    {{include 'web2py_ajax.html'}}
+
+    <script type="text/javascript">
+    <!--
+    /* this adds sfhover class to menu li items to make IE6 work */
+    jQuery(document).ready(function(){
+        jQuery('li.web2py-menu-expand').hover(
+            function () {
+                jQuery(this).addClass('sfhover');
+            },
+            function () {
+                jQuery(this).removeClass('sfhover');
+            }
+        );
+    });
+    //-->
+    </script> 
+    <script type="text/javascript">
+    /***********************************************
+    * Photo Gallery Script v2.0- © Dynamic Drive (www.dynamicdrive.com)
+    * This notice must stay intact for legal use.
+    * Visit http://www.dynamicdrive.com/ for full source code
+    ***********************************************/
+    </script>
+    <style type="text/css">
+        .photogallery { /*CSS for TABLE containing a photo album*/
+            color: #FFFFFF;
+        }
+        .photogallery img { /*CSS for images within an album*/
+            border: 1px solid #66CCFF;
+        }
+        .photonavlinks { /*CSS for pagination DIV*/
+            font: bold 14px Arial;
+        }
+        .photonavlinks a { /*CSS for each navigational link*/
+            margin-right: 2px;
+            margin-bottom: 3px;
+            padding: 1px 5px;
+            border:1px solid gray;
+            text-decoration: none;
+        }
+        .photonavlinks a.current { /*CSS for currently selected navigational link*/
+            background-color: #66CCFF;
+        }
+        .photogallery span {
+            color: #66CCFF;
+        }
+    </style>
+  </head>
+  <body>
+    <div class="sonos" id="fullpage">
+
+        {{if request.vars and (request.vars['M'] == 'P' or request.vars['M'] == 'L'):}}
+            <div id="header">
+                <div class="fg-buttonset fg-buttonset-single" id="navbuttons">
+                    <button class="fg-button ui-state-default ui-priority-primary ui-corner-all" onclick="mobileselectzone()">Zones</button>
+                    <button class="fg-button ui-state-default ui-priority-primary ui-corner-all" onclick="mobilenowplaying()">Now</button>
+                    <button class="fg-button ui-state-default ui-priority-primary ui-corner-all" onclick="mobilequeue()">Queue</button>
+                    <button class="fg-button ui-state-default ui-priority-primary ui-corner-all" onclick="mobileserver()">Server</button>
+                </div>
+            </div>
+        {{else:}}    
+            <div id="header">
+                <h1>
+                  {{=A(response.title or request.application, _href=URL(request.application,'default','index'))}}
+                </h1>            
+                {{='/'.join(['',request.application,request.controller,request.function]+request.args)}}
+                {{ if 'auth' in globals():}}
+                [ {{if not auth.user:}}
+                <a href="{{=URL(r=request,f='user/login')}}">{{=T('login')}}</a> |
+                <a href="{{=URL(r=request,f='user/register')}}">{{=T('register')}}</a> |
+                <a href="{{=URL(r=request,f='user/request_reset_password')}}">{{=T('lost password')}}</a>
+                {{else:}}
+                {{=auth.user.first_name}} |
+                <a href="{{=URL(r=request,f='user/logout')}}">{{=T('logout')}}</a> |
+                <a href="{{=URL(r=request,f='user/change_password')}}">{{=T('change password')}}</a> |
+                <a href="{{=URL(r=request,f='user/profile')}}">{{=T('edit profile')}}</a>
+                {{pass}} ]
+                {{pass}}
+                <a href="#" onclick="populategallery();">{{=T('Gallery')}}</a> |
+                <a href="#" onclick="populateflow();">{{=T('Flow')}}</a> |
+                <a href="#" onclick="pcselectindex();">{{=T('List')}}</a> |
+                <a href="#" onclick="cacheimages();">{{=T('(Cache Images)')}}</a> |
+                <a href="{{=URL(r=request,f='clearalbums')}}">{{=T('(Clear Albums)')}}</a>
+            </div>
+            {{pass}}
+
+        <div id="left">
+            {{include}}
+        </div>
+
+        <div id="right">
+            {{servers()}}
+        </div>
+
+        <div id="centretop">
+            {{nowplaying()}}
+        </div>
+        <div id="centremiddle">
+            {{controls()}}
+        </div>
+        <div id="centrebottom">
+            {{queue()}}
+        </div>
+
+        <div id="middle">
+            {{gallery()}}
+        </div>
+        <div id="middle2">
+            {{flow()}}
+        </div>
+
+        <div id="footer">
+            {{messagebar()}}
+        </div>
+
+    </div>
+  </body>
+</html>

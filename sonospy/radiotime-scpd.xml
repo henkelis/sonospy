@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scpd xmlns="urn:schemas-upnp-org:service-1-0">
+<specVersion><major>1</major><minor>0</minor></specVersion>
+<actionList>
+    <action>
+        <name>getMediaURI</name>
+        <argumentList>
+            <argument>
+                <name>id</name>
+                <direction>in</direction>
+                <relatedStateVariable>id</relatedStateVariable>
+            </argument>
+            <argument>
+                <name>result</name>
+                <direction>out</direction>
+                <relatedStateVariable>result</relatedStateVariable>
+            </argument>
+        </argumentList>
+    </action>
+    <action>
+        <name>getLastUpdate</name>
+        <argumentList>
+            <argument>
+                <name>result</name>
+                <direction>out</direction>
+                <relatedStateVariable>result</relatedStateVariable>
+            </argument>
+        </argumentList>
+    </action>
+    <action>
+        <name>getMetadata</name>
+        <argumentList>
+            <argument>
+                <name>id</name>
+                <direction>in</direction>
+                <relatedStateVariable>id</relatedStateVariable>
+            </argument>
+            <argument>
+                <name>index</name>
+                <direction>in</direction>
+                <relatedStateVariable>index</relatedStateVariable>
+            </argument>
+            <argument>
+                <name>count</name>
+                <direction>in</direction>
+                <relatedStateVariable>count</relatedStateVariable>
+            </argument>
+            <argument>
+                <name>recursive</name>
+                <direction>in</direction>
+                <relatedStateVariable>recursive</relatedStateVariable>
+            </argument>
+            <argument>
+                <name>result</name>
+                <direction>out</direction>
+                <relatedStateVariable>result</relatedStateVariable>
+            </argument>
+            <argument>
+                <name>out_index</name>
+                <direction>out</direction>
+                <relatedStateVariable>out_index</relatedStateVariable>
+            </argument>
+            <argument>
+                <name>out_count</name>
+                <direction>out</direction>
+                <relatedStateVariable>out_count</relatedStateVariable>
+            </argument>
+            <argument>
+                <name>out_total</name>
+                <direction>out</direction>
+                <relatedStateVariable>out_total</relatedStateVariable>
+            </argument>
+        </argumentList>
+    </action>
+</actionList>
+<serviceStateTable>
+    <stateVariable sendEvents="no">
+        <name>id</name>
+        <dataType>string</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+        <name>index</name>
+        <dataType>ui4</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+        <name>count</name>
+        <dataType>ui4</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+        <name>recursive</name>
+        <dataType>string</dataType>
+        <allowedValueList>
+            <allowedValue>true</allowedValue>
+            <allowedValue>false</allowedValue>
+        </allowedValueList>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+        <name>result</name>
+        <dataType>string</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+        <name>out_index</name>
+        <dataType>ui4</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+        <name>out_count</name>
+        <dataType>ui4</dataType>
+    </stateVariable>
+    <stateVariable sendEvents="no">
+        <name>out_total</name>
+        <dataType>ui4</dataType>
+    </stateVariable>
+</serviceStateTable>
+</scpd>

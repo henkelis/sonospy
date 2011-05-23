@@ -1,0 +1,1254 @@
+{{def nowplaying():}}
+    {{if request.vars and request.vars['M'] == 'L':}}
+        <h3 class='title'>Now Playing:</h3>
+        <span id='nowplaying'>
+            <span id='ART' class="art-right"></span>
+            <span id='TITLE1' class='nowh'></span>: <span id='LINE1' class="nowt">-</span><br/>
+            <p class="pos" id='POSITION'>-</p>
+            <span id='PROGRESS'><div id="progressbar"></div></span>
+            <span id='TITLE2' class='nowh'></span>: <span id='LINE2' class="nowt">-</span><br/>
+            <span id='TITLE3' class='nowh'></span>: <span id='LINE3' class="nowt">-</span>
+        </span>
+    {{else:}}
+        <h3 class='title'>Now Playing:</h3>
+        <span id='nowplaying'>
+            <span id='ART'></span><br/>
+            <span id='TITLE1' class='nowh'></span>: <span id='LINE1' class="nowt">-</span><br/>
+            <p class="pos" id='POSITION'>-</p>
+            <span id='PROGRESS'><div id="progressbar"></div></span>
+            <span id='TITLE2' class='nowh'></span>: <span id='LINE2' class="nowt">-</span><br/>
+            <span id='TITLE3' class='nowh'></span>: <span id='LINE3' class="nowt">-</span>
+        </span>
+        {{pass}}
+{{return}}
+
+{{def controls():}}
+    <span id='controls'>
+        <table width="100%" >
+            <col width="50%" />
+            <col width="50%" />
+            <tr>
+                <td>
+                    {{if request.vars and (request.vars['M'] == 'P' or request.vars['M'] == 'L'):}}
+                        <img id="play"     width=20px height=20px src="/sonospy/static/tjplay.png"     fout="/sonospy/static/tjplay.png"     fover="/sonospy/static/tjplayo.png"     onclick="control('PLAY')"     onMouseOver="controlover(this)" onMouseOut="controlout(this)" value="PLAY" fpout="/sonospy/static/tjpause.png"  fpover="/sonospy/static/tjpauseo.png" ></img>
+                        <img id="stop"     width=20px height=20px src="/sonospy/static/tjstop.png"     fout="/sonospy/static/tjstop.png"     fover="/sonospy/static/tjstopo.png"     onclick="control('STOP')"     onMouseOver="controlover(this)" onMouseOut="controlout(this)" ></img>
+                        <img id="mute"     width=20px height=20px src="/sonospy/static/tjmute.png"     fout="/sonospy/static/tjmute.png"     fover="/sonospy/static/tjmuteo.png"     onclick="control('MUTE')"     onMouseOver="controlover(this)" onMouseOut="controlout(this)" value="MUTE" fpout="/sonospy/static/tjunmute.png" fpover="/sonospy/static/tjunmuteo.png"></img>
+                        <img id="previous" width=20px height=20px src="/sonospy/static/tjprevious.png" fout="/sonospy/static/tjprevious.png" fover="/sonospy/static/tjpreviouso.png" onclick="control('PREVIOUS')" onMouseOver="controlover(this)" onMouseOut="controlout(this)" ></img>
+                        <img id="next"     width=20px height=20px src="/sonospy/static/tjnext.png"     fout="/sonospy/static/tjnext.png"     fover="/sonospy/static/tjnexto.png"     onclick="control('NEXT')"     onMouseOver="controlover(this)" onMouseOut="controlout(this)" ></img>
+                    {{else:}}
+                        <img id="play"     src="/sonospy/static/tjplay.png"     fout="/sonospy/static/tjplay.png"     fover="/sonospy/static/tjplayo.png"     onclick="control('PLAY')"     onMouseOver="controlover(this)" onMouseOut="controlout(this)" value="PLAY" fpout="/sonospy/static/tjpause.png"  fpover="/sonospy/static/tjpauseo.png" ></img>
+                        <img id="stop"     src="/sonospy/static/tjstop.png"     fout="/sonospy/static/tjstop.png"     fover="/sonospy/static/tjstopo.png"     onclick="control('STOP')"     onMouseOver="controlover(this)" onMouseOut="controlout(this)" ></img>
+                        <img id="mute"     src="/sonospy/static/tjmute.png"     fout="/sonospy/static/tjmute.png"     fover="/sonospy/static/tjmuteo.png"     onclick="control('MUTE')"     onMouseOver="controlover(this)" onMouseOut="controlout(this)" value="MUTE" fpout="/sonospy/static/tjunmute.png" fpover="/sonospy/static/tjunmuteo.png"></img>
+                        <img id="previous" src="/sonospy/static/tjprevious.png" fout="/sonospy/static/tjprevious.png" fover="/sonospy/static/tjpreviouso.png" onclick="control('PREVIOUS')" onMouseOver="controlover(this)" onMouseOut="controlout(this)" ></img>
+                        <img id="next"     src="/sonospy/static/tjnext.png"     fout="/sonospy/static/tjnext.png"     fover="/sonospy/static/tjnexto.png"     onclick="control('NEXT')"     onMouseOver="controlover(this)" onMouseOut="controlout(this)" ></img>
+                    {{pass}}
+                </td>
+                <td>
+                    <div id="slidervalue"></div>
+                    <div id="slider"></div>
+                </td>
+            </tr>
+        </table>    
+    </span>
+    {{if request.vars and (request.vars['M'] == 'P' or request.vars['M'] == 'L'):}}
+        <div id='navfiller'></div>
+        {{pass}}
+{{return}}
+
+{{def queue():}}
+    <h3 class='title'>Queue:</h3>
+    <span id='queue'></span>
+    {{if request.vars and (request.vars['M'] == 'P' or request.vars['M'] == 'L'):}}
+        <div id='navfiller'></div>
+        {{pass}}
+{{return}}
+
+{{def servers():}}
+    <span id='servers' height="100%"></span>
+    {{if request.vars and (request.vars['M'] == 'P' or request.vars['M'] == 'L'):}}
+        <div id='navfiller'></div>
+        {{pass}}
+{{return}}
+
+{{def messagebar():}}
+    <span id='messagebar'>Ready</span>
+{{return}}
+
+{{def initialisegallery():}}
+    <script type="text/javascript">
+        var gallery=new Array();
+        gallery[0]=['/sonospy/static/art/blank.gif'];
+        var albums=new photogallery(gallery, 7, 3, '700px', '700px');
+    </script>
+{{return}}
+    
+{{def gallery():}}
+    <h3 id='gallery' class='title' visited="n">Covers:</h3>
+    {{initialisegallery()}}
+{{return}}
+
+{{def flow():}}
+    <h3 id='flow' class='title' visited="n">Covers:</h3>
+    <span id="contentflowtarget"></span>
+{{return}}
+
+{{def mobiledefault():}}
+    <script type="text/javascript">
+        $(function(){
+            {{if request.vars and request.vars['M'] == 'P':}}
+                setmobile('P');
+            {{else:}}
+                setmobile('L');
+                {{pass}}
+            mobileselectzone();
+	    });
+    </script>
+{{return}}
+
+{{def pcdefault():}}
+    <script type="text/javascript">
+        $(function(){
+            pcselectindex();
+	    });
+    </script>
+{{return}}
+
+{{extend 'layout.html'}}
+
+<div id="trackdialog" title="Tracks">
+    <div id='dialogtarget'></div>
+</div>
+
+<div id="trackdialog2" title="Tracks">
+    <div id='dialogtarget2'></div>
+</div>
+
+<div id="flowcontainer" style="height: 0px; width: 0px; visibility: hidden">
+    <div id="flowflip" class="item">
+        <img id="flip" class="content" src="/sonospy/static/pw.png"></img> 
+    </div>
+</div>
+
+<div id="progressdialog" title="Caching Images">
+    <div id="imageprogressbar"></div>
+    <div id="imagecount"></div>
+    <div style="text-align: center;"><img id="imageimage" width=150px height=150px src="/sonospy/static/art/blank.gif"></img></div>
+</div>    
+
+{{if request.vars and (request.vars['M'] == 'P' or request.vars['M'] == 'L'):}}
+    {{mobiledefault()}}
+{{else:}}
+    {{pcdefault()}}
+    {{pass}}
+
+<h3 class='title'>Servers:</h3>
+<div class="fg-buttonset fg-buttonset-single" id="serverbuttons">
+    {{itemcount = 0}}
+    {{for item in message:}}
+        {{entry = item.split('::')}}
+        {{type = entry[0]}}
+        {{if type == 'R': continue}}
+        {{title = entry[1]}}
+        {{itemcount += 1}}
+        {{ttype = "'" + type + "'"}}
+        {{ttitle = "'" + title + "'"}}
+        <button class="fg-button ui-state-default ui-priority-primary ui-corner-all" onclick="getserver({{=ttitle}}, {{=ttype}}, 'servers')">{{=title}}</button><br/>
+    {{pass}}
+</div>
+
+<h3 class='title'>Renderers:</h3>
+<div class="fg-buttonset fg-buttonset-single" id="rendererbuttons">
+    {{itemcount = 0}}
+    {{for item in message:}}
+        {{entry = item.split('::')}}
+        {{type = entry[0]}}
+        {{if type == 'S': continue}}
+        {{title = entry[1]}}
+        {{itemcount += 1}}
+        {{ttype = "'" + type + "'"}}
+        {{ttitle = "'" + title + "'"}}
+        <button class="fg-button ui-state-default ui-priority-primary ui-corner-all" onclick="setrenderer({{=ttitle}}, {{=ttype}}, 'nowplaying', 'queue')">{{=title}}</button><br/>
+    {{pass}}
+</div>
+
+{{if request.vars and (request.vars['M'] == 'P' or request.vars['M'] == 'L'):}}
+    <div id='navfiller'></div>
+    {{pass}}
+
+<form>
+    <input type="hidden" name="paramtitle" id="paramtitle" value="nothing">
+    <input type="hidden" name="paramtype" id="paramtype" value="nothing">
+    <input type="hidden" name="paramtarget" id="paramtarget" value="nothing">
+    <input type="hidden" name="paramid" id="paramid" value="nothing">
+    <input type="hidden" name="parammenuoption" id="parammenuoption" value="nothing">
+    <input type="hidden" name="parammenutype" id="parammenutype" value="nothing">
+    <input type="hidden" name="paramoption" id="paramoption" value="nothing">
+    <input type="hidden" name="renderertitle" id="renderertitle" value="nothing">
+    <input type="hidden" name="renderertype" id="renderertype" value="nothing">
+    <input type="hidden" name="renderertarget" id="renderertarget" value="nothing">
+    <input type="hidden" name="servertitle" id="servertitle" value="nothing">
+    <input type="hidden" name="servertype" id="servertype" value="nothing">
+    <input type="hidden" name="servertarget" id="servertarget" value="nothing">
+    <input type="hidden" name="queuetarget" id="queuetarget" value="nothing">
+    <input type="hidden" name="queueentry" id="queueentry" value="nothing">
+    <input type="hidden" name="queuedata" id="queuedata" value="nothing">
+    <input type="hidden" name="queuecall" id="queuecall" value="nothing">
+    <input type="hidden" name="defaultoptionname" id="defaultoptionname" value="nothing">
+    <input type="hidden" name="searchstring" id="searchstring" value="nothing">
+    <input type="hidden" name="searchoperator" id="searchoperator" value="nothing">
+    <input type="hidden" name="browsedata" id="browsedata" value="nothing">
+    <input type="hidden" name="mobile" id="mobile" value="nothing">
+    <input type="hidden" name="paramx" id="paramx" value="nothing">
+    <input type="hidden" name="paramy" id="paramy" value="nothing">
+</form>
+
+<script type="text/javascript">
+	$(function(){
+		$(".fg-button:not(.ui-state-disabled)")
+		.mousedown(function(){
+				$(this).parents('.fg-buttonset-single:first').find(".fg-button.ui-state-active").removeClass("ui-state-active");
+				if( $(this).is('.ui-state-active.fg-button-toggleable, .fg-buttonset-multi .ui-state-active') ){ $(this).removeClass("ui-state-active"); }
+				else { $(this).addClass("ui-state-active"); }	
+		});
+        $("#trackdialog").dialog({ autoOpen: false, modal: false, width: 800, position: 'center' });
+        $("#trackdialog2").dialog({ autoOpen: false, modal: false, width: 300, height: 300, position: 'center' });
+        $("#progressdialog").dialog({ autoOpen: false, modal: false, width: 800, position: 'center' });
+	});
+</script>
+
+<script type="text/javascript">
+    try { console.log('init console... done'); } catch(e) { console = { log: function() {} } }
+    var global_menuobject = null;
+    var global_renderer_intervalid = null;
+    var global_server_intervalid = null;
+    var global_queue_intervalid = null;
+    var global_image_count = 0;
+    var global_image_total = 0;
+    var global_right_position = null;
+    var global_right_left = null;
+    var global_contentflow = null;
+
+    function flowclick(content, index) {
+        console.log(content);
+        // hide any context menu that is currently displayed
+	    if (global_menuobject != null) global_menuobject.hide();
+        data = $(content).attr('data');
+        
+        entries = data.split("::::");
+        extras = entries[1].split("::");
+        extra1 = extras[0].split("=");
+        if (extra1[0] == 'creator') artist = extra1[1];
+        else artist = '';
+        
+        entry = entries[0].split("::");
+        id = entry[0];
+        type = entry[1];
+        menu = entry[2];
+        title = entry[3];
+        s_id = entry[4];
+        s_type = entry[5];
+        target = 'dialogtarget2';
+        hashtarget = '#' + target;
+        jQuery(hashtarget).html("Please wait...");
+        params = ['paramtitle='+title, 'paramtype='+type, 'paramtarget='+target, 'paramid='+id, 'paramoption=tree', 'parammenutype='+menu, 'searchstring=', 'searchoperator=', 'browsedata=1,0,100', 'chainparams=0,,', 's_id='+s_id, 's_type='+s_type];
+        ajax3('{{=URL(r=request, f='getdata')}}', params, ':eval', 'updateflowback('+index+')');
+//        tlen = title.length;
+//        if (title.substring(0,1) == "<" && title.substring(tlen-1,tlen) == ">") {
+//            ttitle = "[" + title.substring(1,tlen-1) + "]";
+//        }
+//        else ttitle = title;
+//        $("#trackdialog2").dialog( "option", "title", ttitle + ' - ' + artist);
+    };
+
+    jQuery(".photogallery img").live('click', function(e) {
+        // hide any context menu that is currently displayed
+	    if (global_menuobject != null) global_menuobject.hide();
+        data = $(this).attr('data');
+        entry = data.split("::");
+        id = entry[0];
+        type = entry[1];
+        menu = entry[2];
+        title = entry[3];
+        s_id = entry[4];
+        s_type = entry[5];
+        target = 'dialogtarget';
+        hashtarget = '#' + target;
+        jQuery(hashtarget).html("Please wait...");
+        params = ['paramtitle='+title, 'paramtype='+type, 'paramtarget='+target, 'paramid='+id, 'paramoption=tree', 'parammenutype='+menu, 'searchstring=', 'searchoperator=', 'browsedata=1,0,100', 'chainparams=0,,', 's_id='+s_id, 's_type='+s_type];
+        ajax3('{{=URL(r=request, f='getdata')}}', params, ':eval', 'positiondialog()');
+        artist = $(this).siblings('span').text();
+        clienttitle = $(this).attr('title');
+        $("#trackdialog").dialog( "option", "title", clienttitle + ' - ' + artist);
+        $("#trackdialog").dialog('open');
+    });
+    function positiondialog() {
+        windowheight = $(window).height();
+        dialogheight = $('#trackdialog').parent().height();
+        top = (windowheight - dialogheight) / 2;
+        $("#trackdialog").parent().offset({ top: top });
+    }
+//    function positiondialog2() {
+//        top = $("#contentflowtarget").offset().top;
+//        $("#trackdialog2").hide();
+//        $("#trackdialog2").dialog('open');
+//        $("#trackdialog2").parent().offset({ top: top });
+//        $("#trackdialog2").show();
+//    }
+    function updateflowback(index) {
+        global_contentflow.itemsback[index].updateback(index, document.getElementById('dialogtarget2'));
+    }
+    function populategallery() {
+        if ($("#gallery").attr('visited') == 'y') pcselectgallery();
+        else {
+            jQuery.getJSON("{{=URL(r=request,f='call',args=['json','JSONgallery'])}}",
+                function(msg){
+                    updatephotogallery(msg);
+                    $("#gallery").attr('visited', 'y');
+                    pcselectgallery();
+                }
+            );
+        }
+    };
+    function populateflow() {
+
+        if ($("#flow").attr('visited') == 'y') pcselectflow();
+        else {
+            params = []
+//            ajax3('{{=URL(r=request, f='flow')}}', params, 'flowcontainer', 'addflowcontent()');
+            ajax3('{{=URL(r=request, f='flow')}}', params, 'contentflowtarget', 'addflowcontent()');
+        }
+    };
+
+    function addflowcontent(){
+    
+        $("#middle2").css("left", 0);
+        $("#middle2").css("width", '100%');
+
+        setmiddle2height();
+
+        global_contentflow = new ContentFlow('contentflow');
+
+//        contentflow.preinit();
+        global_contentflow.init();
+        global_contentflow.resize();
+
+//        var ic = document.getElementById('flowcontainer');
+//        var is = ic.getElementsByTagName('img');
+//        for (var i=0; i< is.length; i++) {
+//            contentflow.addItem(is[i], 'last');
+//        }
+        
+        $("#flow").attr('visited', 'y');
+        
+        pcselectflow();
+
+        var dummymenu2 = [{'Dummy2':function (){}}];
+        global_menuobject = $('#contentflow').contextMenu(dummymenu2,{beforeShow:function bsm(e){return checkdummy2(e)}});
+
+    };
+
+    function checkdummy2(e) {
+    
+        console.log("right click");
+    
+        menu = $(e.target).attr('menu');
+        if (menu == undefined || menu == "NONE") return false;
+        else {
+            // close any other menu that is open
+    		if (global_menuobject != null) global_menuobject.hide();
+            // if we get this far we have clicked on an item with a menu specified but not bound
+            // bind it by calling the creator function we loaded when we queried the server
+            id = "#" + $(e.target).attr('id');
+            menu = menu + "(\"" + id + "\");";
+            menuobject = eval(menu);
+            // now show the newly bound menu
+            menuobject.show($(e.target),e);
+            // stop the dummy being displayed
+            return false;
+        }
+    };
+
+    
+    function cacheimages() {
+        $("#progressdialog").dialog('open');
+        jQuery.getJSON("{{=URL(r=request,f='call',args=['json','JSONloadalbumart'])}}", {"id": ""}, 
+            function(msg){
+                msgparts = msg[0].split("=");
+                if (msgparts.length == 2) {
+                    global_image_total = msgparts[1];
+                    global_image_count = 0;
+                    processcache(global_image_count);
+                }
+            }
+        );
+    };
+    function processcache(id) {
+        progress = parseInt((id * 100) / global_image_total);
+        $("#imageprogressbar").progressbar( "option", "value", progress );
+        $("#imagecount").html(id + " of " + global_image_total);
+        jQuery.getJSON("{{=URL(r=request,f='call',args=['json','JSONloadalbumart'])}}", {"id": id+1},
+            function(msg){
+                updateimageprogress(msg);
+            }
+        );
+    };
+    function updateimageprogress(iddata) {
+        id = iddata[0];
+        image = iddata[1];
+        $("#imageimage").attr("src", image);
+        $("#imagecount").html(id + " of " + global_image_total);
+        if (id == global_image_total) {
+            $("#progressdialog").dialog('close');
+        }
+        else {
+            global_image_count += 1;
+            processcache(global_image_count);
+        }
+    };
+    function pcselectindex() {
+        $('#header').show();    
+        $('#left').show();    
+        $('#right').show();    
+        $('#centretop').show();    
+        $('#centremiddle').show();    
+        $('#centrebottom').show();    
+        $('#footer').show();
+        $('#middle').hide();
+        $('#middle2').hide();
+    };
+    function pcselectgallery() {
+        $('#header').show();    
+        $('#left').hide();    
+        $('#right').hide();    
+        $('#centretop').hide();    
+        $('#centremiddle').hide();    
+        $('#centrebottom').hide();    
+        $('#footer').show();
+        $('#middle').show();
+        $('#middle2').hide();
+		setmiddleheight();
+    };
+    function pcselectflow() {
+        $('#header').show();    
+        $('#left').hide();    
+        $('#right').hide();    
+        $('#centretop').hide();    
+        $('#centremiddle').hide();    
+        $('#centrebottom').hide();    
+        $('#footer').show();
+        $('#middle').hide();
+        $('#middle2').show();
+		setmiddleheight();
+    };
+    function setmiddleheight() {
+        windowheight = $(window).height();
+        headerheight = $("#header").height();
+        footerheight = $("#footer").height();
+        middlepbm = getvertpaddingbordermargin($("#middle"));
+        contentheight = windowheight - headerheight - footerheight;
+        $("#middle").height(contentheight - middlepbm);
+    };
+    function setmiddle2height() {
+        windowheight = $(window).height();
+        headerheight = $("#header").height();
+        footerheight = $("#footer").height();
+        middlepbm = getvertpaddingbordermargin($("#middle2"));
+        contentheight = windowheight - headerheight - footerheight;
+        $("#middle2").height(contentheight - middlepbm);
+    };
+    function setmobile(orientation) {
+        mobile = document.forms[0].elements["mobile"];
+        mobile.value = "M";
+        if (orientation == 'P') {
+            self.resizeTo(320,480);
+        }
+        else {
+            self.resizeTo(800,480);
+        }
+    };
+    function getmobile() {
+        mobile = document.forms[0].elements["mobile"];
+        if (mobile.value == "M") return true;
+        else return false;
+    };
+    function mobileselectzone() {
+        $('#header').show();    
+        $('#left').show();    
+        $('#right').hide();    
+        $('#centretop').hide();    
+        $('#centremiddle').hide();    
+        $('#centrebottom').hide();    
+        $('#footer').hide();
+        $('#middle').hide();
+    };
+    function mobilenowplaying() {
+        $('#header').show();    
+        $('#left').hide();    
+        $('#right').hide();    
+        $('#centretop').show();    
+        $('#centremiddle').show();    
+        $('#centrebottom').hide();    
+        $('#footer').hide();    
+        $('#middle').hide();
+    };
+    function mobilequeue() {
+        $('#header').show();    
+        $('#left').hide();    
+        $('#right').hide();    
+        $('#centretop').hide();    
+        $('#centremiddle').hide();    
+        $('#centrebottom').show();    
+        $('#footer').hide();    
+        $('#middle').hide();
+    };
+    function mobileserver() {
+        $('#header').show();    
+        $('#left').hide();    
+        $('#right').show();    
+        $('#centretop').hide();    
+        $('#centremiddle').hide();    
+        $('#centrebottom').hide();    
+        $('#footer').hide();    
+        $('#middle').hide();
+    };
+    function liveaccordion() {
+        $('#accordion').accordion('destroy').accordion({autoHeight: false, clearStyle: true, collapsible: true, active: false, header: 'h3', animated: false , fillspace: true});
+        // set theme for context menus
+        $.contextMenu.theme='xp';
+        // create a dummy menu to capture right click from accordion
+        var dummymenu = [{'Dummy':function (){}}];
+        // save the menu object of this menu - will be overwritten by the menu currently being displayed
+        global_menuobject = $('#accordion').contextMenu(dummymenu,{beforeShow:function bsm(e){return checkdummy(e)}});
+    };     
+    function checkdummy(e) {
+        menu = $(e.target).attr('menu');
+        if (menu == undefined || menu == "NONE") return false;
+        else {
+            // close any other menu that is open
+    		if (global_menuobject != null) global_menuobject.hide();
+            // if we get this far we have clicked on an item with a menu specified but not bound
+            // bind it by calling the creator function we loaded when we queried the server
+            id = "#" + $(e.target).attr('id');
+            menu = menu + "(\"" + id + "\");";
+            menuobject = eval(menu);
+            // now show the newly bound menu
+            menuobject.show($(e.target),e);
+            // stop the dummy being displayed
+            return false;
+        }
+    };
+    function setmessagebar(message) {
+        // set messagebar
+        $("#messagebar").html(message);
+    };
+    function setprogressbar(percent) {
+        // set position of progressbar
+        $("#progressbar").progressbar( "option", "value", percent );
+    };
+    function setvolumeslider(value) {
+        // set position of volume slider in response to renderer poll
+        $("#slider").slider("option", "value", value);
+        setslidervalue(value);
+    };
+    function changevolume(event, ui) {
+        // tell the renderer to change the volume
+        volume = ui.value;
+        action = "VOLUME::" + volume;
+        control(action);
+        setslidervalue(volume);
+    };
+    function setslidervalue(value) {    
+        // set slider display value
+        $("#slidervalue").html(value);
+        if (value < 10) indent = "0.6";
+        else indent = "0.95";
+        $("#slidervalue").attr("style", function() {return "padding-bottom:0.15em; position: relative; text-indent:-" + indent +"em; text-align: left; left: " + value + "%;"});
+    };
+    function disablevolumeslider(value) {
+        $( "#slider" ).slider( "option", "disabled", value );
+    };
+    function setmute(mute) {
+        if (mute == '0') {
+            setmutestate('MUTE');
+        }
+        else {
+            setmutestate('UNMUTE');
+        }
+    };
+    function setplay(state) {
+        if (state == 'PLAYING' || state == 'TRANSITIONING') {
+            setplaystate('PAUSE');
+        }
+        else if (state == 'PAUSED_PLAYBACK' || state == 'STOPPED') {
+            setplaystate('PLAY');
+        }
+    };
+    function controlover(imageobj) {
+        if (imageobj.id == "play") {
+            currentstate = $("#play").attr("value");
+            if (currentstate == 'PLAY') img = $(imageobj).attr("fover");
+            else img = $(imageobj).attr("fpover");
+        }
+        else if (imageobj.id == "mute") {
+            currentstate = $("#mute").attr("value");
+            if (currentstate == 'MUTE') img = $(imageobj).attr("fover");
+            else img = $(imageobj).attr("fpover");
+        }
+        else {
+            img = $(imageobj).attr("fover");
+        }
+        imageobj.src = img;
+    };
+    function controlout(imageobj) {
+        if (imageobj.id == "play") {
+            currentstate = $("#play").attr("value");
+            if (currentstate == 'PLAY') img = $(imageobj).attr("fout");
+            else img = $(imageobj).attr("fpout");
+        }
+        else if (imageobj.id == "mute") {
+            currentstate = $("#mute").attr("value");
+            if (currentstate == 'MUTE') img = $(imageobj).attr("fout");
+            else img = $(imageobj).attr("fpout");
+        }
+        else {
+            img = $(imageobj).attr("fout");
+        }
+        imageobj.src = img;
+    };
+    function control(action) {
+        processedaction = action;
+        // for some actions, we need to toggle
+        if (action == "PLAY") {
+            currentstate = $("#play").attr("value");
+            processedaction = currentstate;
+            if (currentstate == 'PLAY') {
+                newstate = 'PAUSE';
+            }
+            else {
+                newstate = 'PLAY';
+            }
+            setplaystate(newstate);
+        }
+        else if (action == "MUTE") {
+            currentstate = $("#mute").attr("value");
+            processedaction = currentstate;
+            if (currentstate == 'MUTE') {
+                newstate = 'UNMUTE';
+            }
+            else {
+                newstate = 'MUTE';
+            }
+            setmutestate(newstate);
+        }
+        // call the action
+        paramoption = document.forms[0].elements["paramoption"];
+        paramoption.value = processedaction;
+        ajax('{{=URL(r=request, f='controlrenderer')}}', ['paramoption'], ':eval');
+    };
+    function setplaystate(state) {
+        // set the state of the play control
+        if (state == 'PLAY') {
+            image = "/sonospy/static/tjplay.png";
+        }
+        else {
+            image = "/sonospy/static/tjpause.png";
+        }
+        setcontrolimage("#play", image);
+        setcontrolstate("#play", state);
+    };
+    function setmutestate(state) {
+        // set the state of the mute control
+        if (state == 'MUTE') {
+            image = "/sonospy/static/tjmute.png";
+        }
+        else {
+            image = "/sonospy/static/tjunmute.png";
+        }
+        setcontrolimage("#mute", image);
+        setcontrolstate("#mute", state);
+    };
+    function setcontrolstate(id, state) {
+        $(id).attr("value", state);
+    };
+    function setcontrolimage(id, image) {
+        $(id).attr("src", image);
+    };
+    function getserver(title, type, target) {
+        servertitle = document.forms[0].elements["servertitle"];
+        servertitle.value = title;
+        servertype = document.forms[0].elements["servertype"];
+        servertype.value = type;
+        servertarget = document.forms[0].elements["servertarget"];
+        servertarget.value = target;
+        params = ['paramtitle='+title, 'paramtype='+type, 'paramtarget='+target]
+        ajax2('{{=URL(r=request, f='getrootdata')}}', params, ':eval');
+//        // set a poller to talk to the server (clear any previous one first)
+//        if (global_server_intervalid != null) clearInterval(global_server_intervalid);
+//        global_server_intervalid = setInterval("pollserver()", 1000);
+    };
+    function setrenderer(title, type, target, qtarget) {
+//        queueentry = document.forms[0].elements["queueentry"];
+//        queueentry.value = '';
+        // get meta data for renderer
+        renderertitle = document.forms[0].elements["renderertitle"];
+        renderertitle.value = title;
+        renderertype = document.forms[0].elements["renderertype"];
+        renderertype.value = type;
+        renderertarget = document.forms[0].elements["renderertarget"];
+        renderertarget.value = target;
+        params = ['renderertitle='+title, 'renderertype='+type, 'renderertarget='+target, 'queuetarget='+qtarget, 'queuedata=1,0,100', 'queuechain=0,,']
+        ajax2('{{=URL(r=request, f='setrenderer')}}', params, ':eval');
+//        // get queue data for renderer
+//        queueentry = document.forms[0].elements["queueentry"].value;
+//        if (queueentry != '') {
+//            queuetarget = document.forms[0].elements["queuetarget"];
+//            queuetarget.value = qtarget;
+//            queuedata = document.forms[0].elements["queuedata"];
+//            queuedata.value = '1,0,100';
+//            params = ['queueentry='+queueentry, 'queuetarget='+qtarget, 'queuedata=1,0,100', 'queuechain=0,,']
+//            ajax2('{{=URL(r=request, f='getqueue')}}', params, ':eval');
+//        }
+        // set slider slide event callback
+        $("#slider").bind("slide", function(event, ui) {changevolume(event, ui)});
+        // set a poller to talk to the queue (clear any previous one first)
+        if (global_queue_intervalid != null) clearInterval(global_queue_intervalid);
+        global_queue_intervalid = setInterval("pollqueue()", 1000);
+        // set a poller to talk to the renderer (clear any previous one first)
+        if (global_renderer_intervalid != null) clearInterval(global_renderer_intervalid);
+        global_renderer_intervalid = setInterval("pollrenderer()", 1000);
+    };
+    function pollrenderer() {
+        ajax('{{=URL(r=request, f='pollrenderer')}}', ['renderertitle', 'renderertype', 'renderertarget'], ':eval');
+    }
+    function pollserver() {
+//        ajax('{{=URL(r=request, f='pollserver')}}', ['servertitle', 'servertype', 'queuetarget', 'queuedata'], ':eval');
+    }
+    function pollqueue() {
+        ajax('{{=URL(r=request, f='pollqueue')}}', ['queueentry', 'queuecall'], ':eval');
+    }
+    function replaceImage(img, replacementImage)
+    {
+        img.onload = null;
+        console.log("replacement image:", replacementImage);
+        if (replacementImage == '') {
+            img.src = '/sonospy/static/art/blank.gif';
+        }
+        else {
+            $.get(replacementImage, function(data, textStatus, XMLHttpRequest){
+                console.log("status: ", textStatus);
+                console.log(XMLHttpRequest);
+                img.src = replacementImage;
+        //        setheight();
+            });
+        }
+    };
+
+    function beforeshowmenu(e) {
+        // hide any previous menu
+		if (global_menuobject != null) global_menuobject.hide();
+        // check whether the clicked element has a menu
+        menu = $(e.target).attr('menu');
+        if (menu == undefined || menu == "NONE") return false;
+        else {
+            saveclickedelement(e);
+        }
+    };
+    function saveclickedelement(e) {
+    
+        console.log(e);
+    
+        ex = e.clientX;
+        ey = e.clientY;
+        etarget = e.target;
+        
+        console.log(etarget);
+        
+        atarget = $(etarget).attr("id");
+        target = atarget.substring(1);
+        type = $(etarget).attr('type');
+        if (type == null) type = "";
+//        title = $(etarget).text();
+        title = gettitle(etarget);
+        id = target.substring(6);
+        menu = $(etarget).attr('menu');
+        paramtitle = document.forms[0].elements["paramtitle"];
+        paramtitle.value = title;
+        paramtype = document.forms[0].elements["paramtype"];
+        paramtype.value = type;
+        paramtarget = document.forms[0].elements["paramtarget"];
+        paramtarget.value = target;
+        paramid = document.forms[0].elements["paramid"];
+        paramid.value = id;
+        parammenutype = document.forms[0].elements["parammenutype"];
+        parammenutype.value = menu;        
+        paramx = document.forms[0].elements["paramx"];
+        paramx.value = ex;        
+        paramy = document.forms[0].elements["paramy"];
+        paramy.value = ey;        
+    };
+    function beforeprocessmenu(e) {
+        menu = $(e.target).attr('menu');
+        if (menu == undefined || menu == "NONE") return false;
+        else {
+            return true;
+        }
+    };
+    function aftershowmenu(m) {
+        // save the menuobject of the menu currently being displayed
+        global_menuobject = m;
+    };
+    function processmenu(option, menuObjectTarget) {
+        console.log("pm: ", option, menuObjectTarget);
+        data = $(menuObjectTarget).attr('data');
+        if (data != undefined) {
+            // we have been called from a flow album
+            x = document.forms[0].elements["paramx"].value;
+            y = document.forms[0].elements["paramy"].value;
+            global_contentflow.conf.processrightclick(option,menuObjectTarget,x,y);
+        }
+        else {
+            // normal call from accordion
+            parammenuoption = document.forms[0].elements["parammenuoption"];
+            parammenuoption.value = option;
+            ajax('{{=URL(r=request, f='calloption')}}', ['paramtitle', 'paramtype', 'paramtarget', 'paramid', 'parammenuoption', 'parammenutype'], ':eval');
+        }
+    };        
+
+
+    function processmenuflow(option, content) {
+        data = $(content).attr('data');
+        entries = data.split("::::");
+        entry = entries[0].split("::");
+        id = entry[0];
+        type = entry[1];
+        menu = entry[2];
+        title = entry[3];
+        params = ['paramtitle='+title, 'paramtype='+type, 'paramtarget=""', 'paramid='+id, 'parammenuoption='+option, 'parammenutype='+menu];
+        ajax2('{{=URL(r=request, f='calloption')}}', params, ':eval');
+    };        
+
+    function processmenuflowmulti(option, count, data) {
+        params = ['data='+data, 'option='+option]
+        ajax2('{{=URL(r=request, f='calloptionmulti')}}', params, ':eval');
+    };        
+
+
+    jQuery("#accordion").live('accordionchangestart', function(event, ui) {
+        // hide any context menu that is currently displayed
+		if (global_menuobject != null) global_menuobject.hide();
+        // act on hide click
+        if ($(ui.etarget).is("span.ui-icon-triangle-1-ne")) {
+            if ($(ui.eheader).next().is(':parent')) {
+                $(ui.eheader).next().slideUp('fast');
+            }
+            $(ui.eheader).slideUp('fast');
+            return false;
+        }
+        if (ui.newHeader.length != 0) {
+            if (ui.newHeader.attr('visited') == 'y') return;
+            ui.newHeader.children(".ui-icon-triangle-1-s:first").addClass('clicker');
+            title = ui.newHeader.text();
+            aobject = ui.newHeader.children().last();
+            atarget = aobject.attr("id");
+            target = atarget.substring(1);
+            id = target.substring(6);
+            type = aobject.attr("type");
+            menu = aobject.attr("menu");
+            /*
+            paramtitle = document.forms[0].elements["paramtitle"];
+            paramtitle.value = title;
+            paramtype = document.forms[0].elements["paramtype"];
+            paramtype.value = type;
+            paramtarget = document.forms[0].elements["paramtarget"];
+            paramtarget.value = target;
+            paramid = document.forms[0].elements["paramid"];
+            paramid.value = id;
+            paramoption = document.forms[0].elements["paramoption"];
+            paramoption.value = 'accord';
+            parammenutype = document.forms[0].elements["parammenutype"];
+            parammenutype.value = menu;
+            searchstring = document.forms[0].elements["searchstring"];
+            searchstring.value = '';
+            searchoperator = document.forms[0].elements["searchoperator"];
+            searchoperator.value = '';
+            update_browsedata('1,0,100');
+            ajax('{{=URL(r=request, f='getdata')}}', ['paramtitle', 'paramtype', 'paramtarget', 'paramid', 'paramoption', 'parammenutype', 'searchstring', 'searchoperator', 'browsedata'], ':eval');
+            */
+            params = ['paramtitle='+title, 'paramtype='+type, 'paramtarget='+target, 'paramid='+id, 'paramoption=accord', 'parammenutype='+menu, 'searchstring=', 'searchoperator=', 'browsedata=1,0,100', 'chainparams=1,,']
+            ajax2('{{=URL(r=request, f='getdata')}}', params, ':eval');
+            if (ui.newHeader.attr('accord') == 'closed') {
+                ui.newHeader.children(".ui-icon-triangle-1-s:first").removeClass('ui-icon-triangle-1-s').addClass('ui-icon-refresh');
+                ui.newHeader.attr('accord', 'open');
+            }        
+            ui.newHeader.attr('visited', 'y');
+        }
+        else {
+            if (ui.oldHeader.attr('accord') == 'open') {
+                ui.oldHeader.attr('accord', 'closed');
+            }               
+        }
+    });
+    function update_browsedata(data) {
+        browsedata = document.forms[0].elements["browsedata"];
+        browsedata.value = data;
+    };
+    function update_paramtarget(target) {
+        paramtarget = document.forms[0].elements["paramtarget"];
+        paramtarget.value = target;
+    };
+    function update_queuecall(data) {
+        queuecall = document.forms[0].elements["queuecall"];
+        queuecall.value = data;
+    };
+    function update_queueentry(data) {
+        queueentry = document.forms[0].elements["queueentry"];
+        queueentry.value = data;
+    };
+    jQuery("#accordion li, #queue li, #dialogtarget li, #dialogtarget2 li").live('click', function(e) {
+        var $target = $(e.target);
+        // promote icon click
+        if ($target.is("span.ui-icon,span.ui-icon-triangle-1-ne,img")) {
+            $target = $target.parent();
+        }
+        if (! ($target.is("a"))) {
+            if (! ($target.is("span"))) return false;
+            // promote extras click
+            else $target = $target.parent();
+            console.log($target);
+        }
+        // hide any context menu that is currently displayed
+		if (global_menuobject != null) global_menuobject.hide();
+        aobject = $(this).find("a");
+        atarget = aobject.attr("id");
+        target = atarget.substring(1);
+        hashtarget = '#' + target;
+        hashstarget = '#s' + target;
+        type = aobject.attr("type");
+        // act on hide click
+        if ($(e.target).is("span.ui-icon-triangle-1-ne")) {
+            $(this).parent().find(hashtarget).parent().slideUp('fast');
+            return true;
+        }
+        if (type != "T") {
+            if ($(this).attr('tree') == 'open') {
+                $(this).parent().find(hashtarget).slideUp('fast');
+                // special case for separated lists
+                cont = 1;
+                while (true) {
+                    conttarget = hashtarget + '__' + cont;
+                    contobject = $(this).parent().find(conttarget);
+                    if (contobject.length == 0) break;
+                    else contobject.slideUp('fast');
+                    cont += 1;
+                }
+                $target.children(".ui-icon:first").attr('class', 'ui-icon ui-icon-plus');
+                $(this).attr('tree', 'closed');
+                if (type == "S") {
+                    $(this).parent().find(hashstarget).slideUp('fast');
+                }
+                return false;
+            }
+            else {
+                if ($(this).attr('visited') == 'y') {
+                    $(this).parent().find(hashtarget).slideDown('fast');
+                    // special case for separated lists
+                    cont = 1;
+                    while (true) {
+                        conttarget = hashtarget + '__' + cont;
+                        contobject = $(this).parent().find(conttarget);
+                        if (contobject.length == 0) break;
+                        else contobject.slideDown('fast');
+                        cont += 1;
+                    }
+                    $target.children(".ui-icon:first").attr('class', 'ui-icon ui-icon-minus');
+                    $(this).attr('tree', 'open');
+                    if (type == "S") {
+                        $(this).parent().find(hashstarget).slideDown('fast');
+                    }
+                    return false;
+                }
+            }
+        }
+        if (type == "N") {
+            return false;
+        }
+        if (type == "T") {
+//            play_item($target);
+            play_item(e);
+            return false;
+        }        
+
+        title = gettitle($target);
+
+        menu = aobject.attr("menu");
+        if (type == "C") {
+            $target.children(".ui-icon-plus:first").addClass('clicker');
+            id = target.substring(6);
+            /*
+            paramtitle = document.forms[0].elements["paramtitle"];
+            paramtitle.value = title;
+            paramtype = document.forms[0].elements["paramtype"];
+            paramtype.value = type;
+            paramtarget = document.forms[0].elements["paramtarget"];
+            paramtarget.value = target;
+            paramid = document.forms[0].elements["paramid"];
+            paramid.value = id;
+            paramoption = document.forms[0].elements["paramoption"];
+            paramoption.value = 'tree';
+            parammenutype = document.forms[0].elements["parammenutype"];
+            parammenutype.value = menu;
+            searchstring = document.forms[0].elements["searchstring"];
+            searchstring.value = '';
+            searchoperator = document.forms[0].elements["searchoperator"];
+            searchoperator.value = '';
+            update_browsedata('1,0,100');
+            ajax('{{=URL(r=request, f='getdata')}}', ['paramtitle', 'paramtype', 'paramtarget', 'paramid', 'paramoption', 'parammenutype', 'searchstring', 'searchoperator', 'browsedata'], ':eval');
+            */
+            params = ['paramtitle='+title, 'paramtype='+type, 'paramtarget='+target, 'paramid='+id, 'paramoption=tree', 'parammenutype='+menu, 'searchstring=', 'searchoperator=', 'browsedata=1,0,100', 'chainparams=1,,']
+            ajax2('{{=URL(r=request, f='getdata')}}', params, ':eval');
+            if ($(this).attr('tree') == 'closed') {
+                $(this).parent().find(hashtarget).slideDown('fast');
+                $target.children(".ui-icon-plus:first").removeClass('ui-icon-plus').addClass('ui-icon-refresh');
+                $(this).attr('tree', 'open');
+            }
+            $(this).attr('visited', 'y');
+        }
+        else if (type == "S") {
+            searchtype = $(this).attr('searchtype');
+            searchtype = sanitise(searchtype);
+            searchtype2 = $(this).attr('searchtype2');
+            if (searchtype2 == null) searchtype2 = "";
+            searchoperators = $(this).attr('searchoperators');
+            if (searchoperators != null) {
+                searchlist = '<select name="' + searchtype + '" class="searchlist">';
+                operators = searchoperators.split(",");
+                for (i=0;i<operators.length;i++) {
+                    kvoperators = operators[i].split(":");
+                    opkey = kvoperators[0];
+                    if (kvoperators.length == 2) opvalue = kvoperators[1];
+                    else opvalue = opkey;
+                    searchlist += '<option value="' + opvalue + '">' + opkey + '</option>';
+                }
+                searchlist += '</select>';
+            }
+            else searchlist = '';
+            searchform = '<form class="' + searchtype + '"><input id="' + searchtype + '" type="text" class="searchinput"></input>' + searchlist + '<button class="fg-button ui-corner-all searchbutton" type="submit" onclick="searchserver(\'' + type + '\',\'' + target + '\',\'' + title + '\',\'' + menu + '\',\'' + searchtype2 + '\',$(this))" >Search</button></form>';
+            jQuery(hashstarget).html(searchform);                
+            $('#' + searchtype).focus();
+            if ($(this).attr('tree') == 'closed') {
+                $(this).attr('tree', 'open');
+            }
+            $(this).attr('visited', 'y');
+        }
+    });
+
+    function sanitise(text) {
+        text = text.replace("@","_at_");
+        text = text.replace(":","_colon_");
+        return text;
+    };
+
+    function gettitle(target) {
+        // get title - it can have extras appended to it, so need to remove those
+        // TODO: must be a better way to get the title text without the extras
+        fulltitle = $(target).text();
+        extras = $(target).children().text();
+        elen = extras.length;
+        if (elen > 0) {
+            flen = fulltitle.length;
+            title = fulltitle.substring(0, flen - elen);
+        }
+        else {
+            title = fulltitle;
+        }
+//        console.log(fulltitle, " - ", extras, " - ", title);
+        return title;
+    };
+
+    function searchserver(type, searchtarget, searchtitle, searchmenu, searchtype2, searchobject) {
+        search_string = searchobject.parent().children("input").val();
+        search_operator = searchobject.parent().children("select").val();
+        if (search_operator == null) search_operator = "";
+        id = searchtarget.substring(6);
+        /*
+        paramtitle = document.forms[0].elements["paramtitle"];
+        paramtitle.value = searchtitle;
+        paramtype = document.forms[0].elements["paramtype"];
+        paramtype.value = type;
+        paramtarget = document.forms[0].elements["paramtarget"];
+        paramtarget.value = searchtarget;
+        paramid = document.forms[0].elements["paramid"];
+        paramid.value = id;
+        paramoption = document.forms[0].elements["paramoption"];
+        paramoption.value = 'tree';
+        parammenutype = document.forms[0].elements["parammenutype"];
+        parammenutype.value = searchmenu;
+        searchstring = document.forms[0].elements["searchstring"];
+        searchstring.value = search_string;
+        searchoperator = document.forms[0].elements["searchoperator"];
+        searchoperator.value = search_operator;
+        update_browsedata('1,0,100');
+        */
+        setmessagebar("Searching...");
+        if (searchtype2 != "") {
+            // this is a multiple search
+            searchtypes = searchtype2.split('__');
+            for (st=0;st<searchtypes.length;st++) {
+                searchkeys = searchtypes[st].split('::');
+                id = searchkeys[0];
+                title = searchkeys[1];
+                target = searchtarget + '__' + (st+1);
+                searchname = $("#"+target).attr("sname");
+                params = ['paramtitle='+title, 'paramtype='+type, 'paramtarget='+target, 'paramid='+id, 'paramoption=tree', 'parammenutype='+searchmenu, 'searchstring='+search_string, 'searchoperator='+search_operator, 'browsedata=1,0,100', 'chainparams=1,,', 'searchname='+searchname]
+                ajax2('{{=URL(r=request, f='getdata')}}', params, ':eval');
+            }
+        }
+        else {
+            params = ['paramtitle='+title, 'paramtype='+type, 'paramtarget='+target, 'paramid='+id, 'paramoption=tree', 'parammenutype='+searchmenu, 'searchstring='+search_string, 'searchoperator='+search_operator, 'browsedata=1,0,100', 'chainparams=1,,']
+            ajax2('{{=URL(r=request, f='getdata')}}', params, ':eval');
+        }
+    };
+    jQuery("#accordion li.play").live('dblclick', function(e) {
+        play_item(e);
+    });
+    function play_item(e) {
+        etarget = e.target;
+        // hide any context menu that is currently displayed
+		if (global_menuobject != null) global_menuobject.hide();
+        // save the item that was double clicked
+        saveclickedelement(e);
+        // perform the default option on the item
+        defaultoption = document.forms[0].elements["defaultoptionname"].value + "();"
+        console.log(defaultoption);
+        try {
+            eval(defaultoption);
+        }
+        catch(e) {
+            // if default option not set, try "play now"
+            eval('processmenu("PNDQ");');
+        }
+    };    
+    jQuery(document).ready(function(){
+        resizetoscreen();
+        // fix #right x position so creating menu doesn't cause it to be resized
+        global_right_position = $("#right").css("position");
+        global_right_left = $("#right").css("left");
+        var offset = $("#right").offset();
+        $("#right").css("left", offset.left);
+        $("#right").css("position", "absolute");
+    });
+    $(window).resize(function() {
+        // restore fixed #right position
+        $("#right").css("position", global_right_position);
+        $("#right").css("left", global_right_left);
+        resizetoscreen();
+        // set #right back to fixed again
+        var offset = $("#right").offset();
+        $("#right").css("left", offset.left);
+        $("#right").css("position", "absolute");
+    });
+    function resizetoscreen() {
+        setwidth();
+        setheight();
+    };
+    function getvertpaddingbordermargin(object) {
+        paddingobject = object.padding();
+        padding = paddingobject.top + paddingobject.bottom;
+        borderobject = object.border();
+        border = borderobject.top + borderobject.bottom;
+        marginobject = object.margin();
+        margin = marginobject.top + marginobject.bottom;
+        all = padding + border + margin;
+        return all;
+    };
+    function setheight() {
+        if (getmobile() == false) {
+            windowheight = $(window).height();
+            headerheight = $("#header").height();
+            footerheight = $("#footer").height();
+            centretopheight = $("#centretop").height();
+            centremiddleheight = $("#centremiddle").height();
+            centretoppbm = getvertpaddingbordermargin($("#centretop"));
+            centremiddlepbm = getvertpaddingbordermargin($("#centremiddle"));
+            centrebottompbm = getvertpaddingbordermargin($("#centrebottom"));
+            totalpbm = centretoppbm + centremiddlepbm + centrebottompbm;
+            contentheight = windowheight - headerheight - footerheight;
+            centrebottomheight = contentheight - centretopheight - centremiddleheight;
+            if ((centretopheight+centremiddleheight) > contentheight) {
+                contentheight = (2 * centretopheight) + centremiddleheight;
+                centrebottomheight = centretopheight;
+            }
+            
+//            stuff = contentheight + " " + $("#right").height() + " " + $("#servers").height() +  " " + $("#accordion").height()
+//            alert(stuff);
+
+            $("#left").height(contentheight - totalpbm + 2);
+            $("#right").height(contentheight - totalpbm + 2);
+            $("#centrebottom").height(centrebottomheight - totalpbm);
+        }
+        else {
+            windowheight = $(window).height();
+            $("#left").height(windowheight);
+            $("#right").height(windowheight);
+            $("#centrebottom").height(windowheight);
+            centremiddleheight = $("#centremiddle").height();
+            $("#centretop").height(windowheight - centremiddleheight);
+        }
+    };
+    function gethorizpaddingbordermargin(object) {
+        paddingobject = object.padding();
+        padding = paddingobject.left + paddingobject.right;
+        borderobject = object.border();
+        border = borderobject.left + borderobject.right;
+        marginobject = object.margin();
+        margin = marginobject.left + marginobject.right;
+        all = padding + border + margin;
+        return all;
+    };
+    function setwidth() {
+        if (getmobile() == false) {
+            windowwidth = $(window).width();
+            leftpbm = gethorizpaddingbordermargin($("#left"));
+    //        centrepbm = gethorizpaddingbordermargin($("#centre"));
+            rightpbm = gethorizpaddingbordermargin($("#right"));
+    //        totalpbm = leftpbm + centrepbm + rightpbm;
+            col1 = (windowwidth * (13.0/100.0)) + leftpbm;
+            col3 = (windowwidth / 2) + rightpbm;
+    //        col2 = windowwidth - col1 - col3 - totalpbm;
+            $("#left").width(col1);
+            $("#right").width(col3);
+            $("#centretop").css("margin-left",col1);
+            $("#centretop").css("margin-right",col3);
+            $("#centremiddle").css("margin-left",col1);
+            $("#centremiddle").css("margin-right",col3);
+            $("#centrebottom").css("margin-left",col1);
+            $("#centrebottom").css("margin-right",col3);
+        }
+        else {
+            windowwidth = $(window).width();
+            $("#left").width(windowwidth);
+            $("#right").width(windowwidth);
+            $("#centretop").width(windowwidth);
+            $("#centremiddle").width(windowwidth);
+            $("#centrebottom").width(windowwidth);
+        }
+    };
+    function updatewidth(col, ui) {
+        // resize columns, parameter is column just changed
+        if (col == 'RIGHT') {
+            windowwidth = $(window).width();
+            leftpbm = gethorizpaddingbordermargin($("#left"));
+            rightpbm = gethorizpaddingbordermargin($("#right"));
+            col1 = $('#left').width();
+            col3 = $('#right').width();
+            col2 = $("#centretop").width();
+            c = ui.size.width;
+//            col2 = windowwidth - col1 - col3;
+            console.log(windowwidth, col1, col2, col3, c, ui.position.left);
+            c = col3
+//            $("#centretop").css("margin-right",c);
+//            $("#centremiddle").css("margin-right",c);
+//            $("#centrebottom").css("margin-right",c);
+        }
+    };
+</script>

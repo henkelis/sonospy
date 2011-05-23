@@ -1,0 +1,74 @@
+{{extend 'layout.html'}}
+{{if TEXT_EDITOR == 'amy':}}
+{{include 'default/amy_ajax.html'}}
+{{else:}}
+<script language="Javascript" type="text/javascript" src="{{=URL(r=request,c='static',f='edit_area/edit_area_full.js')}}"></script><script language="Javascript" type="text/javascript">
+editAreaLoader.init({id: "body",start_highlight: true,allow_resize: "both",allow_toggle: {{=editarea_preferences['ALLOW_TOGGLE']}},language: "en",syntax: "{{=filetype}}",replace_tab_by_spaces: {{=editarea_preferences['REPLACE_TAB_BY_SPACES']}}, font_size: {{=editarea_preferences['FONT_SIZE']}}, fullscreen: {{=editarea_preferences['FULL_SCREEN']}}, display: "{{=editarea_preferences['DISPLAY']}}", show_line_colors: true, word_wrap: true, save_callback: "doClickSave" {{if filetype=='html':}},plugins: "zencoding"{{pass}} });
+</script>
+<script language="Javascript" type="text/javascript" src="/{{=request.application}}/static/ajax_editor.js"></script>
+<script language="Javascript" type="text/javascript">
+jQuery(document).ready(function(){
+     setTimeout("keepalive('{{=URL(r=request,f='keepalive')}}')",10000);
+});
+</script>
+{{pass}}
+
+<h1>{{=T('Editing file "%s"',filename)}}</h1>
+
+<div style="text-align:left;" id="exposed">
+{{if functions:}}
+  {{if editviewlinks:}}
+  {{=T('edit views:')}} {{=XML(', '.join([v.xml() for v in editviewlinks]))}}<br/>
+  {{pass}}
+{{=T('exposes')}} {{=XML(', '.join([A(f,_href=URL(a=app,c=controller,f=f)).xml() for f in functions]))}}
+{{pass}}
+
+[
+{{if edit_controller:}}
+<a href="{{=edit_controller}}">{{=T('edit controller')}}</a>{{if view_link:}} | {{=T("try")}} {{=view_link}}{{pass}}
+{{pass}}
+<a href="http://www.web2py.com/examples/static/epydoc/index.html" target="_blank">docs</a>
+{{if request.args[1]=='models':}}
+| <a href="http://www.web2py.com/sqldesigner" target="_blank">online designer</a>
+{{pass}}
+]
+
+</div>
+
+<br/><br/>
+
+<form action="{{=URL(r=request,f='edit',args=filename)}}" method="post">
+<input type="submit" value="save" onclick="return doClickSave();"/>
+{{=T('Saved file hash:')}}
+<input type="input" name="file_hash" value="{{=file_hash}}" readonly="readonly"/>
+{{=T('Last saved on:')}} <input type="input" name="saved_on" value="{{=saved_on}}" readonly="readonly"/>
+<br/>
+{{if TEXT_EDITOR=='amy':}}
+<textarea style="width: auto; height:400px" rows="58" cols="100" -amy-enabled="true" id="body" name="data">{{=data}}</textarea>
+{{else:}}
+<textarea cols="80" rows="25" id="body" style="width: 100%;" name="data">{{=data}}</textarea>
+{{pass}}
+<button onclick="window.location.reload(); return false">{{=T('restore')}}</button> {{=T('currently saved or')}} <input type="submit" name="revert" value="{{=T('revert')}}" />
+{{=T('to  previous version.')}}
+<br/>
+</form>
+
+<br/><br/>
+{{if filetype=='html':}}
+<h2>Key bindings for ZenConding Plugin</h2>
+<table>
+  <tr><td><code>Ctrl+S</code></td><td>Save via Ajax</td></tr>
+  <tr><td><code>Ctrl+,</code></td><td>Expand Abbreviation</td></tr>
+  <tr><td><code>Ctrl+M</code></td><td>Match Pair</td></tr>
+  <tr><td><code>Ctrl+H</code></td><td>Wrap with Abbreviation</td></tr>
+  <tr><td><code>Shift+Ctrl+M</code></td><td>Merge Lines</td></tr>
+  <tr><td><code>Ctrl+Shift+←</code></td><td>Previous Edit Point</td></tr>
+  <tr><td><code>Ctrl+Shift+→</code></td><td>Next Edit Point</td></tr>
+  <tr><td><code>Ctrl+Shift+↑</code></td><td>Go to Matching Pair</td></tr>
+</table>
+{{else:}}
+<h2>Key bindings</h2>
+<table>
+  <tr><td><code>Ctrl+S</code></td><td>Save via Ajax</td></tr>
+</table>
+{{pass}}

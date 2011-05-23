@@ -1,0 +1,87 @@
+{{extend 'layout.html'}}
+{{import os, glob}}
+
+<h1>{{=T("Installed applications")}}</h1>
+
+<table padding="5px"><tr><td width="60%">
+{{for a in apps:}} 
+{{if a==request.application:}}
+<h2><a href="#nil">{{=a}}</a></h2> [ 
+{{else:}}
+<h2><a href="{{=URL(a,'default','index')}}">{{=a}}</a></h2> [
+{{if not os.path.exists('applications/%s/compiled' % a):}}
+<a href="{{=URL(r=request,f='design',args=a)}}">{{=T("EDIT")}}</a> |
+{{else:}}
+<a href="{{=URL(a,'appadmin','index')}}">{{=T("appadmin")}}</a> |
+{{pass}}
+<a href="{{=URL(r=request,f='about',args=a)}}">{{=T("about")}}</a> |
+{{pass}}
+<a href="{{=URL(r=request,f='errors',args=a)}}">{{=T("errors")}}</a> |
+<a href="{{=URL(r=request,f='cleanup',args=a)}}">{{=T("clean")}}</a> |
+<a href="{{=URL(r=request,f='pack',args=a)}}">{{=T("pack all")}}</a> |
+{{if not os.path.exists('applications/%s/compiled' % a):}}
+<a href="{{=URL(r=request,f='compile_app',args=a)}}">{{=T("compile")}}</a>
+{{else:}}
+<a href="{{=URL(r=request,f='pack',args=(a, 'compiled'))}}">{{=T("pack compiled")}}</a> 
+{{if glob.glob('applications/%s/controllers/*.py' % a):}}
+| <a href="{{=URL(r=request,f='remove_compiled_app',args=a)}}">{{=T("remove compiled")}}</a> 
+{{pass}}
+{{pass}}
+{{if a!=request.application:}}
+| <a href="{{=URL(r=request,f='uninstall',args=a)}}">{{=T("uninstall")}}</a> 
+{{pass}}
+] <br/>
+{{pass}}
+<br/>
+
+</td><td align="right">
+<div style="background-color: #CCCCCC; padding: 5px;">
+<h3>{{=T('Version')}}</h3>
+web2py {{=myversion}}<br />
+{{if session.check_version:}}
+<div id="check_version">
+{{=T('Checking for upgrades...')}}
+</div>
+<script>ajax('{{=URL(r=request,f='check_version')}}',[],'check_version');</script>{{session.check_version=False}}
+{{else:}}
+<div id="check_version">
+{{=A(T('click to check for upgrades'),_href="javascript:ajax('"+URL(r=request,f='check_version')+"',[],'check_version')")}}
+</div>
+{{pass}}
+<a href="{{=URL(r=request,f='upgrade_web2py')}}">upgrade web2py now</a>
+</div><br/>
+
+<div style="background-color: #CCCCCC; padding: 5px;">
+<h3>{{=T("Create new application")}}</h3>
+<form action="" enctype="multipart/form-data" method="post"><table padding="0"><tr><td class="nowrap">{{=T("create new application:")}} </td><td><input name="filename" type="text" /></td></tr><tr><td></td><td><input type="submit" value="{{=T('create')}}" /></td></tr></table><div class="hidden"></div></form>
+</div><br/>
+
+<div style="background-color: #CCCCCC; padding: 5px;">
+<h3>{{=T("Upload & install packed application")}}</h3>
+<form action="" enctype="multipart/form-data" method="post"><table padding="0"><tr><td class="nowrap">{{=T("upload application:")}} </td><td><input name="file" type="file" /></td></tr><tr><td class="nowrap">{{=T("or provide app url:")}} </td><td><input name="appurl" type="text" /></td></tr><tr><td class="nowrap">{{=T("and rename it (required):")}}</td><td><input name="filename" type="text" /></td></tr><tr><td class="nowrap">{{=T("overwrite installed app")}}</td><td><input type="checkbox" name="overwrite_check"}}/></td></tr><tr><td></td><td><input type="submit" value="{{=T('install')}}" />
+</td></tr></table><div class="hidden"></div></form>
+
+
+
+
+</div><br/>
+
+{{if GAE_APPCFG and os.path.exists(GAE_APPCFG):}}
+<div style="background-color: #CCCCCC; padding: 5px;">
+<h3>{{=T("Deploy on Google App Engine")}}</h3>
+<center><a href="{{=URL(request.application,'gae','deploy')}}"><img src="{{=URL(r=request,c='static',f='gae.png')}}" alt="deploy"/></a></center>
+</div><br/>
+{{pass}}
+
+<div style="background-color: #CCCCCC; padding: 5px;">
+<h3>{{=T("web2py Recent Tweets")}}</h3>
+<div id="tweets">{{=T('loading...')}}</div>
+<script>
+  jQuery(document).ready(function(){jQuery('#tweets').load('{{=URL(r=request,f='twitter')}}')});
+</script>
+</div><br/>
+
+<div style="background-color: #CCCCCC; padding: 5px;">
+<a href="{{=URL(r=request,f='change_password')}}">change admin password</a>
+<br/>
+</td></tr></table>

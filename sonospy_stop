@@ -1,0 +1,15 @@
+#!/usr/bin/env sh
+# -*- coding: utf-8 -*-
+
+if [ -e pycpoint.pid ]
+then
+kill `cat pycpoint.pid`
+rm pycpoint.pid
+fi
+
+if [ -e web2py.pid ]
+then
+kill `cat web2py.pid`
+rm web2py.pid
+fi
+

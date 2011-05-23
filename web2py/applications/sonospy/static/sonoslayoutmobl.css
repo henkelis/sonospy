@@ -1,0 +1,28 @@
+#left {
+}
+#right {
+}
+#centretop {
+}
+#centremiddle {
+    overflow:hidden;
+}
+#centrebottom {
+}
+#footer {
+	clear: left;
+}
+.art-right {
+	float: right;
+}
+.albumart {
+	align: right;
+	width: 300px;
+}
+body {
+    overflow:hidden;
+}
+#navfiller {
+    padding-bottom: 25px;
+}
+

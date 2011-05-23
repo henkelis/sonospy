@@ -1,0 +1,13 @@
+{{extend 'layout.html'}}
+<script>
+function delkey(id) {
+  jQuery('#'+id).hide();
+  jQuery('#'+id+' INPUT').val(String.fromCharCode(127));
+  jQuery('#'+id+' TEXTAREA').val(String.fromCharCode(127));
+  return false; 
+}
+</script>
+<h1>{{=T('Editing Language file')}} "{{=filename}}"</h1><br/><br/>
+
+{{=form}}
+

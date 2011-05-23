@@ -1,0 +1,26 @@
+{{extend 'layout.html'}}
+<script>$=jQuery</script>
+<link rel="stylesheet" type="text/css" href="{{=URL(r=request,c='static',f='jqueryMultiSelect.css')}}" />
+<script src="{{=URL(r=request,c='static',f='jqueryMultiSelect.js')}}"></script>
+<script>
+function callback() {
+  $.get('{{=URL(r=request,f='callback')}}','',function(data,status){ if(data!='<done/>') { $('#target').html($('#target').html()+data); callback(); } });
+}
+$(document).ready(function() {
+   $('#applications').multiSelect({selectAll: false});
+   callback();
+});
+</script>
+
+<h1>Google App Engine Deployment Interface</h1>
+{{if command:}}
+<h3>Command</h3>
+<button onclick="$.get('{{=URL(r=request,f='kill')}}');">kill process</button>
+{{=CODE(command)}}
+<h3>GAE Output</h3>
+<pre id="target"></pre>
+{{else:}}
+<h3>Deployment form</h3>
+{{=form}}
+<i>Attention: deployment may take long time, depending on the network speed. DO NOT SUBMIT TWICE.</i>
+{{pass}}

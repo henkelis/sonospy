@@ -1,0 +1,482 @@
+sonospy
+=======
+            
+Python Control Point is a UPnP control point for audio files and streams.
+
+It is built on top of the BRisa UPnP framework, with extensions added
+for Sonos ZonePlayers and the content they can serve/render.
+
+It can be run in proxy only mode (no GUI).
+
+Dependencies in this order (links correct at time of writing):
+--------------------------------------------------------------
+You will need to download the following dependencies. Installation instructions for them
+for your platform can be found on the link pages.
+
+Python 2.6 or later (but not 3.0 and up)
+    Linux: from your distro or get the source tarball from http://www.python.org/download/releases/2.6.4/
+    Mac: http://www.python.org/download/releases/2.6.4/ - select the Mac installer
+    Windows: http://www.python.org/download/releases/2.6.4/ - select the windows installer
+        (for Windows, remember to set the path environment variable so it can find Python)
+    
+To play files locally on the machine running pycpoint:
+    gstreamer 0.10+ - http://gstreamer.freedesktop.org/download
+    gmediarender-0.0.6 - http://gmrender.nongnu.org/#dl
+
+To transcode file types on-the-fly that Sonos doesn't support
+    lame (for converting mp2 to mp3)
+    sox (for downsampling FLAC)
+    parec (to send PC output to ZP)
+
+Packages bundled with sonospy:
+------------------------------
+The following packages are bundled with sonospy (no need to download/install):
+
+cherrypy:
+    cherrypy WSGI server 3.1.2
+        (All platforms: http://www.cherrypy.org/wiki/CherryPyDownload)
+
+python-brisa:
+    python-brisa Framework 0.10.0
+    python-brisa Qt Reactor 0.10.0
+        (All platforms: http://brisa.garage.maemo.org/installation.html)
+
+web2py (only needed if running the control point with a GUI (rather than just as a proxy server)):
+    web2py 1.76.3+
+        (All platforms: http://www.web2py.com/examples/default/download)
+
+Installation of pycpoint:
+-------------------------
+Untar the source into your directory of choice. The source contains changes to the BRisa framework,
+which is bundled with it.
+
+Ports:
+------
+The following ports need to be open in the firewall on the machine you are running sonospy on. 
+Most are standard UPnP/WMP ports, with additional ones for the BRisa framework, the proxy and 
+IR control.
+
+Note that you may need to open ports specific to other UPnP media servers too (if you are using
+them).
+
+    1900            UDP
+    2149            UDP     (current M-SEARCH send port so WMP is picked up)
+    2869            TCP
+    10243           TCP
+    10244-+n        TCP     (proxy internal WMP server, inc for multiple, can be changed in ini)
+    10280-10284     UDP
+    50101-50102     TCP     (control point and proxy, can be changed in ini)
+    65432           UDP     (if using IR control, can be changed in ini)
+    
+Run:
+----
+To start the UPnP controlpoint and the web server, run:
+
+    For linux:
+    
+        ./sonospy_web
+        
+    For Windows:
+    
+        sonospy_web.cmd
+    
+from the directory you installed the source into. This will start the control point and
+web server in the background. Output from the control point will be written to pycpoint.log
+in the base directory, output from the web server to web2py.log.
+
+To connect to the web server, open a web browser and enter the following URL:
+
+    http://<IP ADDRESS>:8000/sonospy/default/index
+    
+replacing <IP ADDRESS> with the IP address of the machine running the web server. If you are
+running the web browser on the same machine as the web server you can use localhost as the ip
+address.
+
+In the browser you should see a GUI that allows selection and browsing of UPnP servers on the 
+local network and selection of UPnP renderers on the same network to play content on.
+
+The browser can also be started in mobile mode with a screen sized for use on mobile devices.
+
+To start in mobile mode run:
+
+    http://<IP ADDRESS>:8000/sonospy/default/index?M=P
+    
+        or
+
+    http://<IP ADDRESS>:8000/sonospy/default/index?M=L
+    
+where P starts in portrait orientation and L starts in landscape orientation.
+
+-------------------------------------------
+---- add more detail of mobile mode -------
+---- describe how to run on a mobile device
+-------------------------------------------
+
+To start the UPnP controlpoint as a proxy only, run:
+
+    For linux:
+
+        ./sonospy_proxy <parameters>
+        
+    For Windows:
+    
+        -- todo --
+        -- for now use the following --
+        
+        cd sonospy
+        pythonw pycpoint.py -p <parameters>
+    
+from the directory you installed the source into.
+
+You should select the appropriate parameters from the following list:
+
+    -u<upnpstring>    proxies the UPnP server that contains <upnpstring> in its friendly name
+                      as a Rhapsody UPnP server (upnpstring is case sensitive)
+                      
+    -w<upnpstring>    proxies the UPnP server that contains <upnpstring> in its friendly name
+                      as a WMP server on port 10243 (note this won't work if WMP is using that
+                      port on that machine) (upnpstring is case sensitive). Only one UPnP server
+                      can be proxied as WMP due to the single port available (the first one found)
+                      
+    -w<upnpstring>=<inistring>      as -w option above, but searches pycpoint.ini file for
+                                    configuration mappings for <inistring> server (see below)
+                                    
+    -wSonospy=<name>,<database>     special case that implements an internal WMP server on port 10243 (note
+                                    that won't work if WMP is using that port on that machine). If this 
+                                    option is used, -w<upnpstring> can't be used as only one WMP server can
+                                    be proxied due to the single port available. Multiple -wSonospy options
+                                    can be used. Note that you need to generate the database beforehand for
+                                    this option to work (see "Internal WMP Database" below for further 
+                                    information)
+
+Example parameters:
+
+    -uTwonky            proxies Twonky as a Rhapsody UPnP server (will show up on CR100)
+    
+    -wAsset             proxies Asset as a WMP server, allowing generic browsing (will show up
+                        on CR100/CR200/iTouch etc)
+    
+    -wTwonky=Twonky     proxies Twonky as a WMP server, using the config entries in the 
+                        Twonky section of pycpoint.ini (will show up on CR100/CR200/iTouch etc)
+
+    -wSonospy=music,sonos.sqlite    implements the internal WMP server, serving content described in
+                                    sonos.sqlite via a media server named music (will show up on the
+                                    CR100/CR200/iTouch etc)
+
+Example calls:
+                        
+    For linux:
+
+        ./sonospy_proxy -wTwonky=Twonky
+
+        ./sonospy_proxy -wSonospy=music,sonos.sqlite
+
+        ./sonospy_proxy -wSonospy=Peter,peter.sqlite -wSonospy=Leanne,leanne.sqlite
+        
+    For Windows:
+    
+        -- todo --
+        -- for now use the following --
+        
+        cd sonospy
+        pythonw pycpoint.py -p -wTwonky=Twonky
+
+        cd sonospy
+        pythonw pycpoint.py -p -wSonospy=music,sonos.sqlite
+
+You can also use the parameters above with the web browser, so for example to start the control 
+point with Twonky proxied and available to both the web browser and Sonos controllers run:
+
+    For linux:
+    
+        ./sonospy_web -wTwonky=Twonky
+        
+    For Windows:
+    
+        -- todo --
+        -- for now use the following --
+        
+        cd sonospy
+        pythonw pycpoint.py -p -wTwonky=Twonky
+        cd ..
+        pythonw web2py/web2py.py -L options.py
+
+When running as a proxy only you will need a separate control point (e.g. the Sonos controller)
+to select and play tracks.
+
+To stop the UPnP controlpoint and the web server (if running), run:
+
+    For linux:
+    
+        ./sonospy_stop
+        
+    For Windows:
+    
+        -- todo --
+        -- for now use the following --
+
+        stop pythonw processes in task manager
+
+This will stop the background processes.
+
+Further command line options are available for pycpoint as below - you'll need to edit the script files
+or create your own command lines to use them:
+
+    -d                enables debug output (this will be verbose and slow down searching etc)
+    
+    -m<module>        enables debug output for <module>
+    
+Note that you will have to initially run brisa-conf to set the error level to debug to see debug output.
+From the sonospy/sonospy directory run:
+
+    For linux:
+    
+        brisa-conf -s brisa -p logging DEBUG
+    
+    For windows:
+    
+        python brisa-conf -s brisa -p logging DEBUG
+ 
+There's a setconf.sh script in the tarball that you can edit and run if you manage to mess up the 
+brisa section in the config (for Windows use setconf.cmd).
+
+Internal WMP Database
+---------------------
+Sonospy implements an internal WMP clone for serving content. The clone browses an sqlite database
+containing tag data, and presents that to Sonos controllers. You need to create the database by 
+scanning you music files, then re-scan when changes have been made (tracks added or deleted, tags
+changed etc). A utility is provided to create and maintain databases. Scan reads all music files
+in a set of directories and extracts their tag data (this is stored in a database). This database
+is presented to Sonos controllers for browsing.
+
+Scan support multiple entry tags (so you can tag with multiple genres for instance). Multiple 
+entries in a tag are separated with a forward slash (/). Scan also supports multiple tags of the
+same name. Scan supports duplicate files in different directories (so you can have the same track in
+more than one place and each will be displayed on the Sonos controller (suffixed with a number).
+
+To scan you music library for metadata tags, navigate to the sonospy/sonospy directory and run:
+
+    For linux:
+    
+        ./scan -d <database> <path-to-files>
+    
+    For windows:
+    
+        python scan -d <database> <path-to-files>
+
+Note that on Windows any backslashes in the <path-to-files> have to be duplicated, and any spaces
+preceded by a backslash, e.g.
+
+    \\NAS\music\some music folder
+    
+needs to be:
+
+    \\\\NAS\\music\\some\ music\ folder
+    
+Scan supports -q for quiet and -v for verbose output.
+
+An example command to create a database named 'sonos.db' (in the sonospy/sonospy directory),
+reading music files from /mnt/nas (\\NAS\music on windows) is:
+
+    For linux:
+    
+        ./scan -d sonos.db /mnt/nas
+
+    For windows:
+    
+        python scan -d sonos.db \\\\NAS\\music
+
+It is possible to affect the default behaviour of scan by amending parameters in the scan.ini
+file.
+
+To change the way "The" is handled in artist names while browsing (note the full artist name
+will be displayed when playing), change the setting of the "the_processing" parameter. Options
+are:
+
+    before      leave "The" before the band name
+    after       move "The" after the band name
+    remove      (default) remove "The" from the band name
+
+--------------------------------------------
+---- add more detail of scan.ini values ----
+--------------------------------------------
+
+The initial run of scan will create your database. Subsequent runs to update the same database use exactly 
+the same command. The initial scan run will read all files, subsequent runs will only read files 
+that are new/deleted or have changed. You can also run subsequent runs in higher level directories 
+(for instance if you have just ripped a CD or changes an album's tags) - this will only scan/affect
+a subset of the full library (e.g. /mnt/nas/Linkin Park/Meteora
+
+The -wSonospy parameter to serve the files scanned above is:
+
+    -wSonospy=<name>,sonos.db
+    
+where <name> is the name you want the music library to be displayed under on the Sonos controllers.
+
+There are several ini file settings (in sonospy/sonospy/pycpoint.ini) that influence how the clone
+displays things on browsing (these are in the [INI] section of that file):
+
+    use_albumartist=Y   (or N)      works like the Sonos "use albumartist"
+    
+    show_duplicates=Y   (or N)      instructs the clone whether or not to show duplicate tracks/albums
+        
+    album_identification=album,artist   (or album) instructs the clone how to group albums of the same
+                                        name. "album/artist" displays separate albums per artist, whereas
+                                        "album" groups artists under one album 
+
+------------------------------------------------
+---- add more detail of pycpoint.ini values ----
+------------------------------------------------
+
+The clone also supports transcoding. If you attempt to play an mp2 file, the clone will transcode it 
+on-the-fly to mp3 and serve it as mp3 to Sonos. If you attempt to play a FLAC file that is >16 bit or
+>48k sample rate, the clone will transcode it on-the-fly and serve is as 16/48 to Sonos. If you attempt
+tp play a 6 channel FLAC file, the clone will transcode it to 2 channel.
+
+The clone also supports streaming of PC sound to Sonos. If you create a file <name>.pc in one of the
+folders in your music library, when you select to play it on Sonos the clone will stream whatever is
+playing on the PC soundcard to the Sonos (there will be a slight delay so the sound will be out of sync
+with the PC). If you put music tags in the .pc file, the clone will display those to Sonos when browsing
+(so for instance you can copy an mp3 file, change the tags to "PC soundcard" and rename the file to
+sound.pc - this file will show up as a track called "PC soundcard").
+
+Transcoding and streaming PC sound require you to have lame (for mp2), sox (for FLAC) and parec (for PC
+sound) installed and available on the command path.
+
+Browser notes:
+--------------
+Currently the web browser has some experimental views (Gallery and Flow). In order to utilise those views
+you need to bear the following in mind:
+
+*) To populate the cache of album entries for Gallery and Flow views, you need to select a server and
+   browse albums on it.
+*) To populate the cache of album art, after populating the cache of album entries you need to select
+   Cache Images.
+*) To be able to select tracks from the albums displayed in the Gallery and Flow views, you need to 
+   select the server containing those albums before entering the view.
+
+Login/register/lost password are not yet implemented.
+
+.ini file
+---------
+The control point can be configured via its ini file (pycpoint.ini), held in the sonospy directory within 
+the directory that you installed the source code. There are example settings within the ini file.
+
+To add UPnP to WMP server mappings in the pycpoint.ini file, you need to:
+
+---- add more detail about mappings ----
+
+1) Add <inistring>=<type> to the [WMP Translators] section (<inistring> can be any string, but make sure to
+specify that same string on the command line). <type> is the type of translation to use. Supported types are:
+    Through - Sonos WMP searches are passed through unadjusted to the proxied server
+              (will only work with fully WMP compliant servers - these will show up
+              on the Sonos controller anyway so it is only useful for testing)
+    Translate - WMP containers are translated to those specified for the UPnP server
+                (only 3 containers are actually used by Sonos for WMP)
+    Cache - WMP containers are translated, plus UPnP server returns are cached for
+            further WMP searches to translate into UPnP server searches
+    Browse - Sonos WMP searches are translated into UPnP server browses - NOTE, NOT CURRENTLY IMPLEMENTED    
+2) Add sections to the ini for:
+    [<inistring> Containers]
+    [<inistring> Container Mapping]
+    [<inistring> Attribute Mapping]
+3) Add entries in those sections as follows:
+    Containers        - the container ids that the UPnP server uses for the containers it supports 
+    Container Mapping - a mapping of the UPnP server containers to WMP ones. Where a WMP container is
+                        not supported, add an entry with nothing after the equals - that way the proxy
+                        returns nothing found and the CR100 will display a suitable message.
+    Attribute Mapping - a mapping of the MS attributes used in searches to ones supported by the UPnP
+                        server.
+
+To add IR over IP mappings for amplifier volume control in the pycpoint.ini file, you need to:
+
+---- add more detail about IR ----
+
+1) Add an [IP Volume] section.
+2) Add file mappings for volume up, down, mute and unmute for the friendly name(s) of the ZP(s) you wish
+to control. Entries are:
+    <friendlyname>,<volumechangetype>=<UDPdatafile>
+        where 
+            <friendlyname> is the name of the zone you wish to control
+            <volumechangetype> is one of
+                Volume Up
+                Volume Down
+                Volume Mute
+                Volume UnMute
+            <UDPdatafile> is the path to a file containing the data to send to the IR transmitter
+    IR_IP=<IRreceiverIPaddress>
+        where
+            <IRreceiverIPaddress> is the IP address of the IR transmitter
+    IR_PORT=<IRreceiverport>
+        where
+            <IRreceiverport> is the port number the IR transmitter is listening on
+
+You can also set some controller/proxy settings in the ini file in the [ini] section:
+
+    To set the port that the controlpoint runs on, set controlpoint_port
+    To set the port that the proxy runs on, set proxy_port
+    To set the port that WMP proxy runs on, set wmp_proxy_port
+    To set the udn of the internal WMP server, set internal_proxy_udn
+
+
+New features in 0.7
+-------------------
+*) Music served from Sonos can now be rendered locally via BRisa renderer.
+*) Twonky support added. Non-Sonos UPnP servers are wrapped in proxies so that Sonos (and control 
+point) can see them.
+*) Context sensitive right click.
+*) Control point can run as proxy only without a GUI.
+*) Support for sending IR commands over IP added.
+*) Support for Napster.
+*) Album and artist details added to media list display.
+*) Free text search added.
+*) GTK GUI removed and replaced with browser version.
+*) Gallery mode added to select albums/tracks via static art.
+*) Flow mode added to select albums/tracks via scrolling art.
+*) Added support for FooBar2000 to play locally on Windows
+*) Internal WMP server added
+
+Bugs fixed
+----------
+*) Out of sequence NOTIFY messages causing now playing to be out of date.
+*) Issue with M-SEARCH where creating proxy created new udp listener and overrode control point 
+udp listener.
+*) Dummy threads from M-SEARCH loop causing threads to be exhausted.
+*) WMP not being picked up via M-SEARCH.
+*) Fixed bug where single click on track or queue item didn't play item
+
+Known bugs/features:
+--------------------
+This is beta software, it may crash and may wipe you Sonos queue (so make sure you save it first).
+*) Only Napster currently supported as a third party music service. Other music services will be 
+displayed on browsing a ZP but they can't be accessed.
+*) There is currently no persistence for browse - all browses use HTTP calls to get music data from the 
+server they are querying. Calls are chunked to avoid flooding the network/server.
+*) UPnP servers served on the localhost address are not queried correctly.
+*) Twonky v4 does not return track duration when proxied.
+*) Album track listings on the reverse of album covers in Flow view do not work in IE.
+*) Search on proxied Twonky as a ZP service does not work.
+*) When rendering locally on gmediarender, you need to connect to the music source first if it is
+remote (e.g. if music is stored on a NAS, connect to the NAS on the PC before rendering).
+*) Browser on iPAQ does not obey mobile resizing with ?M=P.
+*) Global Search is not yet implemented.
+
+Known installation issues on Linux:
+-----------------------------------
+*) When unzipping the software it's possible that the sonospy/web2py/applications/sonospy/static/art
+directory won't get write permissions set, causing caching of album art to fail. You need to make 
+sure the user you are running under can write to that directory.
+
+Known installation issues on Windows:
+-------------------------------------
+*) Unzipping files with some unzippers creates the wrong directory names so the command files fail. 
+pkunzip is known to work.
+*) If an earlier version of Python is already installed and in the path before Python2.6, that version
+of Python will be utilised instead instead of version 2.6. You need to change your path environment
+variable.
+
+Known installation issues on FreeNAS:
+-------------------------------------
+*) By default the BRisa framework listens on eth0, whereas the FreeNAS interface is vr0. For running
+on FreeNAS you must change the interface by editing and running setconf.sh.
+

@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# -*- coding: utf-8 -*-
+
+cd sonospy
+python pycpoint.py -p $1 $2 $3 $4 $5 $6 $7 $8 >../pycpoint.log 2>&1 &
+echo $! >../pycpoint.pid
+
+
+

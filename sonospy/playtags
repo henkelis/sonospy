@@ -1,0 +1,1172 @@
+#!/usr/bin/env python
+
+# movetags
+#
+# gettags copyright (c) 2010-2011 Mark Henkelis
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+# Author: Mark Henkelis <mark.henkelis@tesco.net>
+
+import os
+import sys
+import sqlite3
+import optparse
+import re
+import time
+
+MULTI_SEPARATOR_SINGLE = '.'        # if this is present without any from SINGLELIST, only separate on this
+MULTI_SEPARATOR_SINGLELIST = ';/'   # check for these before splitting on single
+MULTI_SEPARATOR_MULTI = ';/'        # separate on any of these if not separating on SINGLE
+MULTI_SEPARATOR_REMOVE = ('...',)   # remove these before separating
+MULTI_SEPARATOR_REPLACE = ' / '     # consolidate on this separator unless single is found (in which case use single)
+
+def process_plays(args, options, playsdatabase, trackdatabase):
+
+    # tag_update records are processed sequentially as selected by id
+    # only records that have changed will have a tag_update pair
+    # each pair of tag_update records relate to a track record
+    # each track record can result in album/artist/albumartist/composer and genre records
+    # each track record can also result in lookup records for each of album/artist/albumartist/composer/genre
+    # lookup records are maintained to reduce DB access for library operation on small machines
+    # DB size is not constrained as the library is expected to have sufficient disk available
+    # artist/albumartist/composer/genre are multi entry fields, so can result in multiple lookup records
+    # lookup records are unique
+    # state is not maintained across tag_update/track records to save memory - the db is checked for duplicates
+
+    the_processing = options.the_processing.lower()
+    if options.verbose:
+        print "'The' processing: ", the_processing
+
+    db2 = sqlite3.connect(trackdatabase)
+    db2.execute("PRAGMA synchronous = 0;")
+    cs2 = db2.cursor()
+
+    db1 = sqlite3.connect(playsdatabase)
+    cs1 = db1.cursor()
+
+    processing_count = 1
+
+    try:
+
+        cs1.execute("""select * from plays where processed = 0 order by playtime""")
+
+        for row in cs1:
+
+            if options.verbose:
+                print str(row)
+
+            if not options.quiet and not options.verbose:
+                out = "processing tag: " + str(processing_count) + "\r" 
+                sys.stderr.write(out)
+                sys.stderr.flush()
+                processing_count += 1
+
+            playtime, zone, service, title, artist, album, duration, uri, uriname, database, processed = row
+
+#            # save latest play time
+#            this_scan_stamp = lastscanned
+#            if float(this_scan_stamp) > last_scan_stamp:
+#                last_scan_stamp = float(this_scan_stamp)
+
+            
+            '''       
+            # perform any "the" processing on artist/albumartist/composer lists
+            if the_processing == 'after' or the_processing == 'remove':
+#                        o_artistlist, o_artistliststring = process_list_the(o_artistlist, o_artistsingle, the_processing)
+#                        o_albumartistlist, o_albumartistliststring = process_list_the(o_albumartistlist, o_albumartistsingle, the_processing)
+#                        o_composerlist, o_composerliststring = process_list_the(o_composerlist, o_composersingle, the_processing)
+                o_artistlist, dummy = process_list_the(o_artistlist, o_artistsingle, the_processing)
+                o_albumartistlist, dummy = process_list_the(o_albumartistlist, o_albumartistsingle, the_processing)
+                o_composerlist, dummy = process_list_the(o_composerlist, o_composersingle, the_processing)
+            '''
+
+
+            # find track
+            try:
+
+                where = ''
+                if uriname and database and uriname != '' and database != '':
+                    # is a track played from this database, get key
+                    id = uriname[len(database)+1:].split('.')[0]
+                    cs2.execute("""select count(*) from tracks where id=?""", (id))
+                    count, = cs2.fetchone()
+                    count = int(count)
+                    if count == 1:
+                        where = 'id="%s"' % id
+                if where == '':
+                    # search on standard fields
+                    cs2.execute("""select count(*) from tracks where title=? and artist=? and album=?""",
+                                (title, artist, album))
+                    count, = cs2.fetchone()
+                    count = int(count)
+                    if count == 1:
+                        where = 'title="%s" and artist="%s" and album="%s"' % (title, artist, album)
+                    elif count == 0:
+                        # didn't find track
+                        where = ''
+                    else:
+                        # found more than one match - try adding duration
+                        length = makeseconds(duration)
+                        if length == 0:
+                            # didn't find track
+                            where = ''
+                        else:
+                            cs2.execute("""select count(*) from tracks where title=? and artist=? and album=? and length=?""",
+                                        (title, artist, album, length))
+                            count, = cs2.fetchone()
+                            count = int(count)
+                            if count == 1:
+                                where = 'title="%s" and artist="%s" and album="%s" and length="%s"' % (title, artist, album, length)
+                            else:
+                                where = ''
+
+                if where == '':
+                    # didn't find track
+                    print "Couldn't find track: %s" % str(row)
+                    continue
+
+                statement = 'select id, duplicate, lastplayed, playcount from tracks where %s' % where
+                cs2.execute(statement)
+                row = cs2.fetchone()
+                track_id, duplicate, lastplayed, playcount = row
+                if playcount == '': playcount = 0
+                if lastplayed == '': lastplayed = 0
+                
+                playcount = int(playcount) + 1
+                if float(playtime) > float(lastplayed):
+                    lastplayed = playtime
+
+                cs2.execute("""update tracks set 
+                               lastplayed=?, playcount=? 
+                               where id=?""", 
+                               (lastplayed, playcount, track_id))
+
+            except sqlite3.Error, e:
+                print "Error getting/updating track:", e.args[0]
+
+            ########
+            continue
+            ########
+
+            # album - one instance for all tracks from the album with the same album/artist/albumartist/duplicate, with multi entry strings concatenated
+
+            # if we have an update
+            #     if the key fields have changed, process as a delete and an insert
+            #     else update the non key fields if they have changed
+            # if we have a delete, delete the album if nothing else refers to it
+            # if we have an insert, insert the album if it doesn't already exist
+
+            # for update/delete need album id
+            if updatetype == 'D' or updatetype == 'U':
+                try:
+                    cs2.execute("""select id from albums where album=? and artist=? and albumartist=? and duplicate=?""",
+                                (o_album, o_artistliststring, o_albumartistliststring, o_duplicate))
+                    row = cs2.fetchone()
+                    if row:
+                        album_id, = row
+                except sqlite3.Error, e:
+                    print "Error getting album id:", e.args[0]
+
+            album_change = False
+            
+            if updatetype == 'U':
+            
+                # check whether album/artist/albumartist/duplicate have changed
+                if o_album != album or o_artistliststring != artistliststring or o_albumartistliststring != albumartistliststring or o_duplicate != duplicate:
+                    album_change = True
+                else:
+                    # check if there is anything else changed
+                    if o_year != year or o_cover != cover or o_artid != artid or o_inserted != inserted:
+                        # update base record
+                        try:
+                            albums = (year, cover, artid, inserted, album_id)
+                            if options.verbose:
+                                print "UPDATE ALBUM: " + str(albums)
+                            cs2.execute("""update albums set
+                                           year=?, cover=?, artid=?, inserted=? 
+                                           where id=?""", 
+                                           albums)
+                        except sqlite3.Error, e:
+                            print "Error updating album details:", e.args[0]
+
+            if updatetype == 'D' or album_change:
+
+                try:
+                    # only delete album if other tracks don't refer to it
+                    delete = (o_album, o_artistliststring, o_albumartistliststring, o_duplicate, album_id)
+                    if options.verbose:
+                        print "DELETE ALBUM: " + str(delete)
+                    cs2.execute("""delete from albums where not exists (select 1 from tracks where album=? and artist=? and albumartist=? and duplicate=?) and id=?""", delete)
+                except sqlite3.Error, e:
+                    print "Error deleting album details:", e.args[0]
+            
+            if updatetype == 'I' or album_change:
+
+                try:
+                    # check whether we already have this album (from a previous run or another track)
+                    count = 0
+                    cs2.execute("""select id from albums where album=? and artist=? and albumartist=? and duplicate=?""",
+                                  (album, artistliststring, albumartistliststring, duplicate))
+                    crow = cs2.fetchone()
+                    if crow:
+                        album_id, = crow
+                        count = 1
+                    if count == 0:
+                        # insert base record
+                        albums = (None, album_parentid, album, artistliststring, year, albumartistliststring, duplicate, cover, artid, inserted, '', '', 'object.container.album.musicAlbum')
+                        if options.verbose:
+                            print "INSERT ALBUM: " + str(albums)
+                        cs2.execute('insert into albums values (?,?,?,?,?,?,?,?,?,?,?,?,?)', albums)
+                        album_id = cs2.lastrowid
+
+                except sqlite3.Error, e:
+                    print "Error inserting album details:", e.args[0]
+
+            # insert multiple entry lookups at album/track level if they don't already exist
+            # note that these can change by track, hence we do it outside of album (which may not change)
+
+            # if we have an update
+            #     if the lookup fields have changed, process as a delete and an insert
+            #     (we don't try and work out the delta for each multi entry change)
+            # if we have a delete, delete the lookup if nothing else refers to it
+            # if we have an insert, insert the lookup if it doesn't already exist
+            genre_change = False
+            artist_change = False
+            albumartist_change = False
+            composer_change = False
+            lookup_change = False
+            
+            if updatetype == 'U':
+            
+                # check for changes
+                if o_genreliststring != genreliststring:
+                    genre_change = True
+                    lookup_change = True
+                if o_artistliststring != artistliststring:
+                    artist_change = True
+                    lookup_change = True
+                if o_albumartistliststring != albumartistliststring:
+                    albumartist_change = True
+                    lookup_change = True
+                if o_composerliststring != composerliststring:
+                    composer_change = True
+                    lookup_change = True
+
+            if updatetype == 'D' or lookup_change:
+
+                try:
+
+                    # these lookups are unique on track id so nothing else refers to them (so just delete)
+                    if updatetype == 'D' or genre_change:
+                        for o_genre in o_genrelist:
+                            if updatetype == 'D' or artist_change:
+                                for o_artist in o_artistlist:
+                                    delete = (track_id, o_genre, o_artist, o_album, o_duplicate)
+                                    if options.verbose:
+                                        print "DELETE GenreArtistAlbumTrack: " + str(delete)
+                                    cs2.execute("""delete from GenreArtistAlbumTrack where track_id=? and genre=? and artist=? and album=? and duplicate=?""", delete)
+                            if updatetype == 'D' or albumartist_change:
+                                for o_albumartist in o_albumartistlist:
+                                    delete = (track_id, o_genre, o_albumartist, o_album, o_duplicate)
+                                    if options.verbose:
+                                        print "DELETE GenreAlbumartistAlbumTrack: " + str(delete)
+                                    cs2.execute("""delete from GenreAlbumartistAlbumTrack where track_id=? and genre=? and albumartist=? and album=? and duplicate=?""", delete)
+                    if updatetype == 'D' or artist_change:
+                        for o_artist in o_artistlist:
+                            delete = (track_id, o_artist, o_album, o_duplicate)
+                            if options.verbose:
+                                print "DELETE ArtistAlbumTrack:" + str(delete)
+                            cs2.execute("""delete from ArtistAlbumTrack where track_id=? and artist=? and album=? and duplicate=?""", delete)
+                    if updatetype == 'D' or albumartist_change:
+                        for o_albumartist in o_albumartistlist:
+                            delete = (track_id, o_albumartist, o_album, o_duplicate)
+                            if options.verbose:
+                                print "DELETE AlbumartistAlbumTrack:" + str(delete)
+                            cs2.execute("""delete from AlbumartistAlbumTrack where track_id=? and albumartist=? and album=? and duplicate=?""", delete)
+                    if updatetype == 'D' or composer_change:
+                        for o_composer in o_composerlist:
+                            delete = (track_id, o_composer, o_album, o_duplicate)
+                            if options.verbose:
+                                print "DELETE ComposerAlbumTrack:" + str(delete)
+                            cs2.execute("""delete from ComposerAlbumTrack where track_id=? and composer=? and album=? and duplicate=?""", delete)
+
+                except sqlite3.Error, e:
+                    print "Error deleting lookup details:", e.args[0]
+            
+            if updatetype == 'I' or lookup_change:
+
+                try:
+
+                    if updatetype == 'I' or genre_change:
+                        for genre in genrelist:
+                            for artist in artistlist:
+                                check = (track_id, genre, artist, album, duplicate)
+                                cs2.execute("""select * from GenreArtistAlbumTrack where track_id=? and genre=? and artist=? and album=? and duplicate=?""", check)
+                                crow = cs2.fetchone()
+                                if not crow:
+                                    insert = check
+                                    if options.verbose:
+                                        print "INSERT GenreArtistAlbumTrack: " + str(insert)
+                                    cs2.execute('insert into GenreArtistAlbumTrack values (?,?,?,?,?)', insert)
+                            for albumartist in albumartistlist:
+                                check = (track_id, genre, albumartist, album, duplicate)
+                                cs2.execute("""select * from GenreAlbumartistAlbumTrack where track_id=? and genre=? and albumartist=? and album=? and duplicate=?""", check)
+                                crow = cs2.fetchone()
+                                if not crow:
+                                    insert = check
+                                    if options.verbose:
+                                        print "INSERT GenreAlbumartistAlbumTrack: " + str(insert)
+                                    cs2.execute('insert into GenreAlbumartistAlbumTrack values (?,?,?,?,?)', insert)
+                    if updatetype == 'I' or artist_change:
+                        for artist in artistlist:
+                            check = (track_id, artist, album, duplicate)
+                            cs2.execute("""select * from ArtistAlbumTrack where track_id=? and artist=? and album=? and duplicate=?""", check)
+                            crow = cs2.fetchone()
+                            if not crow:
+                                insert = check
+                                if options.verbose:
+                                    print "INSERT ArtistAlbumTrack:" + str(insert)
+                                cs2.execute('insert into ArtistAlbumTrack values (?,?,?,?)', insert)
+                    if updatetype == 'I' or albumartist_change:
+                        for albumartist in albumartistlist:
+                            check = (track_id, albumartist, album, duplicate)
+                            cs2.execute("""select * from AlbumartistAlbumTrack where track_id=? and albumartist=? and album=? and duplicate=?""", check)
+                            crow = cs2.fetchone()
+                            if not crow:
+                                insert = check
+                                if options.verbose:
+                                    print "INSERT AlbumartistAlbumTrack:" + str(insert)
+                                cs2.execute('insert into AlbumartistAlbumTrack values (?,?,?,?)', insert)
+                    if updatetype == 'I' or composer_change:
+                        for composer in composerlist:
+                            check = (track_id, composer, album, duplicate)
+                            cs2.execute("""select * from ComposerAlbumTrack where track_id=? and composer=? and album=? and duplicate=?""", check)
+                            crow = cs2.fetchone()
+                            if not crow:
+                                insert = check
+                                if options.verbose:
+                                    print "INSERT ComposerAlbumTrack:" + str(insert)
+                                cs2.execute('insert into ComposerAlbumTrack values (?,?,?,?)', insert)
+                            
+                except sqlite3.Error, e:
+                    print "Error inserting album/track lookup details:", e.args[0]
+
+            # artist - one instance for all tracks from the album with the same artist/albumartist, with multi entry strings concatenated
+
+            # if we have an update
+            #     if the key fields have changed, process as a delete and an insert
+            #     else update the non key fields if they have changed
+            # if we have a delete, delete the album if nothing else refers to it
+            # if we have an insert, insert the album if it doesn't already exist
+
+            # for update/delete need artist id
+            if updatetype == 'D' or updatetype == 'U':
+                try:
+                    cs2.execute("""select id from artists where artist=? and albumartist=?""",
+                                  (o_artistliststring, o_albumartistliststring))
+                    row = cs2.fetchone()
+                    if row:
+                        artist_id, = row
+                except sqlite3.Error, e:
+                    print "Error getting artist id:", e.args[0]
+
+            artist_change = False
+            
+            if updatetype == 'U':
+            
+                # check whether artist/albumartist have changed
+                if o_artistliststring != artistliststring or o_albumartistliststring != albumartistliststring:
+                    artist_change = True
+                else:
+                    # there is nothing to change outside the keys fields
+                    # so there can't be an update
+                    pass
+
+            if updatetype == 'D' or artist_change:
+
+                try:
+                    # only delete artist if other tracks don't refer to it
+                    delete = (o_artistliststring, o_albumartistliststring, artist_id)
+                    if options.verbose:
+                        print "DELETE ARTIST: " + str(delete)
+                    cs2.execute("""delete from artists where not exists (select 1 from tracks where artist=? and albumartist=?) and id=?""", delete)
+                except sqlite3.Error, e:
+                    print "Error deleting artist details:", e.args[0]
+            
+            if updatetype == 'I' or artist_change:
+
+                try:
+
+                    # check whether we already have this artist (from a previous run or another track)
+                    count = 0
+                    cs2.execute("""select id from artists where artist=? and albumartist=?""",
+                                  (artistliststring, albumartistliststring))
+                    crow = cs2.fetchone()
+                    if crow:
+                        artist_id, = crow
+                        count = 1
+                    if count == 0:
+                        # insert base record
+                        artists = (None, str(artist_parentid), artistliststring, albumartistliststring, '', '', 'object.container.person.musicArtist')
+                        if options.verbose:
+                            print "INSERT ARTIST: " + str(artists)
+                        cs2.execute('insert into artists values (?,?,?,?,?,?,?)', artists)
+                        artist_id = cs2.lastrowid
+
+                except sqlite3.Error, e:
+                    print "Error inserting artist details:", e.args[0]
+
+            # insert multiple entry lookups at artist/album level if they don't already exist
+            # note that these can change by track, hence we do it outside of artist (which may not change)
+
+            # if we have an update
+            #     if the lookup fields have changed, process as a delete and an insert
+            #     (we don't try and work out the delta for each multi entry change)
+            # if we have a delete, delete the lookup if nothing else refers to it
+            # if we have an insert, insert the lookup if it doesn't already exist
+
+            if updatetype == 'D' or lookup_change:
+
+                try:
+
+                    if updatetype == 'D' or genre_change:
+                        for o_genre in o_genrelist:
+                            for o_artist in o_artistlist:
+                                delete = (o_genre, o_artist, artist_id)
+                                if options.verbose:
+                                    print "DELETE GenreArtist:" + str(delete)
+                                cs2.execute("""delete from GenreArtist where not exists (select 1 from GenreArtistAlbum where genre=? and artist=?) and artist_id=?""", delete)
+                                delete = (o_genre, o_artist, o_album, o_duplicate, album_id)
+                                if options.verbose:
+                                    print "DELETE GenreArtistAlbum:" + str(delete)
+                                cs2.execute("""delete from GenreArtistAlbum where not exists (select 1 from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate=?) and album_id=?""", delete)
+                            for o_albumartist in o_albumartistlist:
+                                delete = (o_genre, o_albumartist, artist_id)
+                                if options.verbose:
+                                    print "DELETE GenreAlbumartist:" + str(delete)
+                                cs2.execute("""delete from GenreAlbumartist where not exists (select 1 from GenreAlbumartistAlbum where genre=? and albumartist=?) and albumartist_id=?""", delete)
+                                delete = (o_genre, o_albumartist, o_album, o_duplicate, album_id)
+                                if options.verbose:
+                                    print "DELETE GenreAlbumartistAlbum:" + str(delete)
+                                cs2.execute("""delete from GenreAlbumartistAlbum where not exists (select 1 from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=?) and album_id=?""", delete)
+                    if updatetype == 'D' or artist_change:
+                        for o_artist in o_artistlist:
+                            delete = (o_artist, o_album, o_duplicate, album_id)
+                            if options.verbose:
+                                print "DELETE ArtistAlbum:" + str(delete)
+                            cs2.execute("""delete from ArtistAlbum where not exists (select 1 from ArtistAlbumTrack where artist=? and album=? and duplicate=?) and album_id=?""", delete)
+                    if updatetype == 'D' or albumartist_change:
+                        for o_albumartist in o_albumartistlist:
+                            delete = (o_albumartist, o_album, o_duplicate, album_id)
+                            if options.verbose:
+                                print "DELETE AlbumartistAlbum:" + str(delete)
+                            cs2.execute("""delete from AlbumartistAlbum where not exists (select 1 from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=?) and album_id=?""", delete)
+                    if updatetype == 'D' or composer_change:
+                        for o_composer in o_composerlist:
+                            delete = (o_composer, o_album, o_duplicate, album_id)
+                            if options.verbose:
+                                print "DELETE ComposerAlbum:" + str(delete)
+                            cs2.execute("""delete from ComposerAlbum where not exists (select 1 from ComposerAlbumTrack where composer=? and album=? and duplicate=?) and album_id=?""", delete)
+                except sqlite3.Error, e:
+                    print "Error deleting (genre)/(artist/albumartist/composer)/artist lookup details:", e.args[0]
+
+            if updatetype == 'I' or lookup_change:
+
+                try:
+
+                    if updatetype == 'I' or genre_change:
+                        for genre in genrelist:
+                            for artist in artistlist:
+                                check = (artist_id, genre)
+                                cs2.execute("""select * from GenreArtist where artist_id=? and genre=?""", check)
+                                crow = cs2.fetchone()
+                                if not crow:
+                                    insert = check + ('', '')
+                                    if options.verbose:
+                                        print "INSERT GenreArtist: " + str(insert)
+                                    cs2.execute('insert into GenreArtist values (?,?,?,?)', insert)
+                                check = (album_id, genre, artist, album, duplicate)
+                                cs2.execute("""select * from GenreArtistAlbum where album_id=? and genre=? and artist=? and album=? and duplicate=?""", check)
+                                crow = cs2.fetchone()
+                                if not crow:
+                                    insert = check + ('', '')
+                                    if options.verbose:
+                                        print "INSERT GenreArtistAlbum: " + str(insert)
+                                    cs2.execute('insert into GenreArtistAlbum values (?,?,?,?,?,?,?)', insert)
+                            for albumartist in albumartistlist:
+                                check = (artist_id, genre)
+                                cs2.execute("""select * from GenreAlbumartist where albumartist_id=? and genre=?""", check)
+                                crow = cs2.fetchone()
+                                if not crow:
+                                    insert = check + ('', '')
+                                    if options.verbose:
+                                        print "INSERT GenreAlbumartist: " + str(insert)
+                                    cs2.execute('insert into GenreAlbumartist values (?,?,?,?)', insert)
+                                check = (album_id, genre, albumartist, album, duplicate)
+                                cs2.execute("""select * from GenreAlbumartistAlbum where album_id=? and genre=? and albumartist=? and album=? and duplicate=?""", check)
+                                crow = cs2.fetchone()
+                                if not crow:
+                                    insert = check + ('', '')
+                                    if options.verbose:
+                                        print "INSERT GenreAlbumartistAlbum: " + str(insert)
+                                    cs2.execute('insert into GenreAlbumartistAlbum values (?,?,?,?,?,?,?)', insert)
+                    if updatetype == 'I' or artist_change:
+                        for artist in artistlist:
+                            check = (album_id, artist, album, duplicate)
+                            cs2.execute("""select * from ArtistAlbum where album_id=? and artist=? and album=? and duplicate=?""", check)
+                            crow = cs2.fetchone()
+                            if not crow:
+                                insert = check + ('', '')
+                                if options.verbose:
+                                    print "INSERT ArtistAlbum:" + str(insert)
+                                cs2.execute('insert into ArtistAlbum values (?,?,?,?,?,?)', insert)
+                    if updatetype == 'I' or albumartist_change:
+                        for albumartist in albumartistlist:
+                            check = (album_id, albumartist, album, duplicate)
+                            cs2.execute("""select * from AlbumartistAlbum where album_id=? and albumartist=? and album=? and duplicate=?""", check)
+                            crow = cs2.fetchone()
+                            if not crow:
+                                insert = check + ('', '')
+                                if options.verbose:
+                                    print "INSERT AlbumartistAlbum:" + str(insert)
+                                cs2.execute('insert into AlbumartistAlbum values (?,?,?,?,?,?)', insert)
+                    if updatetype == 'I' or composer_change:
+                        for composer in composerlist:
+                            check = (album_id, composer, album, duplicate)
+                            cs2.execute("""select * from ComposerAlbum where album_id=? and composer=? and album=? and duplicate=?""", check)
+                            crow = cs2.fetchone()
+                            if not crow:
+                                insert = check + ('', '')
+                                if options.verbose:
+                                    print "INSERT ComposerAlbum:" + str(insert)
+                                cs2.execute('insert into ComposerAlbum values (?,?,?,?,?,?)', insert)
+                except sqlite3.Error, e:
+                    print "Error inserting (genre)/(artist/albumartist/composer)/album lookup details:", e.args[0]
+
+            # composer - one instance for all tracks from the album with the same composer, with multi entry strings concatenated
+
+            # if we have an update
+            #     if the key fields have changed, process as a delete and an insert
+            #     else update the non key fields if they have changed
+            # if we have a delete, delete the album if nothing else refers to it
+            # if we have an insert, insert the album if it doesn't already exist
+
+            # for update/delete need artist id
+            if updatetype == 'D' or updatetype == 'U':
+                try:
+                    cs2.execute("""select id from composers where composer=?""", (o_composerliststring,))
+                    crow = cs2.fetchone()
+                    if crow:
+                        composer_id, = crow
+                except sqlite3.Error, e:
+                    print "Error getting composer id:", e.args[0]
+
+            composer_change = False
+            
+            if updatetype == 'U':
+            
+                # check whether composer has changed
+                if o_composerliststring != composerliststring:
+                    composer_change = True
+                else:
+                    # there is nothing to change outside the keys fields
+                    # so there can't be an update
+                    pass
+
+            if updatetype == 'D' or composer_change:
+
+                try:
+                    # only delete composer if other tracks don't refer to it
+                    delete = (o_composerliststring, composer_id)
+                    if options.verbose:
+                        print "DELETE COMPOSER: " + str(delete)
+                    cs2.execute("""delete from composers where not exists (select 1 from tracks where composer=?) and id=?""", delete)
+
+                except sqlite3.Error, e:
+                    print "Error deleting composer details:", e.args[0]
+            
+            if updatetype == 'I' or composer_change:
+
+                try:
+
+                    # check whether we already have this composer (from a previous run or another track)
+                    count = 0
+                    cs2.execute("""select id from composers where composer=?""", (composerliststring,))
+                    crow = cs2.fetchone()
+                    if crow:
+                        composer_id, = crow
+                        count = 1
+                    if count == 0:
+                        # insert base record
+                        composers = (None, str(composer_parentid), composerliststring, '', '', 'object.container.person.musicArtist')
+                        if options.verbose:
+                            print "INSERT COMPOSER: " + str(composers)
+                        cs2.execute('insert into composers values (?,?,?,?,?,?)', composers)
+                        composer_id = cs2.lastrowid
+
+                except sqlite3.Error, e:
+                    print "Error inserting composer details:", e.args[0]
+
+            # genre - one instance for all tracks from the album with the same genre, with multi entry strings concatenated
+
+            # if we have an update
+            #     if the key fields have changed, process as a delete and an insert
+            #     else update the non key fields if they have changed
+            # if we have a delete, delete the album if nothing else refers to it
+            # if we have an insert, insert the album if it doesn't already exist
+
+            # for update/delete need artist id
+            if updatetype == 'D' or updatetype == 'U':
+                try:
+                    cs2.execute("""select id from genres where genre=?""", (o_genreliststring,))
+                    crow = cs2.fetchone()
+                    if crow:
+                        genre_id, = crow
+                except sqlite3.Error, e:
+                    print "Error getting genre id:", e.args[0]
+
+            genre_change = False
+            
+            if updatetype == 'U':
+            
+                # check whether composer has changed
+                if o_genreliststring != genreliststring:
+                    genre_change = True
+                else:
+                    # there is nothing to change outside the keys fields
+                    # so there can't be an update
+                    pass
+
+            if updatetype == 'D' or genre_change:
+
+                try:
+                    # only delete genre if other tracks don't refer to it
+                    delete = (o_genreliststring, genre_id)
+                    if options.verbose:
+                        print "DELETE GENRE: " + str(delete)
+                    cs2.execute("""delete from genres where not exists (select 1 from tracks where genre=?) and id=?""", delete)
+
+                except sqlite3.Error, e:
+                    print "Error deleting genre details:", e.args[0]
+            
+            if updatetype == 'I' or genre_change:
+
+                try:
+
+                    # check whether we already have this genre (from a previous run or another track)
+                    count = 0
+                    cs2.execute("""select id from genres where genre=?""", (genreliststring,))
+                    crow = cs2.fetchone()
+                    if crow:
+                        genre_id, = crow
+                        count = 1
+                    if count == 0:
+                        # insert base record
+                        genres = (None, str(genre_parentid), genreliststring, '', '', 'object.container.genre.musicGenre')
+                        if options.verbose:
+                            print "INSERT GENRE: " + str(genres)
+                        cs2.execute('insert into genres values (?,?,?,?,?,?)', genres)
+                        genre_id = cs2.lastrowid
+                except sqlite3.Error, e:
+                    print "Error inserting genre details:", e.args[0]
+
+    except KeyboardInterrupt: 
+        raise
+    except Exception, err: 
+        print str(err)
+
+    if options.verbose:
+        print "committing"
+    db2.commit()
+
+    cs1.close()
+
+    '''
+    # update the container update ID
+    if last_scan_stamp > 1:            
+        try:
+            params = (last_scan_stamp, scan_id)
+            if options.verbose:
+                print "UPDATE PARAMS: " + str(params)
+            cs2.execute("""update params set
+                           lastscanstamp=?, lastscanid=? 
+                           where key='1'""", 
+                           params)
+        except sqlite3.Error, e:
+            print "Error updating lastscanid details:", e.args[0]
+
+    '''
+
+    db2.commit()
+    cs2.close()
+
+    if options.verbose:
+        print "finished"
+
+def unwrap_list(liststring, processsingle=False):
+    for rem in MULTI_SEPARATOR_REMOVE:
+        liststring = liststring.replace(rem, '')
+    if not processsingle:
+        single = False
+    else:
+        single = True
+        for c in MULTI_SEPARATOR_SINGLELIST:
+            if c in liststring:
+                single = False
+                break
+    if MULTI_SEPARATOR_SINGLE in liststring and single:
+        # separate on this only
+        listlist = re.split('[%s]' % MULTI_SEPARATOR_SINGLE, liststring)
+        single_separator = True
+    else:
+        # separate on list
+        listlist = re.split('[%s]' % MULTI_SEPARATOR_MULTI, liststring)
+        single_separator = False
+    listlist = [e.strip() for e in listlist]
+    listlist = [e for e in listlist if e != '']
+    return (listlist, single_separator)
+
+def process_list_the(plist, processsingle, the_processing):
+    newlist = []
+    for entry in plist:
+        if entry.lower().startswith("the ") and entry.lower() != "the the":
+            postentry = entry[4:]
+            if the_processing == 'after':
+                preentry = entry[0:3]
+                newentry = postentry + ", " + preentry
+            else: # 'remove'
+                newentry = postentry
+            newlist.append(newentry)
+        else:
+            newlist.append(entry)
+    # recreate updated liststring
+    if processsingle:
+        newliststring = MULTI_SEPARATOR_SINGLE.join(newlist)
+    else:    
+        newliststring = MULTI_SEPARATOR_REPLACE.join(newlist)
+    return newlist, newliststring
+
+def makeseconds(stime):
+    if not ':' in stime:
+        return 0
+    h, m, s = stime.split(':')
+    return (int(h)*60*60 + int(m)*60 +int(s))
+
+def adjust_tracknumber(tracknumber):
+    tracknumber = tracknumber.strip()
+    if tracknumber != '':
+        try:
+            tracknumber = int(re.split('\D', tracknumber)[0])
+        except ValueError:
+            pass
+        except AttributeError:
+            pass
+    return tracknumber
+
+def check_target_database_exists(database):
+    ''' 
+        create database if it doesn't already exist
+        if it exists, create tables if they don't exist
+        return abs path
+    '''
+    create_database(database)
+
+def create_database(database):
+    db = sqlite3.connect(database)
+    c = db.cursor()
+    try:
+        # master parameters
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="params"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table params (key text,
+                                              lastupdated text, 
+                                              lastscanstamp text, 
+                                              lastscanid text, 
+                                              use_albumartist text,
+                                              show_duplicates text,
+                                              album_identification text)
+                      ''')
+            c.execute('''insert into params values ('1','0', '0', ' ', '', '', '')''')
+
+        # sort parameters
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="sorts"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table sorts (database text,
+                                             sort_type text,
+                                             sort_seq text,
+                                             sort_order text,
+                                             sort_prefix text,
+                                             sort_suffix text)
+                      ''')
+
+        # tracks - contain all detail from tags
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="tracks"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table tracks (id text, 
+                                              id2 text,
+                                              parentID text, 
+                                              duplicate text,
+                                              title text COLLATE NOCASE, 
+                                              artist text COLLATE NOCASE, 
+                                              album text COLLATE NOCASE,
+                                              genre text COLLATE NOCASE, 
+                                              tracknumber integer, 
+                                              year integer,
+                                              albumartist text COLLATE NOCASE, 
+                                              composer text COLLATE NOCASE, 
+                                              codec text,
+                                              tag text, 
+                                              length text, 
+                                              size text,
+                                              lastmodified text, 
+                                              path text, 
+                                              filename text,
+                                              discnumber integer, 
+                                              comment text, 
+                                              cover text,
+                                              bitrate text, 
+                                              samplerate text, 
+                                              bitspersample text,
+                                              channels text, 
+                                              mime text,
+                                              res text, 
+                                              protocol text, 
+                                              lastupdated text, 
+                                              upnpclass text,
+                                              artid text,
+                                              inserted text,
+                                              lastplayed text,
+                                              playcount integer,
+                                              lastscanned text)
+                      ''')
+            c.execute('''create unique index inxTracks on tracks (title, album, artist, tracknumber)''')
+            c.execute('''create unique index inxTrackId on tracks (id)''')
+            c.execute('''create index inxTrackId2 on tracks (id2)''')
+            c.execute('''create index inxTrackDuplicates on tracks (duplicate)''')
+            c.execute('''create index inxTrackTitles on tracks (title)''')
+            c.execute('''create index inxTrackAlbums on tracks (album)''')
+            c.execute('''create index inxTrackArtists on tracks (artist)''')
+            c.execute('''create index inxTrackAlbumArtists on tracks (albumartist)''')
+            c.execute('''create index inxTrackComposers on tracks (composer)''')
+            c.execute('''create index inxTrackYears on tracks (year)''')
+            c.execute('''create index inxTrackInserteds on tracks (inserted)''')
+            c.execute('''create index inxTrackLastplayeds on tracks (lastplayed)''')
+            c.execute('''create index inxTrackPlaycounts on tracks (playcount)''')
+            c.execute('''create index inxTrackPathFilename on tracks (path, filename)''')
+
+        # albums - one entry for each unique album/artist/albumartist combination from tracks list
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="albums"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table albums (id integer primary key autoincrement, 
+                                              parentID text, 
+                                              album text COLLATE NOCASE, 
+                                              artist text COLLATE NOCASE,
+                                              year text,
+                                              albumartist text COLLATE NOCASE, 
+                                              duplicate text,
+                                              cover text,
+                                              artid text,
+                                              inserted text,
+                                              lastplayed text,
+                                              playcount integer,
+                                              upnpclass text)
+                      ''')
+            c.execute('''create unique index inxAlbums on albums (album, artist, albumartist, duplicate)''')
+            c.execute('''create unique index inxAlbumId on albums (id)''')
+            c.execute('''create index inxAlbumAlbums on albums (album)''')
+            c.execute('''create index inxAlbumArtists on albums (artist)''')
+            c.execute('''create index inxAlbumAlbumArtists on albums (albumartist)''')
+            c.execute('''create index inxAlbumYears on albums (year)''')
+            c.execute('''create index inxAlbumInserteds on albums (inserted)''')
+            c.execute('''create index inxAlbumLastPlayeds on albums (lastplayed)''')
+            c.execute('''create index inxAlbumPlaycounts on albums (playcount)''')
+            # seed autoincrement
+            c.execute('''insert into albums values (3000000000,'','','','','','','','','','','','')''')
+            c.execute('''delete from albums where id=3000000000''')
+
+        # artists - one entry for each unique artist/albumartist combination from tracks list
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="artists"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table artists (id integer primary key autoincrement,
+                                               parentID text, 
+                                               artist text COLLATE NOCASE,
+                                               albumartist text COLLATE NOCASE, 
+                                               lastplayed text,
+                                               playcount integer,
+                                               upnpclass text)
+                      ''')
+            c.execute('''create unique index inxArtists on artists (artist, albumartist)''')
+            c.execute('''create unique index inxArtistId on artists (id)''')
+            c.execute('''create index inxArtistArtists on artists (artist)''')
+            c.execute('''create index inxArtistAlbumArtists on artists (albumartist)''')
+            c.execute('''create index inxArtistLastplayeds on artists (lastplayed)''')
+            c.execute('''create index inxArtistPlaycounts on artists (playcount)''')
+            # seed autoincrement
+            c.execute('''insert into artists values (1000000000,'','','','','','')''')
+            c.execute('''delete from artists where id=1000000000''')
+
+        # composers - one entry for each unique composer from tracks list
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="composers"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table composers (id integer primary key autoincrement,
+                                                 parentID text, 
+                                                 composer text COLLATE NOCASE,
+                                                 lastplayed text,
+                                                 playcount integer,
+                                                 upnpclass text)
+                      ''')
+            c.execute('''create unique index inxComposers on composers (composer)''')
+            c.execute('''create unique index inxComposerId on composers (id)''')
+            c.execute('''create index inxComposerLastplayeds on composers (lastplayed)''')
+            c.execute('''create index inxComposerPlaycounts on composers (playcount)''')
+            # seed autoincrement
+            c.execute('''insert into composers values (4000000000,'','','','','')''')
+            c.execute('''delete from composers where id=4000000000''')
+
+        # genres - one entry for each unique genre from tracks list
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="genres"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table genres (id integer primary key autoincrement,
+                                              parentID text, 
+                                              genre text COLLATE NOCASE,
+                                              lastplayed text,
+                                              playcount integer,
+                                              upnpclass text)
+                      ''')
+            c.execute('''create unique index inxGenres on genres (genre)''')
+            c.execute('''create unique index inxGenreId on genres (id)''')
+            c.execute('''create index inxGenreLastplayeds on genres (lastplayed)''')
+            c.execute('''create index inxGenrePlaycounts on genres (playcount)''')
+            # seed autoincrement
+            c.execute('''insert into genres values (5000000000,'','','','','')''')
+            c.execute('''delete from genres where id=5000000000''')
+            
+        # playlists
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="playlists"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table playlists (id integer primary key autoincrement,
+                                                 parentID text, 
+                                                 playlist text COLLATE NOCASE,
+                                                 path text,
+                                                 upnpclass text)
+                      ''')
+            c.execute('''create unique index inxPlaylists on playlists (playlist)''')
+            c.execute('''create unique index inxPlaylistId on playlists (id)''')
+            # seed autoincrement
+            c.execute('''insert into playlists values (7000000000,'','','','')''')
+            c.execute('''delete from playlists where id=7000000000''')
+            
+        # multi entry fields lookups - genre/artist level
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="GenreArtist"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table GenreArtist (artist_id integer, genre text COLLATE NOCASE, lastplayed text, playcount integer)''')
+            c.execute('''create unique index inxGenreArtist on GenreArtist (artist_id, genre)''')
+            c.execute('''create index inxGenreArtistGenre on GenreArtist (genre)''')
+            c.execute('''create index inxGenreArtistLastplayed on GenreArtist (lastplayed)''')
+            c.execute('''create index inxGenreArtistPlaycount on GenreArtist (playcount)''')
+
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="GenreAlbumartist"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table GenreAlbumartist (albumartist_id integer, genre text COLLATE NOCASE, lastplayed text, playcount integer)''')
+            c.execute('''create unique index inxGenreAlbumartist on GenreAlbumartist (albumartist_id, genre)''')
+            c.execute('''create index inxGenreAlbumartistGenre on GenreAlbumartist (genre)''')
+            c.execute('''create index inxGenreAlbumartistLastplayed on GenreAlbumartist (lastplayed)''')
+            c.execute('''create index inxGenreAlbumartistPlaycount on GenreAlbumartist (playcount)''')
+
+        # multi entry fields lookups - composer and artist/album level
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="GenreArtistAlbum"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table GenreArtistAlbum (album_id integer, genre text COLLATE NOCASE, artist text COLLATE NOCASE, album text COLLATE NOCASE, duplicate text, lastplayed text, playcount integer)''')
+            c.execute('''create unique index inxGenreArtistAlbum on GenreArtistAlbum (album_id, genre, artist, album, duplicate)''')
+            c.execute('''create index inxGenreArtistAlbumGenreArtist on GenreArtistAlbum (genre, artist, album)''')
+            c.execute('''create index inxGenreArtistAlbumLastplayed on GenreArtistAlbum (lastplayed)''')
+            c.execute('''create index inxGenreArtistAlbumPlaycount on GenreArtistAlbum (playcount)''')
+
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="GenreAlbumartistAlbum"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table GenreAlbumartistAlbum (album_id integer, genre text COLLATE NOCASE, albumartist text COLLATE NOCASE, album text COLLATE NOCASE, duplicate text, lastplayed text, playcount integer)''')
+            c.execute('''create unique index inxGenreAlbumartistAlbum on GenreAlbumartistAlbum (album_id, genre, albumartist, album, duplicate)''')
+            c.execute('''create index inxGenreAlbumartistAlbumGenreAlbumartist on GenreAlbumartistAlbum (genre, albumartist, album)''')
+            c.execute('''create index inxGenreAlbumartistAlbumLastplayed on GenreAlbumartistAlbum (lastplayed)''')
+            c.execute('''create index inxGenreAlbumartistAlbumPlaycount on GenreAlbumartistAlbum (playcount)''')
+
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="ArtistAlbum"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table ArtistAlbum (album_id integer, artist text COLLATE NOCASE, album text COLLATE NOCASE, duplicate text, lastplayed text, playcount integer)''')
+            c.execute('''create unique index inxArtistAlbum on ArtistAlbum (album_id, artist, album, duplicate)''')
+            c.execute('''create index inxArtistAlbumArtist on ArtistAlbum (artist)''')
+            c.execute('''create index inxArtistAlbumLastplayed on ArtistAlbum (lastplayed)''')
+            c.execute('''create index inxArtistAlbumPlaycount on ArtistAlbum (playcount)''')
+
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="AlbumartistAlbum"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table AlbumartistAlbum (album_id integer, albumartist text COLLATE NOCASE, album text COLLATE NOCASE, duplicate text, lastplayed text, playcount integer)''')
+            c.execute('''create unique index inxAlbumartistAlbum on AlbumartistAlbum (album_id, albumartist, album, duplicate)''')
+            c.execute('''create index inxAlbumartistAlbumAlbumartist on AlbumartistAlbum (albumartist)''')
+            c.execute('''create index inxAlbumartistAlbumLastplayed on AlbumartistAlbum (lastplayed)''')
+            c.execute('''create index inxAlbumartistAlbumPlaycount on AlbumartistAlbum (playcount)''')
+
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="ComposerAlbum"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table ComposerAlbum (album_id integer, composer text COLLATE NOCASE, album text COLLATE NOCASE, duplicate text, lastplayed text, playcount integer)''')
+            c.execute('''create unique index inxComposerAlbum on ComposerAlbum (album_id, composer, album, duplicate)''')
+            c.execute('''create index inxComposerAlbumComposer on ComposerAlbum (composer)''')
+            c.execute('''create index inxComposerAlbumAlbum on ComposerAlbum (album)''')
+            c.execute('''create index inxComposerAlbumLastplayed on ComposerAlbum (lastplayed)''')
+            c.execute('''create index inxComposerAlbumPlaycount on ComposerAlbum (playcount)''')
+
+        # multi entry fields lookups - album/track level
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="GenreArtistAlbumTrack"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table GenreArtistAlbumTrack (track_id integer, genre text COLLATE NOCASE, artist text COLLATE NOCASE, album text COLLATE NOCASE, duplicate text)''')
+            c.execute('''create unique index inxGenreArtistAlbumTrack on GenreArtistAlbumTrack (track_id, genre, artist, album, duplicate)''')
+            c.execute('''create index inxGenreArtistAlbumTrackGenreArtistAlbum on GenreArtistAlbumTrack (genre, artist, album)''')
+
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="GenreAlbumartistAlbumTrack"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table GenreAlbumartistAlbumTrack (track_id integer, genre text COLLATE NOCASE, albumartist text COLLATE NOCASE, album text COLLATE NOCASE, duplicate text)''')
+            c.execute('''create unique index inxGenreAlbumartistAlbumTrack on GenreAlbumartistAlbumTrack (track_id, genre, albumartist, album, duplicate)''')
+            c.execute('''create index inxGenreAlbumartistAlbumTrackGenreAlbumArtistAlbum on GenreAlbumartistAlbumTrack (genre, albumartist, album)''')
+
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="ArtistAlbumTrack"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table ArtistAlbumTrack (track_id integer, artist text COLLATE NOCASE, album text COLLATE NOCASE, duplicate text)''')
+            c.execute('''create unique index inxArtistAlbumTrack on ArtistAlbumTrack (track_id, artist, album, duplicate)''')
+            c.execute('''create index inxArtistAlbumTrackArtistAlbum on ArtistAlbumTrack (artist, album)''')
+
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="AlbumartistAlbumTrack"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table AlbumartistAlbumTrack (track_id integer, albumartist text COLLATE NOCASE, album text COLLATE NOCASE, duplicate text)''')
+            c.execute('''create unique index inxAlbumArtistAlbumTrack on AlbumartistAlbumTrack (track_id, albumartist, album, duplicate)''')
+            c.execute('''create index inxAlbumArtistAlbumTrackAlbumArtistAlbum on AlbumartistAlbumTrack (albumartist, album)''')
+
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="ComposerAlbumTrack"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table ComposerAlbumTrack (track_id integer, composer text COLLATE NOCASE, album text COLLATE NOCASE, duplicate text)''')
+            c.execute('''create unique index inxComposerAlbumTrack on ComposerAlbumTrack (track_id, composer, album, duplicate)''')
+            c.execute('''create index inxComposerAlbumTrackComposerAlbum on ComposerAlbumTrack (composer, album)''')
+
+    except sqlite3.Error, e:
+        print "Error creating database:", database, e
+    db.commit()
+    c.close()
+
+def empty_database(database):
+    db = sqlite3.connect(database)
+    c = db.cursor()
+    try:
+        c.execute('''drop table if exists params''')
+        c.execute('''drop table if exists sorts''')
+        c.execute('''drop table if exists tracks''')
+        c.execute('''drop table if exists albums''')
+        c.execute('''drop table if exists artists''')
+        c.execute('''drop table if exists composers''')
+        c.execute('''drop table if exists genres''')
+        c.execute('''drop table if exists playlists''')
+        c.execute('''drop table if exists GenreArtist''')
+        c.execute('''drop table if exists GenreAlbumartist''')
+        c.execute('''drop table if exists GenreArtistAlbum''')
+        c.execute('''drop table if exists GenreAlbumartistAlbum''')
+        c.execute('''drop table if exists ArtistAlbum''')
+        c.execute('''drop table if exists AlbumartistAlbum''')
+        c.execute('''drop table if exists ComposerAlbum''')
+        c.execute('''drop table if exists GenreArtistAlbumTrack''')
+        c.execute('''drop table if exists GenreAlbumartistAlbumTrack''')
+        c.execute('''drop table if exists ArtistAlbumTrack''')
+        c.execute('''drop table if exists AlbumartistAlbumTrack''')
+        c.execute('''drop table if exists ComposerAlbumTrack''')
+    except sqlite3.Error, e:
+        print "Error dropping table:", table, e
+    db.commit()
+    c.close()
+
+def process_command_line(argv):
+    """
+        Return a 2-tuple: (settings object, args list).
+        `argv` is a list of arguments, or `None` for ``sys.argv[1:]``.
+    """
+    if argv is None:
+        argv = sys.argv[1:]
+
+    # initialize parser object
+    parser = optparse.OptionParser(
+        formatter=optparse.TitledHelpFormatter(width=78),
+        add_help_option=None)
+
+    # options
+    parser.add_option("-p", "--playsdatabase", dest="playsdatabase", type="string", 
+                      help="read play counts from plays DATABASE", action="store",
+                      metavar="PLAYSDATABASE")
+    parser.add_option("-d", "--trackdatabase", dest="trackdatabase", type="string", 
+                      help="update tracks DATABASE", action="store",
+                      metavar="TRACKDATABASE")
+    parser.add_option("-t", "--the", dest="the_processing", type="string", 
+                      help="how to process 'the' before artist name (before(default)/after/remove)", 
+                      action="store", default='before',
+                      metavar="THE")
+    parser.add_option("-r", "--regenerate",
+                      action="store_true", dest="regenerate", default=False,
+                      help="regenerate database")
+    parser.add_option("-v", "--verbose",
+                      action="store_true", dest="verbose", default=False,
+                      help="print verbose status messages to stdout")
+    parser.add_option("-q", "--quiet",
+                      action="store_true", dest="quiet", default=False,
+                      help="don't print status messages to stdout")
+    parser.add_option('-h', '--help', action='help',
+                      help='Show this help message and exit.')
+    settings, args = parser.parse_args(argv)
+    return settings, args
+
+def main(argv=None):
+    options, args = process_command_line(argv)
+    if len(args) != 0 or not options.playsdatabase or not options.trackdatabase: 
+        print "Usage: %s [options]" % sys.argv[0]
+    else:
+        playsdatabase = options.playsdatabase
+        trackdatabase = options.trackdatabase
+        if not os.path.isabs(playsdatabase):
+            playsdatabase = os.path.join(os.getcwd(), playsdatabase)
+        if not os.path.isabs(trackdatabase):
+            trackdatabase = os.path.join(os.getcwd(), trackdatabase)
+#        if options.regenerate:
+#            empty_database(trackdatabase)
+        process_plays(args, options, playsdatabase, trackdatabase)
+    return 0
+
+if __name__ == "__main__":
+    status = main()
+    sys.exit(status)
+

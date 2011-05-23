@@ -1,0 +1,21 @@
+{{extend 'layout.html'}}
+
+<h1>{{=T('Testing application')}} "{{=app}}"</h1>
+
+{{for controller in controllers:}}
+
+<div id='output_{{=controller}}'><h2>Testing controller "{{=controller}}"... <blink>please wait!</blink></h2></div>
+
+<script><!--
+ajax('{{=URL(a=app,c=controller[:-3],f='_TEST')}}',[],'output_{{=controller}}');
+//--></script>
+
+{{pass}}
+
+<br/><br/>
+<i>{{=T('If the report above contains a ticket number it indicates a failure in executing the controller, before any attempt to execute the doctests. This is usually due to an indentation error or an error outside function code.
+A green title indicates that all tests (if defined) passed. In this case test results are not shown.')}}<br/><br/>
+{{=T('Functions with no doctests will result in [passed] tests.')}}
+<br/><br/>
+{{=T('ATTENTION: TESTING IS NOT THREAD SAFE SO DO NOT PERFORM MULTIPLE TESTS CONCURRENTLY.')}}
+</i>

@@ -1,0 +1,17 @@
+{{extend 'layout.html'}}
+<script type="text/javascript">
+  jQuery(function() {
+    jQuery("#password").focus();
+  });
+</script>
+<h1>web2py<sup style="font-size:0.5em;">TM</sup> {{=T('Enterprise Web Framework')}}</h1>
+<h2>{{=T('Login to the Administrative Interface')}}</h2><br/>
+<i>{{=T('ATTENTION: Login requires a secure (HTTPS) connection or running on localhost.')}}</i>
+<br/><br/>
+<form action="{{=URL(r=request)}}" method="post">
+<div><input type="hidden" name="send" value="{{=send}}"/></div>
+<table>
+<tr><td>{{=T('Administrator Password:')}}</td><td><input type="password" name="password" id="password"/></td></tr>
+<tr><td></td><td><input type="submit" name="login" value="{{=T('Login')}}"/></td></tr>
+</table>
+</form>

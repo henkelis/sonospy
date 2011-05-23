@@ -1,0 +1,25 @@
+{{extend 'layout.html'}}
+{{import time}}
+
+<h1>Mercurial Version Control System Interface<br />
+for application "{{=request.args[0]}}"</h2>
+<i>This is EXPERIMENTAL and does not handle merges.</i><br/>
+
+<h3>Commit form</h3>
+{{=form}}
+<br/>
+
+<h3>Last Revision</h3>
+<table>
+<tr><td>Revision:</td><td>{{=repo['.'].rev()}}</td></tr>
+<tr><td>Node:</td><td>{{=repo['.']}}</td></tr>
+<tr><td>Created by:</td><td>{{=repo['.'].user()}}</td></tr>
+<tr><td>Created on:</td><td>{{=time.ctime(repo['.'].date()[0])}}</td></tr>
+<tr><td>Description:</td><td>{{=repo['.'].description()}}</td></tr>
+</table>
+<br/>
+
+{{if files:}}
+<h3>Committed files</h3>
+{{=files}}
+{{pass}}

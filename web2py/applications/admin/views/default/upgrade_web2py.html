@@ -1,0 +1,14 @@
+{{extend 'layout.html'}}
+
+<center>
+<h2>{{=T('Are you sure you want to upgrade web2py now?')}}</h2>
+
+<i>ATTENTION: This is an experimental feature and it needs more testing. If you answer "Yes" you do it at your own risk<br/>
+If you answer "yes", be patient, it may take a while to download</i>
+
+<table><tr>
+<td>{{=FORM(INPUT(_type='submit',_name='noupgrade',_value=T('NO')))}}</td>
+<td>{{=FORM(INPUT(_type='submit',_name='upgrade',_value=T('YES')))}}</td>
+</tr></table>
+
+</center>

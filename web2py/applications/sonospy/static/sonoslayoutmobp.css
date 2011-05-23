@@ -1,0 +1,31 @@
+#left {
+}
+#right {
+}
+#centretop {
+}
+#centremiddle {
+    overflow:hidden;
+}
+#centrebottom {
+}
+#footer {
+	clear: left;
+}
+.albumart {
+	width: 200px;
+}
+body {
+    overflow:hidden;
+}
+#navfiller {
+    padding-bottom: 25px;
+}
+#accordion ul li {
+    margin-left: -15px;
+}
+.ui-accordion .ui-accordion-header .ui-icon-triangle-1-ne {
+    position: absolute;
+    left: 94%;
+}
+

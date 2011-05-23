@@ -1,0 +1,703 @@
+#web2py file structure
+
+    \project
+	README
+	LICENSE
+        TODO                               
+        Makefile                   # make all and make app
+	web2py.py                   # the startup script (*)
+        parameters.py              # created at startup 
+        admin.tar                  # the admin app (*)
+        examples.tar               # examples and documentation app (*)
+        welcome.tar                # the welcome app (entry point) (*)
+	\gluon                     # the core libraries (*)
+        \deposit                   # used for zip and install apps
+        setup_app.py               # used by py2app to make OSX executable
+        setup_exe.py               # used by py2app to make Winows executble
+        wsgihandler.py             # to use Gluon with mod_wsgi
+        \dist                      # used by py2app, py2exe
+        \build                     # used by py2app, py2exe
+        \tests                     # under development stuff
+        \docs                      # in progress documentation
+	\applications              # are the apps
+		\welcome           # application welcome, for example
+			\models
+			\views
+			\controllers
+			\sessions
+			\errors
+			\cache
+			\static
+                        \uploads
+                        \modules
+
+
+#EWF v1.5 -> v1.6 
+load and save .py in ascii, avoids problem with LF+CR on windows
+added path.join in compileapp, fixed problem with Windows compileapp
+
+#EWF v1.6 -> v1.7
+in paths replace '\' with '/' to fix problem with windows paths
+using limitby in database administration
+replaced mime/miltupart with multipart/form-data to fix a windows problem
+
+#EWF v1.7 -> Gluon v1.0
+Name change 
+Improved layout.html
+
+#Gluon v1.0 -> v1.1
+bug in sqlhtml with JOINS queries
+
+#Gluon v1.1 -> v1.2
+fixed some typos in examples
+IS_IN_SET now supports labels
+cleanup in sql.py does not cleanup, just checks valid field and table names
+
+#Gluon v1.3
+added IS_IN_DB, IS_NOT_IN_DB and updated examples accordingly
+
+#Gluon v1.4
+fixed problem with IS_INT_IN_RANGE and IS_FLOAT_IN_RANGE. Now an error in a validator is reported as a ticket. Good validators should not raise Exceptions.
+IS_IN_DB displays "label (id)"
+it can upload files without extension
+migration is now optional (define_table has migrate=False option)
+
+#Gluon v1.5
+<form> -> <form method="post"> in errors.html
+replace('//','////') in sub in template.py
+
+#Gluon v1.8
+no more chdir (thread unsafe)
+no more sys.stdout (thread unsafe)
+response.body is StringIO()
+admin/default/site informs about upgrade
+response.locker (optional)
+
+#Gluon v1.9
+allow "count(*)" in select
+db.execute()
+fixed problem with continue and return in template
+removed try: ... except in sql.py
+fixed '\t'
+
+#Gluon v1.10
+fixed concurrency problems with SQLDB._instances and SQLDB._folders, now use lock
+now, by default, edit SQLFORMs retain uploaded files
+
+#Gluon v1.11
+appadmin allows to keep or delete uploaded files
+
+#Gluon v1.12
+in sql.py 
+handles NULL values properly
+unicode support (data always stored in utf-8)
+'date' -> datetime.date ,'time' -> datetime.time, 'datetime' -> datetime.datetime, 'boolean' -> True/False
+most types have default validators
+SQLField(...,required=True) option.
+SQLRows has __str__ that serializes in CSV and xml() that serializes in HTML
+SQLTable has import_from_csv_file(...)
+gluon.simplejson for AJAX
+in validators.py
+IS_IN_DB(db,..) -  db can be an SQLSet or an SQLDB
+better error messages
+in admin
+new import/export in csv, update and delete interface.
+in appadmin
+edit form allows to keep stored encrypted password
+in main.py
+http://host not defaults to http://host/init/default/index
+New third party modules
+gluon.simplejson(.dumps, .loads)
+gluon.pyrtf(.dumps)
+gluon.rss2(.dumps)
+
+#Gluon v1.13
+(this is one of the biggest revisions ever)
+Improved sql.py has support MySQL, cxOracle (experimental), extract, like and better testing
+SQLDB.tables and SQLTable.fields are now SQLCalableList objects
+Fixed bug with editing integer fields storing zero
+Admin interface now says "insert new [tablename]" and display insert, select or update properly in the title.
+Added a cache mechamism. Works for data, controllers, views and SQLRows.
+main.py now uses a request.folder absolute path when not os.name in ['nt','posix']. Seems to work on windowsce devices, except no file locking has consequences.
+Now you can put modules in applications/[anyapp]/modules and import them with
+import applications.[anyapp].modules.[module] as [module]
+Fixed problem with init
+New applications/examples/controller/global.py controller for docs.
+
+#Gluon v1.14
+Fixed a bug fix in URLs
+
+#Gluon v1.15
+New try:... except. in gluon/main.py for when sessions cannot be saved
+Now validator/formatter method allows IS_DATE('%d/%m/%Y')
+
+#web2py v1.16
+yes we changed the name! Turns out Gluon was trademarked by somebody else.
+Although we are not infringing the trademark since this is a non-commercial
+product we could have run into some issues. So we have been professional
+and changed the name to web2py.
+Now SQLFORMs and FORM can have a formname and multiple forms are allowed 
+per page.
+A new examples/default/index page.
+web2py.py instead of runme.py
+mysql sets utf8 encoding.
+input integer field values are automatically converted int().
+
+#web2py v1.17
+I posted v1.16 too soon. v1.17 was released after 1h to fix some bugs.
+
+#web2py v1.18
+removed vulnerability in accept_languages and session_id
+Minor bug fixes. Typos and cleanup cache. Textarea now clears.
+Support for PyAMF.
+T returns a class, not a string
+new template parser (faster?)
+got rid of sintaxhighlighter in favor of server side CODE
+fix problem with cacheondisk locking
+fix 'None' instead of NULL in IS_NOT_IN_DB (I think)
+gluon.contrib.markdown
+notnull and unique in SQLField now supported (tested on sqlite mysql and postgresql)
+Storage now has __getstate__ and __setstate__ needed for pickling.
+session files are now locked to make it work better with asynchronous requests
+cxoracle should work, apart for limitby
+.../examples is now mapped to .../examples/default/index etc.
+.../init is now mapped to .../welcome if init is not present
+
+#web2py 1.19
+minor typos
+
+#web2py 1.20
+new IFRAME, LABEL, FIELDSET validators 
+P(..cr2br=True) option
+FORM and SQLFORM have hidden=dict(...) option for REST
+testing framework.
+improved examples pages
+
+#web2py 1.21
+replaced paste.httpserver with cherrypy.wsgi server
+temporary sessions are no longer saved
+widget has [stop] button and graph
+logging is done by main by appfactory
+fixed a bug in sql belongs
+
+#web2py 1.22-1.25
+fixed minor bugs, added IS_NULL_OR
+
+#web2py 1.26
+added shell.py (thanks Limodou!)
+added memcache support
+
+#web2py 1.27
+IS_NULL_OR now works will all fields
+admin creates paths to static files
+wsgiserver options are passed to HttpServer
+faking limitby for oracle to make appadmin work
+all objects inherit from object
+fixed bug in app names with .
+fixed bug in created RestrictedError object on windows
+shell is now in gluon and accessible via web2py.py
+
+#web2py 1.28
+fixed bug with belongs, faster sql.py
+included jquery.js
+minor aestetical fixes
+sortable.js is gone
+
+#web2py 1.29
+Now selet mutliple works with get, so does is IS_LENGTH
+Added IS_LIST_OF
+fixed problem with admin from windows and localhost
+
+#web2py 1.30
+added flv to contenttype
+added support for appengine
+
+#web2py 1.31-1.41
+some bug fixes, mostly better appengine support
+mssql support
+firebird support
+widgets support
+connection pools
+
+#1.42
+fixed security issue by removing slash escape in mysql
+removed random everywhere
+use uuid for session and tickets
+use http_x_forward_for to figure out the client causing a ticket
+use longtext and longblob for mysql
+main now really catches all exceptions
+no more warnings on GAE
+
+#1.43-1.48
+html.py rewrite (better support for custom forms) (Bill Ferrett)
+new stickers in examples (thanks Mateusz)
+on windows can run in taskbar (Mark Larsen)
+in admin|edit page link to edit|controller (Nathan Freeze)
+better error codes and routes_onerror (Timothy Farrell)
+DAL support for groupy and having
+DAL support for expressions instead of values
+DAL has experimental Informix support
+fixed bug with non-printable chars in DAL
+'text' fields limited to 2**16 (to avoid mysql problems)
+widget has -quiet and -debug (Attila Csipa)
+web2py_session uses BLOB instead of TEXT
+improved IS_URL
+Runs with python 2.6 (Tim)
+On GAE uses GAE for static files (Robin)
+
+
+#1.49
+fixed a bug with taskbar widget, thanks Mark
+fixed a bug with form.latest
+made many DIV methods private (_)
+
+
+#1.50
+Fixed some bugs introduced in 1.49
+
+#1.51
+Fixed more bugs introduced in 1.49 (sql _extra and html select)
+support for sqlite:memory:
+
+#1.52
+Fixed a minor bug with _extra[key] and key not str.
+check for upgrade via ajax
+
+#1.53
+On GAE upload data goes automatically in datastore (blob created automatically)
+New appadmin runs on GAE (most of it, not all)
+Martin Hufsky patch allow slicing of fields in DAL expressions
+
+#1.54
+fixed minor bugs
+
+#1.55?
+rowcount
+fixed bug when IS_IN_DB involved multiple fields on GAE
+T.set_current_languages
+better unittests
+response.custom_commit and response.custom_rollback
+you can next cache calls (like cache a controller that caches a select). Thanks Iceberg
+db(....id==None).select() no longer returns an error but an empty SQLRows on GAE
+db(...).delete(delete_uploads=True) and SQLFORM.accepts(....delete_uploads=True) will delete all referenced uploaded files
+DIV.element and DIV.update
+sqlrows.json()
+SQLFORM.widgets
+URL(r=request,args=0)
+IS_IN_DB(...,multiple=True) for Many2Many (sort of)
+In URL(...,f) f is url encoded
+In routes_in=[['a/b/c/','a/b/c/?var=value']]
+simplejson 2.0.7
+
+
+#1.56
+Consider the following table:
+
+db.define_table('cirlce',
+   db.Field('radius','double'),
+   db.Field('area','double'),
+   db.Field('modified_on','datetime'))
+
+now you can do:
+
+# add a comment in the forms
+db.circle.area.comment="(this is a comment)"
+
+# do not show area in create/edit forms
+db.circle.area.writable=False
+
+ # do not show now in display forms
+db.circle.modified_on.readable=False
+
+# automatically timestamp when record cretaed
+db.circle.modified_on.default=request.now
+
+# automatically timestamp when record is modified
+db.circle.modified_on.update=request.now
+
+# make the radius appear in bold in display and table
+db.circle.radius.represent=lambda value: B(value)
+
+# make a form that automatically computes area
+pi=3.1415
+form=SQLFOM(db.circle)
+if form.accepts(request.vars,
+onvalidation=lambda form: form.vars.area=pi*form.vars.radius**2): ...
+
+# make a create form in two possible ways:
+form=SQLFORM(db.circle)
+form=SQLFORM(db.circle,0)
+
+# make an update form in two possible ways:
+form=SQLFORM(db.circle,record)
+form=SQLFORM(db.circle,record_id)
+
+# make a display form in two possible ways:
+form=SQLFORM(db.circle,record,readonly=True)
+form=SQLFORM(db.circle,record_id,readonly=True)
+
+# so now you can do...
+
+form=SQLFORM(db.circle,request.args[-1])
+
+and you get a create form if the URL ends in /0, you get an update
+form if the URL ends in /[valid_record_id]
+
+#you can also define once for all
+
+timestamp=SQLTable(None,'timestamp',
+            SQLField('created_on','datetime',
+                          writable=False,
+                          default=request.now),
+            SQLField('modified_on','datetime',
+                          writable=False,
+                          default=request.now,update=request.now))
+
+#and use it in all your tables
+
+db.define_table('mytable',db.Field('somefield'),timestamp) 
+
+###
+
+One more feature in trunk....
+
+    db.define_table('image',SQLField('file','upload'))
+
+    db.image.file.authorize=lambda row: True or False
+
+then controller
+    def download(): return response.download(request,db)
+id' is now a hidden field sqlform
+gql references converted to long
+admin login has autofocus
+new notation proposed by Robin, db.table[id]
+new UploadWidget shows images
+new generic.html shows request, response, session
+new LEGEND helper (thanks Marcus)
+fixed doctests in sql (thanks Robin)
+new notation for DB
+
+record=db.table[id]
+db.table[id]=dict(...)
+del db.table[id]
+
+request.env.web2py_version
+new class gluon.storage.Settings has lock_keys, lock_values
+jquery 1.3.1
+PEP8 compliance
+new examples application
+runs on jython (no database drivers yet, thanks Phyo)
+fixed bugs in tests
+passes all unittest but test_rewite (not sure it should pass that one)
+
+Lots of patches from Fran Boone (about tools) and Dougla Soares de Andarde (Python 2.6 compliance, user use of hashlib instead of md5, new markdown2.py)
+
+#1.56.1-1.56.4
+fixing lots of small bugs with tool and languages
+jquery.1.3.2
+
+#1.57
+New ajax edit with keepalive (no longer logged out when editing code)
+Fixed conflict resolution page.
+Removed /user/bin/python from models/controllers
+
+#1.58
+Fixed some CRON bugs
+Fixed a bug with new ajax edit
+Experimental DB2 support in DAL
+Customizable font size in admin edit page
+New welcome/models/db.py shows how to memcache sessions on GAE with MEMDB
+More expressive titles in admin
+DB2 support. Thanks Denes!
+
+#1.59-1.60
+fixed lots of small bugs
+routes_in can filter by http_host
+
+#1.61
+fixed some typos
+auth.add_permissions(0,....) 0 indicates group of current user
+crud.update has deletable=True or False
+fixed issue with GAE detection -> gluon.settings.web2py_runtime -> request
+
+#1.62
+SQLFORMS and crud now show readble fields
+Better WingIDE support
+Languages are automatically translated
+T.force and lazyT works better, optional T.lazy=False
+gluon.storage.Messages are now translated without T
+if routes.py then request.env.web2py_original_uri
+db.table.field.isattachment = True
+internationalizaiton of admin by Yair
+admin.py by Alvaro
+new MENU helper
+new w2p file format
+new welcome app with auth, service and crud turned on
+
+#1.63-1.63.4
+no more import gluon.
+support for generic.xxx
+simplejson can handle datetime date and time
+
+#1.63.5
+You can do jQuery.noConflict() without breaking web2py_ajax
+Wigets can have attributes (thanks Hans)
+Lots of internal cleanup and better code reusage (thanks Hans)
+
+#1.64
+Models 2-3 times faster (thanks Alexey)
+Better LDAP support
+Works with Jython (including sqlite and postgresql with zxJDBC):
+
+  download jython-2.5rc3.jar
+  download qlite-jdbc-3.6.14.2.jar
+  java -jar jython-xxx.jar
+  export CLASSPATH=$CLASSPATH:/Users/mdipierro/jython2.5rc3/sqlite-jdbc-3.6.14.2.jar
+  cd web2py
+  ../jython2.5rc3/jython web2py.py
+
+#1.64.2
+New IS_COMPLEX validator, thank Mr. Freeze
+Experimental Informix support
+Autologin on registration
+
+#1.64.3
+Some bug fixes
+
+#1.64.4
+Som bug fixes
+Informix Support
+response.render(stream)
+SQLFORM.factory
+SQLFORM.widgets.radio and SQLFORM.widgets.checkboxes
+
+#1.65
+reST docstrings for Sphinx, thanks Hans
+gluon/conrtib/login_methods/gae_google_account.py for google CAS login on GAE, thanks Hans
+fixed problem with Auth and Firebird 'password' issue
+new auth.settings.create_user_groups
+tickets stored on datastore on GAE and also logged, thanks Hans
+imporved IS_LENGTH with max and min, thanks Mateusz
+improved IS_EMAIL with filters, thanks Mateusz
+new IS_IMAGE checks for format and size, thanks Mateusz
+new IS_IPV4, thanks Mateusz
+
+#1.65.1
+spreadsheet
+shell history, thanks sherdim
+crontab editor, thanks Angelo
+gluon/contrib/login_methods/cas_auth.py (thanks Hans)
+DAL(...) instead of SQLDB(...)
+DAL('gae') instead of GQLDB()
+Field instead of SQLField
+(the old syntax still works)
+
+#1.65.2
+Fixed some small auth bugs
+Field.store(...)
+
+#1.65.3-10
+Fixed some small bugs and typos in the docstrings
+Fixed AMF3 support
+
+#1.65.11
+Fixed a sqlhtml bug with image upload
+
+#1.65.12
+lables in auth auto-translate (thanks Alvaro)
+better ldap_auth (thanks Fran)
+auth chacks locally for blocked accounts even for alternate login methods (thanks Fran)
+
+#1.65.13
+request.url (thanks Jonathan)
+restored uploadfield_newfilename
+new examples layout nad logo (thanks Mateusz)
+
+#1.66
+new doctypes
+form.vars.newfilename
+new HTML and XHTML helpers
+better IS_LENGTH
+
+#1.67.0
+Python 2.4 support (again)
+New layout for welcome
+changed defauld field sizes to 512
+Field(uploadfolder="...")
+appadmin works on GAE (again, somehting got broken at some point)
+new wsgiserver 3.2.0 should fix recurrent broken download problems
+
+#1.67.1
+Bux fixed
+
+#1.67.2
+Security fix in markdown
+
+#1.68.1
+New official markdown with security fix
+rows.first()
+rows.last()
+New cron
+New hindi and spanish translation
+cached uploads allow for progress bars (thanks AndCycle)
+ingres support (thanks Chris)
+legacy database support for db2, mssql with non-int primary keys (thanks Denes)
+default setting of content-type (this may cause strange behavior in old apps when downloading images)
+IS_UPPER and IS_LOWER works with unicode
+CLENUP not takes regex of allowed/now allowed chartares
+New rewrite.py allows dynamic routes
+Better error messages for IS_INT_* and IS_FLOAT_*
+
+#1.68.2
+Fixing bug with admin and missing crontab
+Fixing bug with rewrite.load on GAE (thanks Willian Wang)
+
+#1.69.1
+Fixed a bug introduced in 1.68 about inserting unicode in DAL
+Fixed other small bugs
+Better support for legacy databases (thank Denes)
+response.meta replaces response.author, response.keywords, response.description
+response.files stets dependes in plugins
+better admin for packing/unpacking plugins
+reference fiels nor evaluate to DALRef with lazy evaluation (cool, thanks Mr Freeze)
+can insert a record in place of a reference
+record[e] instead of record._extra[e] (tentatively!)
+record.update_record() with no args
+rows.find()  (thanks Mr Freeze)
+rows.exclude()
+rows.sort()
+rows[:]
+
+#1.70.1
+Fixed bug with Rows.as_list and DALRef
+Added Rows.as_dict (thanks Mr Freeze and Thedeus)
+Added request.wsgi (thanks hcvst) allows running wsgi apps under web2py and applying wegi middleware to regular web2py actions that return strings.
+Experimental distributed transactions between postgresql, mysql and firebird
+Finally local_import is here!
+
+#1.71.1
+Complete rewrite of Rows
+renamed DALStorage->Rows, DALRef->Reference
+Experimental serializarion of Row and Rows (get serialized to dict and list of dict)
+DAL(...,folder) and template.render(content=, context=) make it more modular
+
+#1.72.1 - 1.72.3
+Better support for legacy databases
+
+#1.73.1
+Fixed problem with storage and comparison of Row objects
+Fixed problem with mail on GAE
+Fixed problem with T in IS_DATE(TIME) error_message and format
+Rows[i].delete_record()
+Even better support for legacy databases
+Experimantal support for non UTF8 encoding in DB
+Better IPV4 (thanks Thandeus)
+T.current_languages default to 'en' and new T.set_current_languages(...) (thanks Yarko)
+INPUT(...,hideerror=False) used to fix rare chechbox widget problem
+Admin allows change of admin password
+New gluon/contrib/populate.py
+Size of input/textarea set by CSS no more by jQuery  (thanks Iceberg)
+Customizable CSV  (thanks Thandeus)
+More bug fixed (thanks Thandeus)
+Better regex for template fixed Jython problem (thank Jonathan)
+
+#1.74.1
+Moved to mercurial
+Default validators use the new define_table(....,format='...')
+New get_vars and post_vars compatible in 2.5 and 2.6 (thanks Tim)
+Major rewrite of gql.py extends DAL syntax on GAE
+No more *.w2p, welcome.w2p is create automatically, base apps are always upgraded
+export_to_csv(delimiter = ',', quotechar = '"', quoting = csv.QUOTE_MINIMAL), thanks Thadeus 
+
+#1.74.2-4
+Fix bugs including including unicode in emails and blobs on GAE
+
+#1.74.5
+bug fixes
+restored python 2.4 support,thanks ont.rif
+support for native types on Google App Engine
+cache.ram usage statictics, thanks Thadus
+no more auth manu in scaffolding
+no more spash screen with -Q
+fixed doctest in html.py, thanks Anand Vaidya
+export_to_csv_file has represent, thanks Thadeus
+
+#1.74.6
+bug fixes
+IS_IN_DB(...,_and=IS_NOT_IN_DB)
+Smaller populate, thanks Piotr
+better slicing of fields, thanks Michael Fig
+Cache stats, thanks Thadeus
+Better gql.py
+IS_IN_DB and IS_IN_SET default to zero='', no longer zero=None
+
+#1.74.7
+request_password_reset and password reset verification
+python web2py.py -S app -M -R script.py -A arg1 arg2 arg3
+T("%(a)s") % dict(a="hello")
+
+#1.74.8
+IS_SLUG, thanks Gustavo and Jonathan
+web2py.py -nogui, thanks Jeff Bauer
+solved a problem with jython, thanks Tim Farrel
+login has "remember be option", thanks Piotr Banasziewicz
+fixed problem with keepvalue in update forms, thanks Miguel Lopez
+
+#1.74.9
+IS_IN_SET(((0,'label0'),(1,'label1'))), thanks Falko Krause
+SQLFORM(...).accpets stores True or False in boolean types no None, thanks Frederik Wagner
+SQLFORM.factory(...,table_name='no_table'), thanks Thedeus
+jQuery 1.4.1
+Fixed major problem with internationalization of multiple languages.
+Fixed a serius security issue with login
+Possibly fixed some issues with cron
+
+#1.75.1
+better cron
+better fetch
+logging of email failures
+new web2py.fedora.sh
+new setup-web2py-ubuntu.sh
+experimental autocomplete
+menus work on IE6
+
+#1.75.2
+fetch supports cache
+curd.update(....,onaccept=crud.archive) magic
+new UUID mechnism fixes session conflicts with cloned machine in cloud
+allow to upload app and overwrite existing old ones, thanks Jonathan
+print gluon.tools.prettydate(request.now,T), thanks Richard
+
+#1.75.3
+added support for PAM authentican for apps and for admin
+INTRODUCED MAJOR BUG IN BEAUTIFY (upgrade to 1.75.4) IMMEDIATELY
+
+#1.75.4
+customizable BEAUTIFY, thanks John
+
+#1.75.5
+fixed behaviour with languages.py, thanks Iceberg
+added chinese (thanks Iceberg) and Hungarian (thanks Gyuris)
+fixed problem with GAE deleted by id (thanks what_ho)
+fixed bug in LOAD with custom views, thanks vhang
+improved IS_IN_SET takes iterator, dict, list and list of tuples, thanks Iceberg
+Auth(...,controller='default')
+Fixed major bug in parsing repeated request.vars, thanks Ben
+IS_DATE and IS_DATETIME can now handle any 0<year
+allow to disable editarea onload, thanks Alex
+
+#1.76.1
+editarea 0.8.2 + zencoding
+new (better) cron locking meachnism
+no storing session cookies on session.forget(), thank you Alvaro
+routes_apps_raw allows disabling of request.args validation, thanks Jonathan and Denes
+fixed problem with edit_languages ad multiple tabs, thanks Iceberg
+crud captcha, thanks you Nathan
+softcron disabled by default in wsgihandler and fcgihandler
+
+#1.76.2
+major fix in cron (will I ever get this 100% right?)
+fix in delete for GAE
+auth.settings.login_captcha and auth.settings.register_captcha
+crud.settings.create_captcha and  crud.settings.update_captcha
+automatic update button in admin 

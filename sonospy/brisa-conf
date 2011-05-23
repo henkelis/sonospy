@@ -1,0 +1,140 @@
+#!/usr/bin/env python
+# Licensed under the MIT license
+# http://opensource.org/licenses/mit-license.php or see LICENSE file.
+# Copyright 2008 Brisa Team <brisa-develop@garage.maemo.org>
+
+import sys
+import os
+import pprint
+
+from optparse import OptionParser, OptionGroup, make_option
+
+from brisa.core import config
+
+config.manager.set_direct_access(True)
+
+
+def list_section(s, show_hidden=False):
+    section_dict = config.manager.items(s)
+
+    if not section_dict:
+        print 'Section %s does not exist' % s
+        return
+
+    print 'Section', s
+
+    if not show_hidden:
+        for k in section_dict.copy():
+            if k.startswith('.'):
+                section_dict.pop(k)
+            elif '.' in k and all(k.split('.')):
+                section_dict.pop(k)
+
+    pprint.pprint(section_dict)
+
+def clean_config():
+    os.remove(config.brisa_home + '/configurations.pickle')
+    print 'Configuration file deleted.'
+
+
+def main():
+    parser = OptionParser(usage='Usage: %prog [options] [args]')
+    general = OptionGroup(parser, 'General options')
+    general_options = [make_option('-v', '--version', help='display version'\
+                                  ' information and exit', dest='version',
+                                  action='store_true', default=False),
+                       make_option('-i', '--items', help='print items of a'\
+                                  ' section', metavar='SECTION',
+                                  dest='item_section'),
+                       make_option('-l', '--list', help='list all sections',
+                                   dest='list_sections', action='store_true',
+                                   default=False),
+                       make_option('-n', '--names_only', help='only list '\
+                                   'section names', dest='names_only',
+                                   action='store_true', default=False),
+                       make_option('-e', '--hidden', help='show hidden'\
+                                   ' parameters', dest='hidden',
+                                   action='store_true', default=False),
+                       make_option('-d', '--delete', help='delete a section '\
+                                   'or a parameter', dest='delete',
+                                   action='store_true', default=False),
+                       make_option('-c', '--clean', help='clean the BRisa '\
+                                   'configuration file', dest='clean_config',
+                                   action='store_true', default=False)]
+    general.add_options(general_options)
+    parser.add_option_group(general)
+
+    configure_help = 'Combine the following options to set parameters values.'
+
+    set = OptionGroup(parser, 'Configuring parameters', configure_help)
+    set_options = [make_option('-s', '--section', help='section name to set '\
+                               'parameter on', metavar='SECTION',
+                               dest='section'),
+                   make_option('-p', '--parameter', help='parameter name to '\
+                               'set value', metavar='PARAMETER',
+                               dest='parameter')]
+    set.add_options(set_options)
+    parser.add_option_group(set)
+
+    (options, args) = parser.parse_args()
+
+    if options.version:
+        print 'brisa-conf 0.1.1'
+        print 'License MIT: Copyright (c) 2008-2009 BRisa Team'\
+              ' <http://www.opensource.org/licenses/mit-license.php>'
+        print 'Written by Andre Dieb Martins.'
+        sys.exit()
+
+    if options.list_sections:
+        print 'Listing sections\n'
+        for k in config.manager.get_section_names():
+            if not options.names_only:
+                list_section(k, options.hidden)
+                print '\n'
+        sys.exit()
+
+    if options.clean_config:
+        clean_config()
+        sys.exit()
+
+    if options.item_section:
+        list_section(options.item_section, options.hidden)
+        sys.exit()
+
+    if options.section and options.parameter:
+        if options.delete:
+            print 'Removing section %s' % options.section
+            config.manager.rem_section(options.section)
+            sys.exit()
+
+        value = ' '.join(args)
+
+        if not value:
+            print 'Removing parameter %s from section %s' % \
+                (options.parameter, options.section)
+            value = None
+        else:
+            print 'Setting parameter %s in section %s to the value %s' % \
+            (options.parameter, options.section, value)
+
+        config.manager.set_parameter(options.section, options.parameter,
+                                     value)
+        sys.exit()
+
+    if options.parameter and not options.section:
+        parser.error('could not identify a parameter without a section name')
+        sys.exit()
+
+    if not options.parameter and options.section:
+        if options.delete:
+            print 'Removing section %s' % options.section
+            config.manager.rem_section(options.section)
+            sys.exit()
+        parser.error('could not identify action on section')
+        sys.exit()
+
+    parser.error('invalid usage')
+
+
+if __name__ == '__main__':
+    main()

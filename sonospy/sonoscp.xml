@@ -1,0 +1,32 @@
+<root>
+<specVersion>
+<major>1</major>
+<minor>0</minor>
+</specVersion>
+<device>
+<deviceType>urn:schemas-upnp-org:device:ControlPoint:1</deviceType>
+<friendlyName>Sonos ControlPoint</friendlyName>
+<manufacturer>Henkelis</manufacturer>
+<manufacturerURL></manufacturerURL>
+<modelDescription>Control Point</modelDescription>
+<modelName>Sonos ControlPoint</modelName>
+<modelURL></modelURL>
+<modelNumber>0.1</modelNumber>
+<serialNumber/>
+<serviceList>
+<service>
+<serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType>
+<serviceId>urn:upnp-org:serviceId:ConnectorManager</serviceId>
+<SCPDURL>
+/scpd.xml
+</SCPDURL>
+<controlURL>
+/control.xml
+</controlURL>
+<eventSubURL>
+/event.xml
+</eventSubURL>
+</service>
+</serviceList>
+</device>
+</root>

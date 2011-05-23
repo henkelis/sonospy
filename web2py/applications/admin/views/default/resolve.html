@@ -1,0 +1,19 @@
+{{extend 'layout.html'}}
+
+<h1>{{=T('Resolve Conflict file')}} "{{=filename}}"</h1>
+
+<script>
+function plus() {jQuery('.plus').show(); jQuery('.minus').hide(); }
+function minus() {jQuery('.plus').hide(); jQuery('.minus').show(); }
+function all() {jQuery('.plus').show(); jQuery('.minus').show(); }
+</script>
+
+<button onclick="plus()">new</button>
+<button onclick="minus()">old</button>
+<button onclick="all()">all</button>
+
+<br/><br/>
+<form action="{{=URL(r=request,args=request.args)}}" method="post">
+{{=diff}}
+<input type="submit" name="merge" value="{{=T('merge')}}" /><br/>
+</form>

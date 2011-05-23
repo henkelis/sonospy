@@ -1,0 +1,10 @@
+{{extend 'layout.html'}}
+<h1>Error ticket for "{{=app}}"</h1>
+<h2>Ticket {{=ticket}}</h2><br/><br/>
+<h3>Error traceback</h3>
+{{=traceback}}
+
+<br/><br/>
+<h3>In file: {{=layer}}</h3>
+{{=CODE(code,language='python',link='/examples/global/vars/')}}
+

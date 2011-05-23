@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<scpd xmlns="urn:schemas-upnp-org:service-1-0">
+    <specVersion>
+        <major>1</major>
+        <minor>0</minor>
+    </specVersion>
+    <actionList>
+        <action>
+            <name>MyMethod</name>
+            <argumentList>
+                <argument>
+                    <name>TextIn</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>A_ARG_TYPE_Textin</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>TextOut</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>A_ARG_TYPE_Textout</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+    </actionList>
+    <serviceStateTable>
+        <stateVariable sendEvents="no">
+            <name>A_ARG_TYPE_Textout</name>
+            <dataType>string</dataType>
+        </stateVariable>
+        <stateVariable sendEvents="yes">
+            <name>A_ARG_TYPE_Textin</name>
+            <dataType>string</dataType>
+        </stateVariable>
+    </serviceStateTable>
+</scpd>

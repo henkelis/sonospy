@@ -1,0 +1,190 @@
+div {
+    overflow:auto;
+}
+#accordion li a:hover {
+    background:#2779aa; 
+}
+#accordion a:hover {
+    background:#f2f5f7;
+    color: #66CCFF;
+}
+#accordion {
+    list-style:none;
+    margin-left: 2px;
+    margin-right: 2px;
+    margin-bottom: 2px;
+    overflow:hidden;
+}
+#td {
+    border: 1px solid silver;
+}
+#accordion h3 {
+    height:1.5em;
+}
+#accordion h3 a {
+    padding-top:0.15em;
+    padding-bottom:0.15em;
+    height:1.5em;
+}
+#accordion div {
+    padding-top:0.15em;
+    padding-bottom:0.15em;
+}
+#accordion li a {
+    display: block;
+}
+#accordion li {
+    cursor:pointer; 
+}
+#accordion ul li a {
+    padding-top:0.1em;
+    padding-bottom:0.1em;
+    border-bottom: 1px dotted #777;
+    color:#ccc;
+    text-decoration:none;
+}
+#accordion ul:last-child {
+    border-bottom: none;
+}
+#accordion ul {
+    list-style-type:none;
+}
+#queue li a:hover {
+    background:#2779aa; 
+}
+#queue li a {
+    display: block;
+    text-decoration:none;
+}
+#queue li {
+    cursor:pointer; 
+}
+#serverbuttons button {
+    padding-top:0.5em;
+    padding-bottom:0.5em;
+    width:100%;
+    cursor:pointer;
+    margin: 2px;
+    max-width: 97%;
+    background: #000033;
+    color: #66CCFF;
+}
+#serverbuttons button:hover {
+    background:#f2f5f7;
+}
+#serverbuttons .ui-state-active {
+    background:#2779aa; 
+    color: #ffffff;
+}
+#rendererbuttons button {
+    padding-top:0.5em;
+    padding-bottom:0.5em;
+    width:100%;
+    cursor:pointer;
+    margin: 2px;
+    max-width: 97%;
+    background: #000033;
+    color: #66CCFF;
+}
+#rendererbuttons button:hover {
+    background:#f2f5f7;
+}
+#rendererbuttons .ui-state-active {
+    background:#2779aa; 
+    color: #ffffff;
+}
+#progressbar {
+    height:0.5em;
+    background:#2779aa;
+    border:1px #99f solid;
+}
+#imageprogressbar {
+    height:0.5em;
+    background:#2779aa;
+    border:1px #99f solid;
+}
+#slider {
+    height:0.25em;
+    overflow:visible;
+    background:#2779aa;
+    border:1px #99f solid;
+}
+#slidervalue {
+    overflow:visible;
+}
+#slider .ui-slider-handle {
+    width:0.4em;
+    height:0.6em;
+    cursor:pointer;
+}
+img {
+    cursor:pointer;
+}
+html,body {
+    margin:0;
+    padding:0;
+    border:none;
+    overflow: hidden;
+}
+h3.title {
+    padding-top:0;
+}
+.nowt {
+    padding-top:0;
+    padding-bottom:0;
+    font-size:1.5em;    
+    color:#FFFFFF;
+}
+.nowh {
+    padding-top:0px;
+    padding-bottom:0px;
+    height:0.5em;
+}
+.sonos {
+    background: #000033;
+    color: #66CCFF;
+}
+a {
+    color: white;
+}
+a {
+  outline: none;
+}
+a:active {
+}
+.searchbutton {
+    cursor:pointer;
+    background: #000033;
+    color: #66CCFF;        
+    border: 1px #99f solid;
+}  
+.searchbutton:hover {
+    background:#f2f5f7;
+}
+.searchinput {
+    background:#f2f5f7;
+}  
+input:focus {
+    background:#ffffff;
+}  
+h1 {
+    padding-top:0em;
+    padding-bottom:0em;
+    font-size:1.5em;
+}
+.extra {
+    color: #66CCFF;
+}
+#imagecount {
+    color: #66CCFF;
+}
+#middle2 * {
+    overflow: visible;
+}
+#flow * {
+    position: static;
+    display: block;
+    overflow: visible;
+}
+
+

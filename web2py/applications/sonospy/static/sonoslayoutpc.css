@@ -1,0 +1,76 @@
+#left {
+	float: left;
+    border-top: 1px #99f solid;
+    border-bottom: 1px #99f solid;
+    border-right: 1px #99f solid;
+}
+#right {
+	float: right;
+    border-top: 1px #99f solid;
+    border-bottom: 1px #99f solid;
+    border-left: 1px #99f solid;
+}
+#centretop {
+    padding-left:3px;
+    padding-right:3px;
+	margin: 0 180px;
+    border-top: 1px #99f solid;
+}
+#centremiddle {
+    padding-left:3px;
+    padding-right:3px;
+	margin: 0 180px;
+    border-top: 1px #99f solid;
+    overflow:hidden;
+}
+#centrebottom {
+    padding-left:3px;
+    padding-right:3px;
+	margin: 0 180px;
+    border-top: 1px #99f solid;
+    border-bottom: 1px #99f solid;
+}
+#footer {
+	clear: left;
+}
+.albumart {
+	width: 300px;
+	height: 300px;
+}
+.coverart {
+	width: 150px;
+}
+#middle {
+    border-top: 1px #99f solid;
+    border-bottom: 1px #99f solid;
+}
+html, body {
+    overflow: auto;
+}
+.ui-dialog .ui-dialog-titlebar { padding: .3em .3em 0em 1em; }
+.ui-dialog .ui-dialog-title { margin: 0 0 0; } 
+.ui-dialog-titlebar {
+    background: #000033;
+    color: #66CCFF;
+}
+.ui-dialog .ui-dialog-content {
+    background: #000033;
+}
+.ui-dialog .ui-dialog-content a {
+    color: #66CCFF;
+    background: #000033;
+    cursor: pointer;
+}
+
+#trackdialog2 {
+    background: #000099;
+}
+#trackdialog2 .ui-widget-content { 
+    border: 0;
+}
+
+#trackdialog2 .ui-widget { 
+    font-size: 0.7em;
+}
+
+

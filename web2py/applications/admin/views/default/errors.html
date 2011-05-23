@@ -1,0 +1,47 @@
+{{extend 'layout.html'}}
+{{import os, stat, time}}
+<style>
+table.sortable thead {
+    background-color:#eee;
+    color:#666666;
+    font-weight: bold;
+    cursor: default;
+}
+</style>
+<SCRIPT LANGUAGE="JavaScript">
+function check(){
+  for (var i = 0; i < document.myform.elements.length; i++) {
+    var e = document.myform.elements[i];
+    if (e.type == 'checkbox') e.checked = true;
+  }
+}
+function uncheck(){
+  for (var i = 0; i < document.myform.elements.length; i++) {
+    var e = document.myform.elements[i];
+    if (e.type == 'checkbox') e.checked = false;
+  }
+}
+</SCRIPT>
+
+<h1>{{=T('Error logs for "%(app)s"',dict(app=app))}}</h1>
+<form name="myform" method="post">
+<input name="CheckAll" value="{{=T('check all')}}" 
+onclick="check()" type="button">
+<input name="CheckAll" value="{{=T('uncheck all')}}" 
+onclick="uncheck()" type="button">
+<input value="{{=T('delete all checked')}}" type="submit"><br><br>
+<table class="sortable">
+<thead>
+<tr><th>{{=T("Delete")}}</th><th>{{=T("Ticket")}}</th><th>{{=T("Date and Time")}}</th></tr>
+</thead>
+<tbody>
+{{for ticket in tickets:}}
+<tr>
+<td><input type="checkbox" name="delete_{{=ticket}}"/></td>
+<td><a href="{{=URL(r=request,f='ticket',args=[app,ticket])}}">{{=ticket}}</a></td>
+<td>{{=time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(os.stat(os.path.join(request.folder,'../%s/errors/%s' % (app,ticket)))[stat.ST_CTIME]))}}</td>
+</tr>
+{{pass}}
+</tbody>
+</table>
+</form>

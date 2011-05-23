@@ -1,0 +1,73 @@
+
+.ui-accordion .ui-accordion-header {
+    margin-top: 1px;
+    background: #000033;
+    color: #66CCFF;
+}
+.ui-accordion .ui-accordion-header .ui-icon-triangle-1-ne {
+    position: absolute;
+    left: 97%;
+}
+.ui-accordion .ui-state-active { 
+    background:#2779aa; 
+    color: #66CCFF;
+}
+
+.ui-accordion .ui-accordion-content { 
+    background: #000033;
+    color: #66CCFF;
+    padding: 0em 0.1em; 
+    border-top: 0; 
+    margin-top: -2px; 
+    position: relative; 
+    top: 1px; 
+    margin-bottom: 2px; 
+    overflow: auto; 
+    display: block;
+}
+
+.now {
+    font-weight: bold;
+    padding-top: 0.2em;
+    color: white;
+    padding-left: 0.2em
+    padding-right: 0.2em
+}
+
+.pos {text-align:right}
+
+.row1 {
+    border-bottom: 1px #99f solid;
+    margin-left: -0.5em;
+    margin-right: -0.5em;
+}
+
+.context-menu-theme-xp {
+	border:2px solid #FFFFFF;
+	padding:1px;
+	background:#000033;
+}
+.context-menu-theme-xp .context-menu-separator {
+	margin:4px 2px;
+	font-size:0px;
+	border-top:1px solid #808080;
+	border-bottom:1px solid white;
+}
+.context-menu-theme-xp .context-menu-item {
+	text-align:left;
+	color:#DDDDDD;
+	font-size:1em;
+	cursor:pointer;
+}
+.context-menu-theme-xp .context-menu-item .context-menu-item-inner {
+	background:none no-repeat 2px center;
+	padding:4px 10px 4px 30px;
+}
+.context-menu-theme-xp .context-menu-item-hover .context-menu-item-inner {
+    background:#2779aa; 
+	padding:3px 9px 3px 29px;
+	border:1px solid #0A246A;
+}
+
+
+

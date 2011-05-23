@@ -1,0 +1,42 @@
+application: web2py
+version: 1
+api_version: 1
+runtime: python
+
+handlers:
+
+- url: /(?P<a>.+?)/static/(?P<b>.+)
+  static_files: applications/\1/static/\2
+  upload: applications/(.+?)/static/(.+)
+  secure: optional
+
+- url: /admin-gae/.*
+  script: $PYTHON_LIB/google/appengine/ext/admin
+  login: admin
+ 
+- url: /_ah/queue/default
+  script: gaehandler.py
+  login: admin
+
+- url: .*
+  script: gaehandler.py  
+  secure: optional
+
+skip_files: |
+ ^(.*/)?(
+ (app\.yaml)|
+ (app\.yml)|
+ (index\.yaml)|
+ (index\.yml)|
+ (#.*#)|
+ (.*~)|
+ (.*\.py[co])|
+ (.*/RCS/.*)|
+ (\..*)|
+ ((admin|examples|welcome)\.tar)|
+ (applications/(admin|examples)/.*)|
+ (applications/.*?/databases/.*) |
+ (applications/.*?/errors/.*)|
+ (applications/.*?/cache/.*)|
+ (applications/.*?/sessions/.*)|
+ )$

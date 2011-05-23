@@ -1,0 +1,156 @@
+{{extend 'layout.html'}}
+{{
+import os
+def peekfile(path,file):
+    return A(file.replace('\\\\','/'),_href=URL(r=request,f='peek/%s/%s/%s' % (app, path, file)))
+def editfile(path,file):
+    return A(T('edit'),_href=URL(r=request,f='edit/%s/%s/%s' % (app, path, file)))
+def testfile(path,file):
+    return A(T('test'),_href=URL(r=request,f='test/%s/%s' % (app, file)))
+def htmleditfile(path,file):
+    return A(T('htmledit'),_href=URL(r=request,f='htmledit/%s/%s/%s' % (app, path, file)))
+def editlanguagefile(path,file):
+    return A(T('edit'),_href=URL(r=request,f='edit_language/%s/%s/%s' % (app, path, file)))
+def file_upload_form(location):
+    form=FORM(T("upload file:")," ",
+              INPUT(_type="file",_name="file"),
+              T("and rename it:")," ",
+              INPUT(_type="text",_name="filename",requires=IS_NOT_EMPTY),
+              INPUT(_type="hidden",_name="location",_value=location),
+              INPUT(_type="hidden",_name="sender",_value=URL(r=request,f='design/'+app)),
+              INPUT(_type="hidden",_name="plugin",_value=request.args(1)),
+              INPUT(_type="submit",_value=T("submit")),_action=URL(r=request,f='upload_file'))
+    return form
+def file_create_form(location):
+    form=FORM(T("create file with filename:")," ",
+              INPUT(_type="text",_name="filename",requires=IS_NOT_EMPTY),
+              INPUT(_type="hidden",_name="location",_value=location),
+              INPUT(_type="hidden",_name="sender",_value=URL(r=request,f='design/'+app)),
+              INPUT(_type="hidden",_name="plugin",_value=request.args(1)),
+              INPUT(_type="submit",_value=T("submit")),_action=URL(r=request,f='create_file'))
+    return form
+}}
+<h1>{{=T('Plugin "%s" in application', request.args(1))}} "{{=app}}"</h1>
+<div style="text-align: left">
+[ <a href="{{=URL(r=request,f='design',args=app)}}">{{=T("back")}}</a>
+| <a href="{{=URL(r=request,f='delete_plugin',args=request.args)}}">{{=T("delete plugin")}}</a>
+| <a href="{{=URL(r=request,f='pack_plugin',args=request.args)}}">{{=T("pack plugin")}}</a>
+]
+</div>
+<div style="text-align: right">
+[ <a href="#models">{{=T("models")}}</a>
+| <a href="#controllers">{{=T("controllers")}}</a>
+| <a href="#views">{{=T("views")}}</a>
+| <a href="#static">{{=T("static")}}</a>
+| <a href="#modules">{{=T("modules")}}</a> ]
+</div>
+<br/>
+
+<h2 id="models" onclick="collapse('models_inner');">{{=T("Models")}}</h2>
+<div id="models_inner">
+<i>{{=T("the data representation, define database tables and sets")}}</i>
+<br/><br/>
+{{if not models:}}{{=T("There are no models")}}{{else:}}[ 
+<a href="{{=URL(a=app,c='appadmin',f='index')}}">{{=T("database administration")}}</a>
+{{if os.access(os.path.join(request.folder,'..',app,'databases','sql.log'),os.R_OK):}}| {{=A('sql.log',_href=URL(r=request,f='peek/%s/databases/sql.log'%app))}}{{pass}} ] {{pass}}
+<ul>
+{{for m in models:}}<li>{{=peekfile('models',m)}}
+[ {{=editfile('models',m)}} | <a href="{{=URL(r=request,f='delete',args=[app,'models',m],vars=dict(sender=request.function+'/'+app))}}">{{=T("delete")}}</a> ]
+{{if len(defines[m]):}}{{=T("defines tables")}} {{pass}}{{=XML(', '.join([B(table).xml() for table in defines[m]]))}}
+</li>{{pass}}
+{{if not models:}}<li>{{=file_create_form('%s/models/' % app)}}</li>{{pass}}
+</ul>
+</div>
+
+{{
+controller_functions=[]
+for c in controllers: controller_functions+=[c[:-3]+'/%s.html'%x for x in functions[c]]
+}}
+<h2 id="controllers" onclick="collapse('controllers_inner');">{{=T("Controllers")}}</h2>
+<div id="controllers_inner"><i>{{=T("the application logic, each URL path is mapped in one exposed function in the controller")}}</i>
+<br/><br/>
+{{if not controllers:}}{{=T("There are no controllers")}}{{else:}}
+[ <a href='{{=URL(r=request,c='shell',f='index',args=app)}}'>{{=T("shell")}}</a> 
+| <a href='{{=URL(r=request,f='test',args=app)}}'>{{=T("test")}}</a>
+| <a href='{{=URL(r=request,f='edit',args=[app,'cron','crontab'])}}'>{{=T("crontab")}}</a>
+]
+{{pass}}
+<ul>
+{{for c in controllers:}}<li>{{=peekfile('controllers',c)}}
+[ {{=editfile('controllers',c)}} |
+<a href="{{=URL(r=request,f='delete',args=[app,'controllers',c],vars=dict(sender=request.function+'/'+app))}}">{{=T("delete")}}</a> |
+{{=testfile('controllers',c)}} ]
+{{if functions[c]:}}{{=T("exposes")}} {{pass}}{{=XML(', '.join([A(f,_href=URL(a=app,c=c[:-3],f=f)).xml() for f in functions[c]]))}}
+</li>{{pass}}
+{{if not controllers:}}<li>{{=file_create_form('%s/controllers/' % app)}}</li>{{pass}}
+</ul>
+</div>
+
+<h2 id="views" onclick="collapse('views_inner');">{{=T("Views")}}</h2>
+<div id="views_inner"><i>{{=T("the presentations layer, views are also known as templates")}}</i>
+<br/><br/>
+{{if not views:}}{{=T("There are no views")}}{{pass}}
+<ul>
+{{for c in views:}}<li>{{=peekfile('views',c)}}
+[ {{=editfile('views',c)}} | {{=htmleditfile('views',c)}} |
+<a href="{{=URL(r=request,f='delete',args=[app,'views',c],vars=dict(sender=request.function+'/'+app))}}">{{=T("delete")}}</a> ]
+{{if extend.has_key(c):}}{{=T("extends")}} <b>{{=extend[c]}}</b> {{pass}}
+{{if include[c]:}}{{=T("includes")}} {{pass}}{{=XML(', '.join([B(f).xml() for f in include[c]]))}}
+</li>{{pass}}
+<li>{{=file_create_form('%s/views/' % app)}}</li>
+</ul>
+</div>
+
+<h2 id="static" onclick="collapse('static_inner');">{{=T("Static files")}}</h2>
+<div id="static_inner"><i>{{=T("these files are served without processing, your images go here")}}</i>
+<br/><br/>
+{{if not statics:}}{{=T("There are no static files")}}{{pass}}
+<ul>
+{{
+path=[]
+for file in statics+['']:
+    items=file.split('/')
+    file_path=items[:-1]
+    filename=items[-1]
+    i=0
+    while i<max(len(path),len(file_path)):
+        if i>=len(path):
+            path.append(file_path[i])
+            thispath='static__'+'__'.join(path)
+}}<li>{{='/'.join(file_path[:i]+[''])}}<a href="javascript:collapse('{{=thispath}}');">{{=file_path[i]}}/</a></li><div id="{{=thispath}}" style="display: none;">{{
+        elif i>=len(file_path) or path[i]!=file_path[i]:
+            file_path=file_path[:i]
+            for j in range(len(path)-1,i-1,-1):
+}}</div>{{
+                pass
+            path=path[:i]
+            break
+        i=i+1
+        pass
+    if filename:
+}}<li>{{='/'.join(file_path[:i]+[''])}}<a href="{{=URL(a=app,c='static',f=file)}}">{{=filename}}</a> [ {{=editfile('static',file)}} | <a href="{{=URL(r=request,f='delete',args=[app,'static',file],vars=dict(sender=request.function+'/'+app))}}">{{=T("delete")}}</a> ]</li>{{
+        pass
+    pass
+}}
+{{pass}}
+<li>{{=file_create_form('%s/static/' % app)}}</li>
+<li>{{=file_upload_form('%s/static/' % app)}}</li>
+</ul>
+</div>
+
+<h2 id="modules" onclick="collapse('modules_inner');">{{=T("Modules")}}</h2>
+<div id="modules_inner"><i>{{=T("additional code for your application")}}</i>
+<br/><br/>
+{{if not modules:}}
+{{=T("There are no modules")}}
+{{pass}}
+<ul>
+{{for m in modules:}}<li>{{=peekfile('modules',m)}}
+[ {{=editfile('modules',m)}} {{if m!='__init__.py':}} |
+<a href="{{=URL(r=request,f='delete',args=[app,'modules',m],vars=dict(sender=request.function+'/'+app))}}">{{=T("delete")}}</a>{{pass}} ]
+</li>{{pass}}
+<li>{{=file_create_form('%s/modules/' % app)}}</li>
+<li>{{=file_upload_form('%s/modules/' % app)}}</li>
+</ul>
+</div>
+
