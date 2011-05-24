@@ -44,9 +44,16 @@ config = ConfigParser.ConfigParser()
 config.optionxform = str
 config.read('scan.ini')
 # multi-field separator
-file_modification_time = 'mtime'
+linux_file_modification_time = 'mtime'
 try:        
-    file_modification_time = config.get('gettags', 'file_modification_time')
+    linux_file_modification_time = config.get('gettags', 'linux_file_modification_time')
+except ConfigParser.NoSectionError:
+    pass
+except ConfigParser.NoOptionError:
+    pass
+linux_file_creation_time = ''
+try:        
+    linux_file_creation_time = config.get('gettags', 'linux_file_creation_time')
 except ConfigParser.NoSectionError:
     pass
 except ConfigParser.NoOptionError:
@@ -130,10 +137,14 @@ def process_dir(scanpath, options, database):
                 fsize = unicode(fstat.st_size)
                 fctime = unicode(fstat.st_ctime)
                 fmtime = unicode(fstat.st_mtime)
+                fatime = unicode(fstat.st_atime)
 
-                if file_modification_time == 'ctime' and os.name != 'nt':
+                if linux_file_modification_time == 'ctime' and os.name != 'nt':
                     created = fmtime
                     lastmodified = fctime
+                elif linux_file_creation_time == 'atime' and os.name != 'nt':
+                    created = fatime
+                    lastmodified = fmtime
                 elif os.name == 'nt':
                     created = fctime
                     lastmodified = fmtime
