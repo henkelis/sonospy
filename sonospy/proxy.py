@@ -3130,9 +3130,9 @@ order by albumartist limit ?, ?
                         albumtypestrings = ['album']
                     else:
                         if self.use_albumartist:
-                            albumtypestring = albumtypestring.replace('artist_virtual', 'albumartist_virtual')
+                            albumtypestring = re.sub('(?<!album)artist_', 'albumartist_', albumtypestring)
                         else:
-                            albumtypestring = albumtypestring.replace('albumartist_virtual', 'artist_virtual')
+                            albumtypestring = albumtypestring.replace('albumartist_', 'artist_')
                         albumtypestrings = albumtypestring.split(',')
                         albumtypestrings = [k.strip() for k in albumtypestrings]
                         albumtypestrings = [k for k in albumtypestrings if k != '']
