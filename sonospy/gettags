@@ -46,7 +46,35 @@ enc = sys.getfilesystemencoding()
 config = ConfigParser.ConfigParser()
 config.optionxform = str
 config.read('scan.ini')
-# multi-field separator
+
+# file exclusions
+try:        
+    file_name_exclusions_list = config.get('gettags', 'file_name_exclusions')
+    file_name_exclusions_list = file_name_exclusions_list.lower()
+except ConfigParser.NoSectionError:
+    pass
+except ConfigParser.NoOptionError:
+    pass
+file_name_exclusions = []
+if file_name_exclusions_list and file_name_exclusions_list != '':
+    exclusions = file_name_exclusions_list.split(',')
+    for exclusion in exclusions:
+        if exclusion != '': file_name_exclusions.append(exclusion)
+
+try:        
+    file_extn_exclusions_list = config.get('gettags', 'file_extension_exclusions')
+    file_extn_exclusions_list = file_extn_exclusions_list.lower()
+except ConfigParser.NoSectionError:
+    pass
+except ConfigParser.NoOptionError:
+    pass
+file_extn_exclusions = []
+if file_extn_exclusions_list and file_extn_exclusions_list != '':
+    exclusions = file_extn_exclusions_list.split(',')
+    for exclusion in exclusions:
+        if exclusion != '': file_extn_exclusions.append(exclusion)
+
+# linux file stats
 linux_file_modification_time = 'mtime'
 try:        
     linux_file_modification_time = config.get('gettags', 'linux_file_modification_time')
@@ -61,6 +89,45 @@ except ConfigParser.NoSectionError:
     pass
 except ConfigParser.NoOptionError:
     pass
+
+# duplicate processing
+ignore_duplicate_tracks = 'n'
+try:        
+    ignore_duplicate_tracks = config.get('gettags', 'ignore_duplicate_tracks')
+    ignore_duplicate_tracks = ignore_duplicate_tracks.lower()
+except ConfigParser.NoSectionError:
+    pass
+except ConfigParser.NoOptionError:
+    pass
+
+# blank tag processing
+ignore_blank_tags = 'n'
+try:        
+    ignore_blank_tags = config.get('gettags', 'ignore_blank_tags')
+    ignore_blank_tags = ignore_blank_tags.lower()
+except ConfigParser.NoSectionError:
+    pass
+except ConfigParser.NoOptionError:
+    pass
+
+# duplicate precedence
+duplicate_tracks_precedence = 'flac,ogg,wma,mp3'
+try:        
+    duplicate_tracks_precedence = config.get('gettags', 'duplicate_tracks_precedence')
+    duplicate_tracks_precedence = duplicate_tracks_precedence.lower()
+except ConfigParser.NoSectionError:
+    pass
+except ConfigParser.NoOptionError:
+    pass
+mimeconv = {'flac': u"audio/x-flac", 
+            'mp3': u"audio/mp3",
+            'ogg': u"audio/vorbis",
+            'wma': u"audio/x-ms-wma"}
+mime_precedence=[]
+mimes = duplicate_tracks_precedence.split(',')
+for mime in mimes:
+    if mime in mimeconv:
+        mime_precedence.append(mimeconv[mime])
 
 '''
 For the path supplied
@@ -124,9 +191,10 @@ def process_dir(scanpath, options, database):
             folderart = os.path.join(filepath, folderart)
         
         for fn in files:
-            if fn.lower() in fileexclusions: continue
+            if fn.lower() in file_name_exclusions: continue
             ff, ex = os.path.splitext(fn)
             if ex.lower() in artextns: continue
+            if ex.lower() in file_extn_exclusions: continue
             ffn = os.path.join(filepath, fn)
             if not os.access(ffn, os.R_OK): continue
             try:
@@ -271,6 +339,15 @@ def process_dir(scanpath, options, database):
                             title = MULTI_SEPARATOR.join(tags.get('title', ''))
                             artist = MULTI_SEPARATOR.join(tags.get('artist', ''))
                             album = MULTI_SEPARATOR.join(tags.get('album', ''))
+
+                            # ignore record with no tags if appropriate:
+                            #   for an insert nothing will get inserted
+                            #   for an existing record that has had tags blanked out
+                            #     nothing will be changed, so the record will be
+                            #     deleted in the "track not encountered" code
+                            if ignore_blank_tags == 'y' and (title == '' and artist == '' and album == ''):
+                                continue
+
                             genre = MULTI_SEPARATOR.join(tags.get('genre', ''))
                             track = MULTI_SEPARATOR.join(tags.get('tracknumber', ''))
                             year = MULTI_SEPARATOR.join(tags.get('date', ''))
@@ -346,13 +423,89 @@ def process_dir(scanpath, options, database):
                         #   the file timestamp changed (so the record exists)
                         #   the cover changed (so the record exists)
                         #   it's a new file (so the record doesn't exist)
+                        
                         try:
+                            # check if there is an existing record for these tags if appropriate
+                            if ignore_duplicate_tracks == 'y':
+                                c.execute("""select path, filename, mime from tags where title=? and album=? and artist=? and track=?""",
+                                            (title, album, artist, str(track)))
+                                crow = c.fetchone()
+                                if crow:
+                                    duppath, dupfilename, dupmime = crow
+                                    # check that we haven't just found the track we're processing
+                                    if duppath != path or dupfilename != filename:
+                                        # check if the file referred to by the existing record still exists
+                                        dupspec = os.path.join(duppath, dupfilename)
+                                        if os.access(dupspec, os.R_OK):
+                                            # check if the track we are processing has precedence
+                                            try:
+                                                old_prec = mime_precedence.index(dupmime)
+                                            except ValueError:
+                                                # not found, set precedence to high values - 1
+                                                old_prec = 998
+                                            try:
+                                                new_prec = mime_precedence.index(mime)
+                                            except ValueError:
+                                                # not found, set precedence to high values
+                                                new_prec = 999
+                                            if old_prec <= new_prec:
+                                                # ignore the record we are processing
+                                                continue
+                                            # at this point we have a duplicate that needs to replace an existing track
+                                            # we need to delete the old record
+                                            try:
+                                                c.execute("""select * from tags where path=? and filename=?""", (duppath, dupfilename))
+                                                crow = c.fetchone()
+
+                                                # get data
+                                                o_id, o_id2, o_title, o_artist, o_album, \
+                                                o_genre, o_track, o_year, \
+                                                o_albumartist, o_composer, o_codec,  \
+                                                o_length, o_size,  \
+                                                o_created, o_path, o_filename,  \
+                                                o_discnumber, o_comment,  \
+                                                o_folderart, o_trackart,  \
+                                                o_bitrate, o_samplerate,  \
+                                                o_bitspersample, o_channels, o_mime,  \
+                                                o_lastmodified, o_upnpclass, o_scannumber,  \
+                                                o_folderartid, o_trackartid,  \
+                                                o_inserted, o_lastscanned = crow
+                                                # create audit records
+                                                tags = (o_id, o_id2,
+                                                        o_title, o_artist, o_album,
+                                                        o_genre, o_track, o_year,
+                                                        o_albumartist, o_composer, o_codec, 
+                                                        o_length, o_size, 
+                                                        o_created, o_path, o_filename, 
+                                                        o_discnumber, o_comment, 
+                                                        o_folderart, o_trackart, 
+                                                        o_bitrate, o_samplerate, 
+                                                        o_bitspersample, o_channels, o_mime, 
+                                                        o_lastmodified, o_upnpclass, scannumber,
+                                                        o_folderartid, o_trackartid,
+                                                        o_inserted, o_lastscanned)
+                                                # pre
+                                                dtags = tags + (0, 'D')
+                                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
+                                                # post
+                                                dtags = cleartags(tags, lastscanned=lastscanned)
+                                                dtags += (1, 'D')
+                                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
+                                                # delete record from tags
+                                                if not options.quiet:
+                                                    print "Duplicate file replaced: %s, %s" % (o_filename.encode(enc, 'replace'), o_path.encode(enc, 'replace'))
+                                                if options.verbose:
+                                                    print "DELETE: " + str(tags)
+                                                c.execute("""delete from tags where id=?""", (o_id,))
+
+                                            except sqlite3.Error, e:
+                                                print "Error processing duplicate deletion:", e.args[0]
+
                             # get the existing record for this unique path/filename if it exists
                             c.execute("""select * from tags where path=? and filename=?""", (path, filename))
                             crow = c.fetchone()
                             if not crow:
                                 # this track did not previously exist, create a tags record
-                                
                                 filespec = os.path.join(path, filename)
                                 filespec = filespec.encode(enc, 'replace')
                                 mf = hashlib.md5()
