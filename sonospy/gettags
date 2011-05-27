@@ -33,6 +33,9 @@ import mutagen
 from mutagen import File
 from mutagen.asf import ASFUnicodeAttribute     # seems to be an issue with multiple tag entries in wma files
 
+import errors
+errors.catch_errors()
+
 MULTI_SEPARATOR = '\n'
 fileexclusions = ['.ds_store', 'desktop.ini', 'thumbs.db']
 artextns = ['.jpg', '.bmp', '.png', '.gif']
@@ -481,8 +484,6 @@ def process_dir(scanpath, options, database):
 
             except KeyboardInterrupt: 
                 raise
-            except Exception, err:
-                print str(err)
                 
     if options.database:
 

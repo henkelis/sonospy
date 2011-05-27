@@ -29,6 +29,9 @@ import ConfigParser
 from collections import defaultdict
 from dateutil.parser import parse as parsedate
 
+import errors
+errors.catch_errors()
+
 MULTI_SEPARATOR = '\n'
 
 def process_tags(args, options, tagdatabase, trackdatabase):
@@ -1211,8 +1214,6 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
         except KeyboardInterrupt: 
             raise
-        except Exception, err: 
-            print str(err)
 
         if options.verbose:
             print "committing"
