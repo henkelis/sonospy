@@ -1007,8 +1007,8 @@ class DummyContentDirectory(Service):
         else:
             self.album_distinct_duplicate = ''
             self.album_groupby_duplicate = ''
-            self.album_where_duplicate = ' where duplicate = "0"'
-            self.album_and_duplicate = ' and duplicate = "0"'
+            self.album_where_duplicate = ' where duplicate = 0'
+            self.album_and_duplicate = ' and duplicate = 0'
 
         # get sorts setting
         self.use_sorts = False
@@ -1729,11 +1729,11 @@ class DummyContentDirectory(Service):
                             statement = "select * from albums %s%s group by %s order by orderby limit ?, ?" % (self.album_where_duplicate, albumtype_where, groupby_albumartist)
 
                         '''
-select * from albums  where duplicate = "0" and albumtype in (10,27) group by album order by orderby limit ?, ?
+select * from albums  where duplicate = 0 and albumtype in (10,27) group by album order by orderby limit ?, ?
 
 select a.* from (
     select album, min(tracknumbers) as mintrack, albumtype, duplicate 
-    from albums where duplicate = "0" and albumtype in (10,27) group by album
+    from albums where duplicate = 0 and albumtype in (10,27) group by album
 ) as m inner join albums as a on a.album = m.album and a.tracknumbers = m.mintrack and a.albumtype = m.albumtype and a.duplicate = m.duplicate
 order by albumartist limit ?, ?
                         '''
@@ -1992,7 +1992,7 @@ order by albumartist limit ?, ?
                         c.execute(orderstatement, (found_genre, found_field, albumtype, start, length))
 
                     for row in c:
-#                        log.debug("row: %s", row)
+                        log.debug("row: %s", row)
 
     #                    if startingIndex == 0 and count > 100:
     #                        # hack to get initial display back quicker
@@ -2013,7 +2013,7 @@ order by albumartist limit ?, ?
                         artist = escape(artist)
                         albumartist = escape(albumartist)
 
-                        if duplicate != '0':
+                        if duplicate != 0:
                             album += ' (' + duplicate + ')'
 
                         a_prefix = self.makepresuffix(prefix, self.replace_pre, {'year':year, 'lastplayed':lastplayed, 'playcount':playcount, 'created':created, 'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist, 'composer':composer})
@@ -2725,17 +2725,20 @@ order by albumartist limit ?, ?
 
                 if title == '': title = '[unknown title]'
                 if artist == '': artist = '[unknown artist]'
-                else: artist = self.get_artist(artist, self.mouseover_artist, self.mouseover_artist_combiner)
+                else: artist = self.get_artist(artist, self.now_playing_artist, self.now_playing_artist_combiner)
+                if albumartist == '': albumartist = '[unknown albumartist]'
+                else: albumartist = self.get_artist(albumartist, self.now_playing_artist, self.now_playing_artist_combiner)
                 if album == '': album = '[unknown album]'
                 title = escape(title)
                 artist = escape(artist)
+                albumartist = escape(albumartist)
                 album = escape(album)
                 tracknumber = self.convert_tracknumber(tracknumber)
                 count += 1
                 
                 ret += '<item id="%s" parentID="%s" restricted="true">' % (id, parentID)
                 ret += '<dc:title>%s</dc:title>' % (title)
-                ret += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (artist)
+                ret += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (albumartist)
                 ret += '<upnp:artist role="Performer">%s</upnp:artist>' % (artist)
                 ret += '<upnp:album>%s</upnp:album>' % (album)
                 if tracknumber != 0:
@@ -3130,14 +3133,15 @@ order by albumartist limit ?, ?
                         albumtypestrings = ['album']
                     else:
                         if self.use_albumartist:
-                            albumtypestring = re.sub('(?<!album)artist_', 'albumartist_', albumtypestring)
+                            albumtypestring = re.sub('(?<!album)artist_virtual', 'albumartist_virtual', albumtypestring)
                         else:
-                            albumtypestring = albumtypestring.replace('albumartist_', 'artist_')
+                            albumtypestring = albumtypestring.replace('albumartist_virtual', 'artist_virtual')
                         albumtypestrings = albumtypestring.split(',')
                         albumtypestrings = [k.strip() for k in albumtypestrings]
                         albumtypestrings = [k for k in albumtypestrings if k != '']
                         if not 'album' in albumtypestrings:
                             albumtypestrings.insert(0, 'album')
+                        log.debug(albumtypestrings)
                     ats = []
                     for at in albumtypestrings:
                         albumtypenum, table = self.translate_albumtype(at, sorttype)
