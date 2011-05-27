@@ -85,12 +85,13 @@ class ColoredLogger(logging.Logger):
 #    FORMAT = '%(created)f $BOLD%(levelname)s$RESET $BOLD%(module)s:%(lineno)d'\
 #             ':%(funcName)s()$RESET %(message)s'
 
-    FORMAT = '$BOLD%(levelname)s$RESET\t$BOLD%(module)-30s:%(lineno)4d'\
-             ':%(funcName)s()$RESET %(message)s'
+    FORMAT = '$BOLD%(levelname)s$RESET\t$BOLD%(module)-12s:%(lineno)4d'\
+             ':  %(funcName)s()$RESET %(message)s'
 
 #    formatter = logging.Formatter('%(levelname)s\t%(module)-30s@%(lineno)4d  %(message)s')
 
-    COLOR_FORMAT = formatter_message(FORMAT, True)
+#    COLOR_FORMAT = formatter_message(FORMAT, True)
+    COLOR_FORMAT = formatter_message(FORMAT, False)
 
     def __init__(self, name):
         """ Constructor for the ColoredLogger class.
@@ -100,7 +101,8 @@ class ColoredLogger(logging.Logger):
         """
         global level
         logging.Logger.__init__(self, name, level)
-        color_formatter = ColoredFormatter(self.COLOR_FORMAT)
+#        color_formatter = ColoredFormatter(self.COLOR_FORMAT)
+        color_formatter = ColoredFormatter(self.COLOR_FORMAT, False)
         console = logging.StreamHandler()
         console.setFormatter(color_formatter)
         self.addHandler(console)
