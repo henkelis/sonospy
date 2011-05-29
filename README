@@ -480,3 +480,8 @@ Known installation issues on FreeNAS:
 *) By default the BRisa framework listens on eth0, whereas the FreeNAS interface is vr0. For running
 on FreeNAS you must change the interface by editing and running setconf.sh.
 
+Notes:
+------
+When rescanning, the content directory update ID will be reset to 1. As that will be lower than the
+one held in a controller if the controller or the proxy hasn't been restarted, you should restart
+the controller or proxy to make changes to the database visible.

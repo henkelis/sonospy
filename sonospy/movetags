@@ -28,7 +28,6 @@ import time
 import ConfigParser
 from collections import defaultdict
 from dateutil.parser import parse as parsedate
-
 import errors
 errors.catch_errors()
 
@@ -1214,6 +1213,8 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
         except KeyboardInterrupt: 
             raise
+#        except Exception, err: 
+#            print str(err)
 
         if options.verbose:
             print "committing"
@@ -1307,14 +1308,17 @@ def process_list_the(plist, the_processing):
 
 def adjust_tracknumber(tracknumber):
     # adjust tracknumber so that it's numeric (but save empty string if not)
-    tracknumber = tracknumber.strip()
-    if tracknumber != '':
-        try:
-            tracknumber = int(re.split('\D', tracknumber)[0])
-        except ValueError:
-            tracknumber = ''
-        except AttributeError:
-            tracknumber = ''
+    if not tracknumber:
+        tracknumber = ''
+    else:
+        tracknumber = tracknumber.strip()
+        if tracknumber != '':
+            try:
+                tracknumber = int(re.split('\D', tracknumber)[0])
+            except ValueError:
+                tracknumber = ''
+            except AttributeError:
+                tracknumber = ''
     return tracknumber
 
 def adjust_year(year):
@@ -1324,17 +1328,20 @@ def adjust_year(year):
 
 def truncate_number(number):
     # find integer portion of number passed as string
-    number = number.strip()
-    numberparts = re.split('\D', number)
-    if numberparts[0] == '':
+    if not number:
         number = 0
     else:
-        try:
-            number = int(numberparts[0])
-        except ValueError:
+        number = number.strip()
+        numberparts = re.split('\D', number)
+        if numberparts[0] == '':
             number = 0
-        except AttributeError:
-            number = 0
+        else:
+            try:
+                number = int(numberparts[0])
+            except ValueError:
+                number = 0
+            except AttributeError:
+                number = 0
     return number
     
 def splitworkvirtual(workstring):
@@ -1944,6 +1951,7 @@ def main(argv=None):
             empty_database(trackdatabase)
         check_target_database_exists(trackdatabase)
         process_tags(args, options, tagdatabase, trackdatabase)
+
     return 0
 
 if __name__ == "__main__":
