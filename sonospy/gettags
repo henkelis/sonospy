@@ -23,6 +23,8 @@
 import os, sys
 import locale
 import time
+import traceback
+import codecs
 
 import hashlib
 import sqlite3
@@ -36,6 +38,7 @@ from mutagen.asf import ASFUnicodeAttribute     # seems to be an issue with mult
 import errors
 errors.catch_errors()
 
+MUTAGEN_ERROR_FILE = 'errors/scanerrors.txt'
 MULTI_SEPARATOR = '\n'
 fileexclusions = ['.ds_store', 'desktop.ini', 'thumbs.db']
 artextns = ['.jpg', '.bmp', '.png', '.gif']
@@ -239,7 +242,18 @@ def process_dir(scanpath, options, database):
 
                 if get_tags:                    
                 
-                    kind = File(ffn, easy=True)
+                    try:
+                        kind = File(ffn, easy=True)
+                    except Exception:
+                        # note - Mutagen raises exceptions as various types, including Exception
+                        #        but we shouldn't really use Exception as the lowest common denominator here
+                        etype, value, tb = sys.exc_info()
+                        error = traceback.format_exception_only(etype, value)[0].strip()
+                        errorstring = "Error processing file: %s : %s" % (ffn.encode(enc, 'replace'), error)
+                        print errorstring
+                        codecs.open(MUTAGEN_ERROR_FILE,'a','utf-8').write('%s\n' % errorstring)
+                        continue
+                        
                     tags = {}
                     trackart = None
 
@@ -991,6 +1005,7 @@ def main(argv=None):
         newdatabase = check_database_exists(options.extract)
         generate_subset(options, database, newdatabase, options.where)
     else:
+        open(MUTAGEN_ERROR_FILE,'w').write("")
         for path in args: 
             if path.endswith(os.sep): path = path[:-1]
             process_dir(path, options, database)
