@@ -25,13 +25,16 @@ import sqlite3
 import optparse
 import re
 import time
+import codecs
 import ConfigParser
 from collections import defaultdict
 from dateutil.parser import parse as parsedate
 import errors
 errors.catch_errors()
 
+MUTAGEN_WARNING_FILE = 'errors/scanwarnings.txt'
 MULTI_SEPARATOR = '\n'
+enc = sys.getfilesystemencoding()
 
 def process_tags(args, options, tagdatabase, trackdatabase):
 
@@ -269,6 +272,8 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                 o_id, o_id2, o_title, o_artistliststring, o_album, o_genreliststring, o_tracknumber, o_year, o_albumartistliststring, o_composerliststring, o_codec, o_length, o_size, o_created, o_path, o_filename, o_discnumber, o_commentliststring, o_folderart, o_trackart, o_bitrate, o_samplerate, o_bitspersample, o_channels, o_mime, o_lastmodified, o_upnpclass, o_scannumber, o_folderartid, o_trackartid, o_inserted, o_lastscanned, o_updateorder, o_updatetype = row0
                 id, id2, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, scannumber, folderartid, trackartid, inserted, lastscanned, updateorder, updatetype = row1
+                o_filespec = os.path.join(o_path, o_filename)
+                filespec = os.path.join(path, filename)
 
                 # save latest scan time
                 this_scan_stamp = lastscanned
@@ -306,7 +311,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                     # adjust various fields
                     o_tracknumber = adjust_tracknumber(o_tracknumber)
-                    o_year = adjust_year(o_year)
+                    o_year = adjust_year(o_year, o_filespec)
                     o_length = truncate_number(o_length)
                     o_size = truncate_number(o_size)
                     o_discnumber = truncate_number(o_discnumber)
@@ -346,7 +351,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                     # adjust various fields
                     tracknumber = adjust_tracknumber(tracknumber)
-                    year = adjust_year(year)
+                    year = adjust_year(year, filespec)
                     length = truncate_number(length)
                     size = truncate_number(size)
                     discnumber = truncate_number(discnumber)
@@ -1321,10 +1326,29 @@ def adjust_tracknumber(tracknumber):
                 tracknumber = ''
     return tracknumber
 
-def adjust_year(year):
+def adjust_year(year, filespec):
     # adjust year so that it is cccc
-    year = parsedate(year).year
-    return year
+    try:
+        cccc = parsedate(year, default=" ").year
+    except Exception:
+        # don't really care why parsedate failed
+        # have another go at finding the century
+        cccc = None
+        datefacets = re.split('\D', year)
+        for i in range(len(datefacets), 0, -1):
+            chars = datefacets[i-1]
+            if len(chars) == 4:
+                cccc = int(chars)
+                break
+        if not cccc:
+            warningstring = "Warning processing track: %s : tag: %s : %s" % (filespec, year, "Couldn't convert year tag to cccc, year tag ignored")
+            print warningstring.encode(enc, 'replace')
+            write_warning(warningstring)
+        if cccc == 0: cccc = None
+    return cccc
+
+def write_warning(warningstring):
+    codecs.open(MUTAGEN_WARNING_FILE,'a','utf-8').write('%s\n' % warningstring)
 
 def truncate_number(number):
     # find integer portion of number passed as string
@@ -1950,6 +1974,7 @@ def main(argv=None):
         if options.regenerate:
             empty_database(trackdatabase)
         check_target_database_exists(trackdatabase)
+        open(MUTAGEN_WARNING_FILE,'w').write("")
         process_tags(args, options, tagdatabase, trackdatabase)
 
     return 0
