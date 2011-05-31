@@ -134,6 +134,10 @@ def main(argv=None):
                 cmd += " -t " + options.the_processing
             if options.regenerate:
                 cmd += " -r"
+            if options.extract:
+                # flag extract to movetags as regen, so correct order is picked up
+                # note this will cause the target database to be cleared first
+                cmd += " -r"
             if options.quiet:
                 cmd += " -q"
             if options.verbose:
