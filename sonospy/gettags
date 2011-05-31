@@ -38,7 +38,10 @@ from mutagen.asf import ASFUnicodeAttribute     # seems to be an issue with mult
 import errors
 errors.catch_errors()
 
+G_QUIET = False
+G_VERBOSE = False
 MUTAGEN_ERROR_FILE = 'errors/scanerrors.txt'
+efile = codecs.open(MUTAGEN_ERROR_FILE,'w','utf-8')
 MULTI_SEPARATOR = '\n'
 fileexclusions = ['.ds_store', 'desktop.ini', 'thumbs.db']
 artextns = ['.jpg', '.bmp', '.png', '.gif']
@@ -250,8 +253,9 @@ def process_dir(scanpath, options, database):
                         etype, value, tb = sys.exc_info()
                         error = traceback.format_exception_only(etype, value)[0].strip()
                         errorstring = "Error processing file: %s : %s" % (ffn.encode(enc, 'replace'), error)
-                        print errorstring
-                        codecs.open(MUTAGEN_ERROR_FILE,'a','utf-8').write('%s\n' % errorstring)
+                        if options.verbose:
+                            print errorstring
+                        efile.write('%s\n' % errorstring)
                         continue
                         
                     tags = {}
@@ -718,8 +722,6 @@ def process_dir(scanpath, options, database):
 
 def generate_subset(options, sourcedatabase, targetdatabase, where):
 
-    if not options.quiet:
-        print "Generating..."
     if options.database:
 
         db = sqlite3.connect(targetdatabase)
@@ -727,6 +729,8 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
         c = db.cursor()
     
         if sourcedatabase != targetdatabase:
+            if not options.quiet:
+                print "Extracting tag data"
             # we are generating a new database, so attach to old and extract the data we need
             c.execute("attach ? as old", (sourcedatabase, ))
             # copy selected tags into new database
@@ -736,6 +740,11 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
             # copy associated art
             statement = """insert into art select distinct old.art.id, old.art.artpath from old.art, tags where tags.folderartid = old.art.id or tags.trackartid = old.art.id"""
             c.execute(statement) 
+            if not options.quiet:
+                print "Tag data extracted"
+
+        if not options.quiet:
+            print "Generating change data"
 
         c.execute('''insert into scans values (?,?)''', (None, "generated"))
         scannumber = c.lastrowid
@@ -783,6 +792,8 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
         db.commit()
         c.close()
 
+        if not options.quiet:
+            print "Change data generated"
 
 def cleartags(tags, lastscanned=''):
     id, id2, \
@@ -938,6 +949,8 @@ def create_database(database):
     c.close()
 
 def delete_updates(database):
+    if not G_QUIET:
+        print "Deleting outstanding updates"
     db = sqlite3.connect(database)
     c = db.cursor()
     try:
@@ -946,6 +959,8 @@ def delete_updates(database):
         print "Error deleting from tags_update:", table, e
     db.commit()
     c.close()
+    if not G_QUIET:
+        print "Outstanding updates deleted"
     
 def process_command_line(argv):
     """
@@ -991,7 +1006,11 @@ def process_command_line(argv):
     return settings, args
 
 def main(argv=None):
+    global G_QUIET
+    global G_VERBOSE
     options, args = process_command_line(argv)
+    G_QUIET = options.quiet
+    G_VERBOSE = options.verbose
     if options.database:
         database = check_database_exists(options.database)
         if not options.quiet:
@@ -1005,10 +1024,10 @@ def main(argv=None):
         newdatabase = check_database_exists(options.extract)
         generate_subset(options, database, newdatabase, options.where)
     else:
-        open(MUTAGEN_ERROR_FILE,'w').write("")
         for path in args: 
             if path.endswith(os.sep): path = path[:-1]
             process_dir(path, options, database)
+    efile.close()
     return 0
 
 if __name__ == "__main__":
