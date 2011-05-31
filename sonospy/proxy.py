@@ -264,7 +264,7 @@ class Proxy(object):
             coverspec = cover[specstart:]
             cvfile = getFile(coverspec)
             cvpath = coverspec
-            dummycoverfile = dbname + '.' + artid + '.coverart'
+            dummycoverfile = dbname + '.' + str(artid) + '.coverart'
 #            coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
             dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath, cover=cover)
             self.wmpcontroller2.add_static_file(dummycoverstaticfile)
@@ -272,7 +272,7 @@ class Proxy(object):
             cvfile = getFile(cover)
             cvpath = cover
             coverfiletype = getFileType(cvfile)
-            dummycoverfile = dbname + '.' + artid + '.' + coverfiletype
+            dummycoverfile = dbname + '.' + str(artid) + '.' + coverfiletype
             dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
             self.wmpcontroller2.add_static_file(dummycoverstaticfile)
 
@@ -1322,7 +1322,7 @@ class DummyContentDirectory(Service):
                     cvfile = getFile(cover)
                     cvpath = cover
                     coverfiletype = getFileType(cvfile)
-                    dummycoverfile = self.dbname + '.' + artid + '.' + coverfiletype
+                    dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
                     coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
                     dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
                     self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
@@ -1404,7 +1404,7 @@ class DummyContentDirectory(Service):
                     cvfile = getFile(cover)
                     cvpath = cover
                     coverfiletype = getFileType(cvfile)
-                    dummycoverfile = self.dbname + '.' + artid + '.' + coverfiletype
+                    dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
                     coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
                     dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
                     self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
@@ -1992,7 +1992,7 @@ order by albumartist limit ?, ?
                         c.execute(orderstatement, (found_genre, found_field, albumtype, start, length))
 
                     for row in c:
-                        log.debug("row: %s", row)
+#                        log.debug("row: %s", row)
 
     #                    if startingIndex == 0 and count > 100:
     #                        # hack to get initial display back quicker
@@ -2014,7 +2014,7 @@ order by albumartist limit ?, ?
                         albumartist = escape(albumartist)
 
                         if duplicate != 0:
-                            album += ' (' + duplicate + ')'
+                            album += ' (' + str(duplicate) + ')'
 
                         a_prefix = self.makepresuffix(prefix, self.replace_pre, {'year':year, 'lastplayed':lastplayed, 'playcount':playcount, 'created':created, 'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist, 'composer':composer})
                         if a_prefix: album = '%s%s' % (a_prefix, album)
@@ -2030,7 +2030,7 @@ order by albumartist limit ?, ?
                             coverspec = cover[specstart:]
                             cvfile = getFile(coverspec)
                             cvpath = coverspec
-                            dummycoverfile = self.dbname + '.' + artid + '.coverart'
+                            dummycoverfile = self.dbname + '.' + str(artid) + '.coverart'
         #                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
                             coverres = self.proxyaddress + '/wmp/' + dummycoverfile
                             dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath, cover=cover)
@@ -2039,7 +2039,7 @@ order by albumartist limit ?, ?
                             cvfile = getFile(cover)
                             cvpath = cover
                             coverfiletype = getFileType(cvfile)
-                            dummycoverfile = self.dbname + '.' + artid + '.' + coverfiletype
+                            dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
         #                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
                             coverres = self.proxyaddress + '/wmp/' + dummycoverfile
                             dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
@@ -2246,7 +2246,7 @@ order by albumartist limit ?, ?
                 if self.show_duplicates:
                     where = ""
                 else:
-                    where = "where duplicate = '0'"
+                    where = "where duplicate = 0"
                 countstatement = "select count(*) from tracks %s" % where
                 statement = "select * from tracks %s order by title limit %d, %d" % (where, startingIndex, requestedCount)
 
@@ -2716,7 +2716,7 @@ order by albumartist limit ?, ?
                     cvfile = getFile(cover)
                     cvpath = cover
                     coverfiletype = getFileType(cvfile)
-                    dummycoverfile = self.dbname + '.' + artid + '.' + coverfiletype
+                    dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
                     coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
                     dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
                     self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
