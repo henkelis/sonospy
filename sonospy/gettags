@@ -445,7 +445,8 @@ def process_dir(scanpath, options, database):
                         try:
                             # check if there is an existing record for these tags if appropriate
                             if ignore_duplicate_tracks == 'y':
-                                c.execute("""select path, filename, mime from tags where title=? and album=? and artist=? and track=?""",
+#                                c.execute("""select path, filename, mime from tags where title=? and album=? and artist=? and track=?""",
+                                c.execute("""select path, filename, mime from tags where title=? collate NOCASE and album=? collate NOCASE and artist=? collate NOCASE and track=?""",
                                             (title, album, artist, str(track)))
                                 crow = c.fetchone()
                                 if crow:
@@ -502,13 +503,26 @@ def process_dir(scanpath, options, database):
                                                         o_lastmodified, o_upnpclass, scannumber,
                                                         o_folderartid, o_trackartid,
                                                         o_inserted, o_lastscanned)
-                                                # pre
-                                                dtags = tags + (0, 'D')
-                                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
-                                                # post
-                                                dtags = cleartags(tags, lastscanned=lastscanned)
-                                                dtags += (1, 'D')
-                                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
+                                                # check whether the duplicate we are deleting was created on this scan
+                                                dupauditdelete = True
+                                                c.execute("""select updatetype from tags_update where id=? and scannumber=?""", (o_id, scannumber))
+                                                crow = c.fetchone()
+                                                if crow:
+                                                    dupupdatetype, = crow
+                                                    if dupupdatetype == 'I':
+                                                        # the duplicate we are deleting was created this scan,
+                                                        # so we should not create audit records for a delete
+                                                        dupauditdelete = False
+                                                # delete any outstanding audit records for this scan
+                                                c.execute("""delete from tags_update where id=? and scannumber=?""", (o_id, scannumber))
+                                                if dupauditdelete:
+                                                    # pre
+                                                    dtags = tags + (0, 'D')
+                                                    c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
+                                                    # post
+                                                    dtags = cleartags(tags, lastscanned=lastscanned)
+                                                    dtags += (1, 'D')
+                                                    c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
                                                 # delete record from tags
                                                 if not options.quiet:
                                                     print "Duplicate file replaced: %s, %s" % (o_filename.encode(enc, 'replace'), o_path.encode(enc, 'replace'))
