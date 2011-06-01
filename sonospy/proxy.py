@@ -23,6 +23,7 @@ import sys
 import os
 import re
 import time
+import datetime
 import ConfigParser
 import sqlite3
 
@@ -1090,7 +1091,7 @@ class DummyContentDirectory(Service):
         suffix_end, self.chunk_metadata_delimiter_suffix_end = self.get_delim('chunk_metadata_delimiter_suffix_end', ']', self.suffix_sep)
 
         missing, self.chunk_metadata_empty = self.get_delim('chunk_metadata_empty', '_', self.prefix_sep)
-        dateformat, self.chunk_metadata_date_format = self.get_delim('chunk_metadata_date_format', '%d/%m/%y', self.prefix_sep)
+        dateformat, self.chunk_metadata_date_format = self.get_delim('chunk_metadata_date_format', '%d/%m/%Y', self.prefix_sep)
 
         self.searchre_pre = '%s[^%s]*%s' % (prefix_start, prefix_end, prefix_end)
         if not suffix_end:
@@ -2924,7 +2925,13 @@ order by albumartist limit ?, ?
                         outfix += replace % playcount
                     elif fix == 'year':
                         year = fixdict['year']
-                        if year == '': year = self.chunk_metadata_empty
+                        if year == '':
+                            year = self.chunk_metadata_empty
+                        else:
+                            try:
+                                year = datetime.date.fromordinal(year).strftime(self.chunk_metadata_date_format)
+                            except TypeError:
+                                year = self.chunk_metadata_empty
                         outfix += replace % year
                     elif fix == 'inserted':
                         inserted = fixdict['inserted'] 

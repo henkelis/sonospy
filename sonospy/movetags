@@ -27,6 +27,7 @@ import re
 import time
 import codecs
 import ConfigParser
+import datetime
 from collections import defaultdict
 from dateutil.parser import parse as parsedate
 import errors
@@ -38,6 +39,10 @@ MUTAGEN_WARNING_FILE = 'errors/scanwarnings.txt'
 wfile = codecs.open(MUTAGEN_WARNING_FILE,'w','utf-8')
 MULTI_SEPARATOR = '\n'
 enc = sys.getfilesystemencoding()
+DEFAULTYEAR = 1
+DEFAULTMONTH = 1
+DEFAULTDAY = 1
+DEFAULTDATE = datetime.datetime(DEFAULTYEAR, DEFAULTMONTH, DEFAULTDAY)
 
 def process_tags(args, options, tagdatabase, trackdatabase):
 
@@ -1334,9 +1339,12 @@ def adjust_tracknumber(tracknumber):
     return tracknumber
 
 def adjust_year(year, filespec):
-    # adjust year so that it is cccc
+    # convert year to ordinal date
+    ordinal = None
     try:
-        cccc = parsedate(year, default=" ").year
+        yeardatetime = parsedate(year, default=DEFAULTDATE)
+        if yeardatetime.year != 1:
+            ordinal = yeardatetime.toordinal()
     except Exception:
         # don't really care why parsedate failed
         # have another go at finding the century
@@ -1352,8 +1360,10 @@ def adjust_year(year, filespec):
             if G_VERBOSE:
                 print warningstring.encode(enc, 'replace')
             write_warning(warningstring)
-        if cccc == 0: cccc = None
-    return cccc
+        else:
+            yeardate = datetime.date(cccc, DEFAULTMONTH, DEFAULTDAY)
+            ordinal = yeardate.toordinal()
+    return ordinal
 
 def write_warning(warningstring):
     wfile.write('%s\n' % warningstring)
