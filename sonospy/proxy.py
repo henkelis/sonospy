@@ -1285,7 +1285,7 @@ class DummyContentDirectory(Service):
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             for row in c:
-                log.debug("row: %s", row)
+#                log.debug("row: %s", row)
                 if album_type != 10:
                     id, id2, parentID, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10 = row
                 else:
@@ -3266,10 +3266,10 @@ order by albumartist limit ?, ?
         return newalbum, dup
 
     def choosecover(self, folderart, trackart, folderartid, trackartid):
-        log.debug(folderart)
-        log.debug(trackart)
-        log.debug(folderartid)
-        log.debug(trackartid)
+#        log.debug(folderart)
+#        log.debug(trackart)
+#        log.debug(folderartid)
+#        log.debug(trackartid)
         try:
             if trackart and trackart != '' and not (folderart and folderart!= '' and self.prefer_folderart):
                 cover = trackart
@@ -3282,7 +3282,7 @@ order by albumartist limit ?, ?
                 artid = ''
         except Exception, e:
             log.debug(e)
-        log.debug('cover: %s  id: %s' % (cover, artid))
+#        log.debug('cover: %s  id: %s' % (cover, artid))
         return cover, artid
 
     def soap_GetSearchCapabilities(self, *args, **kwargs):
