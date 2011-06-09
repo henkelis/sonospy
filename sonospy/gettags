@@ -252,10 +252,8 @@ def process_dir(scanpath, options, database):
                         #        but we shouldn't really use Exception as the lowest common denominator here
                         etype, value, tb = sys.exc_info()
                         error = traceback.format_exception_only(etype, value)[0].strip()
-                        errorstring = "Error processing file: %s : %s" % (ffn.encode(enc, 'replace'), error)
-                        if options.verbose:
-                            print errorstring
-                        efile.write('%s\n' % errorstring)
+                        errorstring = "Error processing file: %s : %s" % (ffn, error)
+                        write_error(errorstring)
                         continue
                         
                     tags = {}
@@ -837,6 +835,11 @@ def cleartags(tags, lastscanned=''):
             '', '',
             '', lastscanned)
     return tags
+
+def write_error(errorstring):
+    if G_VERBOSE:
+        print errorstring.encode(enc, 'replace')
+    efile.write('%s\n' % errorstring)
 
 def encodeunicode(data):
     if isinstance(data, str):

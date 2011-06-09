@@ -1357,8 +1357,6 @@ def adjust_year(year, filespec):
                 break
         if not cccc:
             warningstring = "Warning processing track: %s : tag: %s : %s" % (filespec, year, "Couldn't convert year tag to cccc, year tag ignored")
-            if G_VERBOSE:
-                print warningstring.encode(enc, 'replace')
             write_warning(warningstring)
         else:
             yeardate = datetime.date(cccc, DEFAULTMONTH, DEFAULTDAY)
@@ -1366,6 +1364,8 @@ def adjust_year(year, filespec):
     return ordinal
 
 def write_warning(warningstring):
+    if G_VERBOSE:
+        print warningstring.encode(enc, 'replace')
     wfile.write('%s\n' % warningstring)
 
 def truncate_number(number):
