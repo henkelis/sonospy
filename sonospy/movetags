@@ -35,7 +35,7 @@ errors.catch_errors()
 
 G_QUIET = False
 G_VERBOSE = False
-MUTAGEN_WARNING_FILE = 'errors/scanwarnings.txt'
+MUTAGEN_WARNING_FILE = 'logs/scanwarnings.txt'
 wfile = codecs.open(MUTAGEN_WARNING_FILE,'w','utf-8')
 MULTI_SEPARATOR = '\n'
 enc = sys.getfilesystemencoding()
