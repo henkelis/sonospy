@@ -50,13 +50,20 @@
 # The minimum detail that a header needs is a title for the work or virtual.
 # The other fields below can be left empty or removed completely.
 #
-#     type is work or virtual (defaults to virtual if not specified)
-#     title is the base name of the work or virtual (can be overridden in scan.ini)
-#     set other attributes to values to override values in all tracks for this
-#         work or virtual
-#     use string <blank> to blank out a tag
-#     header remains in force until another header is encounted or end of file
-#     lines beginning with # are ignored
+#     'type' is work or virtual (defaults to virtual if not specified).
+#
+#     'title' is the base name of the work or virtual (can be overridden in
+#     scan.ini).
+#
+#     Set other attributes to values to override values in all tracks for this
+#     work or virtual.
+#
+#     Use string <blank> to blank out a tag.
+#
+#     Header remains in force until another header is encountered or end of
+#     file.
+#
+#     Lines beginning with # are ignored.
 #
 
 type=
