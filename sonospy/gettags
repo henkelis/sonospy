@@ -253,6 +253,8 @@ def process_dir(scanpath, options, database):
         for fn in files:
             ff, ex = os.path.splitext(fn)
             if fn.lower() in file_name_exclusions: continue
+            if ex.lower() in playlist_extensions: continue
+            if ex.lower() in work_virtual_extensions: continue
             if ex.lower() in artextns: continue
             if ex.lower() in file_extn_exclusions: continue
             ffn = os.path.join(filepath, fn)
@@ -1149,6 +1151,7 @@ def process_dir(scanpath, options, database):
         errorstring = "Error processing workvirtual track deletions: %s" % e.args[0]
         write_error(errorstring)
 
+    db2.commit()
     db.commit()
 
     # complete
@@ -1308,15 +1311,13 @@ def clearwv(wv, lastscanned=''):
 
 def write_error(errorstring):
     if not G_QUIET:
-        if isinstance(errorstring, str): print errorstring.encode(enc, 'replace')
-        else: print errorstring
+        print errorstring.encode(enc, 'replace')
     efile.write('%s\n' % errorstring)
     write_verbose_log(errorstring)
 
 def write_log(logstring):
     if not G_QUIET:
-        if isinstance(logstring, str): print logstring.encode(enc, 'replace')
-        else: print logstring
+        print logstring.encode(enc, 'replace')
     lfile.write('%s\n' % logstring)
     write_verbose_log(logstring)
 
@@ -1399,7 +1400,7 @@ workvirtualkeys = {
     'created=': 'wvcreated',
     'lastmodified=': 'wvlastmodified'}
 
-playlists = ['.m3u', '.m3u8']
+playlist_extensions = ['.m3u', '.m3u8']
 
 def read_workvirtualfile(wvfilespec, wvextension, wvfilepath):
     '''
@@ -1429,14 +1430,15 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath):
                 value = value.replace('"', '\\"')
                 if value.endswith('\n'): value = value[:-1]
                 if key == 'type=' and not (value == 'work' or value == 'virtual'): value = wvtype
-                exec('%s="%s"' % (workvirtualkeys[key], value))
+                exec('%s=u"%s"' % (workvirtualkeys[key], value))
                 keyfound = True
                 wvtrack = 1
                 break
         if not keyfound:
             filespec = line.strip()
             ff, ex = os.path.splitext(filespec.lower())
-            if ex in playlists:
+            if ex in playlist_extensions:
+                filespec = checkpath(filespec, wvfilepath)
                 success, plcreated, pllastmodified, plfsize = getfilestat(filespec)
                 if not success:
                     # this playlist does not exist, reject the work/virtual line
@@ -1475,14 +1477,14 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath):
 
 def read_playlist(filespec, extension):
     tracks = []
-    if extension in playlists:
+    if extension in playlist_extensions:
         for line in codecs.open(filespec,'r','utf-8'):
             if line == '': continue
             if line.startswith('#'): continue
             if line.strip() == '': continue
             filespec = line.strip()
             ff, ex = os.path.splitext(filespec.lower())
-            if ex in playlists:
+            if ex in playlist_extensions:
                 # we don't support nested playlists, reject the playlist line
                 errorstring = "Error processing playlist: %s : nested playlists are not supported" % (filespec)
                 write_error(errorstring)
