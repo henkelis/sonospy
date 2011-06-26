@@ -370,6 +370,76 @@ class ControlPointWeb(object):
                                 '108' : 'BROWSE',
                                 '101' : 'BROWSE' }
 
+    # translations to emulate what Sonos does in WMP search
+    sonospy_search_lookup = {
+                             '5' : 'upnp:class = "object.container.genre.musicGenre"',
+                             '6' : 'upnp:class = "object.container.person.musicArtist"',
+                             '7' : 'upnp:class = "object.container.album.musicAlbum"',
+                             'F' : 'upnp:class = "object.container.playlistContainer"',
+                             '99' : 'upnp:class derivedfrom "object.item.audioItem"',
+                             '100' : 'upnp:class = "object.container.person.musicArtist"',
+                             '107' : 'upnp:class = "object.container.person.musicArtist"',
+                             '108' : 'upnp:class = "object.container.person.musicArtist"',
+                             '101' : '',         # dummy, entries are manually created
+                            }
+
+    sonospy_search_lookup_item = {
+                                  '6' : '107',
+                                  '100' : '100',
+                                  '7' : '0',
+                                  '108' : '108',
+                                  '5' : '0',
+                                  '99' : '0',
+                                  'F' : '0',
+                                 }
+    sonospy_search_lookup_item2 = {
+                                   'ARTIST' : '0',
+                                   'ARTIST_ALBUM' : '0',
+                                   'ALBUMARTIST' : '0',
+                                   'ALBUMARTIST_ALBUM' : '0',
+                                   'CONTRIBUTINGARTIST' : '0',
+                                   'CONTRIBUTINGARTIST_ALBUM' : '0',
+                                   'COMPOSER' : '0',
+                                   'COMPOSER_ALBUM' : '0',
+                                   'GENRE' : '107',
+                                   'GENRE_ARTIST' : '0',
+                                   'GENRE_ARTIST_ALBUM' : '0',
+                                   'GENRE_ALBUMARTIST' : '0',
+                                   'GENRE_ALBUMARTIST_ALBUM' : '0',
+                                  }
+    # search comes in with this key, so value is for next search down tree
+    sonospy_search_lookup_item3 = {
+                                   'ARTIST' : 'upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:artistAlbumArtist = "%s"',
+                                   'ARTIST_ALBUM' : 'upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistAlbumArtist = "%s" and upnp:album = "%s"',
+                                   'ALBUMARTIST' : 'upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:artistAlbumArtist = "%s"',
+                                   'ALBUMARTIST_ALBUM' : 'upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistAlbumArtist = "%s" and upnp:album = "%s"',
+                                   'CONTRIBUTINGARTIST' : 'upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:artistPerformer = "%s"',
+                                   'CONTRIBUTINGARTIST_ALBUM' : 'upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistPerformer = "%s" and upnp:album = "%s"',
+                                   'COMPOSER' : 'upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:authorComposer = "%s"',
+                                   'COMPOSER_ALBUM' : 'upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:authorComposer = "%s" and upnp:album = "%s"',
+                                   'GENRE' : 'upnp:class = "object.container.person.musicArtist" and @refID exists false and upnp:genre = "%s"',
+                                   'GENRE_ARTIST' : 'upnp:class = "object.container.album.musicAlbum" and @refID exists false and upnp:genre = "%s" and microsoft:artistAlbumArtist = "%s"',
+                                   'GENRE_ARTIST_ALBUM' : 'upnp:class derivedfrom "object.item.audioItem" and @refID exists false and upnp:genre = "%s" and microsoft:artistAlbumArtist = "%s" and upnp:album = "%s"',
+                                   'GENRE_ALBUMARTIST' : 'upnp:class = "object.container.album.musicAlbum" and @refID exists false and upnp:genre = "%s" and microsoft:artistAlbumArtist = "%s"',
+                                   'GENRE_ALBUMARTIST_ALBUM' : 'upnp:class derivedfrom "object.item.audioItem" and @refID exists false and upnp:genre = "%s" and microsoft:artistAlbumArtist = "%s" and upnp:album = "%s"',
+                                  }
+
+    '''
+#upnp:class = "object.container.person.musicArtist" and @refID exists false
+upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:artistAlbumArtist = "Green Day•0"
+upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistAlbumArtist = "%s" and upnp:album = "%s"
+
+#upnp:class = "object.container.person.musicArtist" and @refID exists false
+upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:artistPerformer = "White Day•0"
+upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistPerformer = "%s" and upnp:album = "%s"
+
+#upnp:class = "object.container.genre.musicGenre" and @refID exists false
+upnp:class = "object.container.person.musicArtist" and @refID exists false and upnp:genre = "%s"
+upnp:class = "object.container.album.musicAlbum" and @refID exists false and upnp:genre = "%s" and microsoft:artistAlbumArtist = "%s"
+upnp:class derivedfrom "object.item.audioItem" and @refID exists false and upnp:genre = "%s" and microsoft:artistAlbumArtist = "%s" and upnp:album = "%s"
+    '''
+
+
     msms_search_browse_sortcriteria = { '4' : '',
                                         '5' : '',
                                         '6' : '',
@@ -559,7 +629,7 @@ Music/Rating                101     object.container
                     wmpname = wmpsplit[1]
                     dbname = ''
 
-            if wmp == 'Sonospy':
+            if wmp.lower() == 'sonospy':
                 if wmpname == '':
                     friendly = 'WMP Library'
                 else:
@@ -642,6 +712,7 @@ Music/Rating                101     object.container
             self.rootdatakeys = {}
             self.rootdata_lastindex = 0
             self.rootdatanames = {}
+            self.rootdatatype = {}
 
             self.rootmenus = []
             
@@ -774,6 +845,7 @@ Music/Rating                101     object.container
         menu = self.get_server_menu_type(id, type)
         new_entry = ref + "::" + 'R'  + "::" + menu + "::" + title
         self.rootdata.append(new_entry + self.data_delim)
+        self.rootdatatype[ref] = (id, type)
         self.rootdatakeys[new_entry] = (id, type)
         self.rootdata_lastindex += 1
         self.rootdatanames[ref] = title
@@ -791,6 +863,9 @@ Music/Rating                101     object.container
         # param may contain escaped chars
         param = unescape(param)
         # param will contain an equals, but can contain more than one (if the operator includes one)
+
+        log.debug(param)
+
         eqpos = param.find('=')
         entry = param[eqpos+1:]
         if self.search_delim in entry:
@@ -812,9 +887,15 @@ Music/Rating                101     object.container
             searchoperator = ''
         entries = entry.split('::')
         entryref = entries[0]
+        entrysid = None
+        if '|||' in entryref:
+            entryrefs = entryref.split('|||')
+            entryref = entryrefs[0]
+            entrysid = entryrefs[1]
 #        entrytype = entries[1]
 #        entrymenu = entries[2]
-#        entryname = entries[3]
+        hierarchynames = entries[3]
+        entryname = hierarchynames.split('|||')[-1]
 
         # special case where id and type are passed from client
         id_passed = False
@@ -841,6 +922,10 @@ Music/Rating                101     object.container
         elif dataseq > 1:
             first_call = False
 
+        setparent = entryref
+        if first_call == True:
+            self.gdata_lastindex[setparent] = 0
+
         # remove data from end of entry
         colpos = entry.rfind('::')
         entrykey = entry[:colpos]
@@ -850,9 +935,36 @@ Music/Rating                101     object.container
             colpos = entrykey.rfind('::')
             entrykey = entrykey[:colpos]
 
+
+
+
+        # get type
+        rootref = self.getrootref(entryref)
+        
+#        log.debug(self.rootdatatype)
+        
+        id, type = self.rootdatatype[rootref]
+        if type == 'SONOSPYMEDIASERVER' or type == 'SonospyMediaServer_ROOT':
+
+            # special case - internal mediaserver, don't cache
+
+            hierarchynames = hierarchynames.split('|||')
+            log.debug(hierarchynames)
+
+            if entrysid:
+                id = entrysid
+            return self.search_sonospy_media_server_batch(id, entryref=entryref, searchstring=searchstring, searchoperator=searchoperator, start=datastart, count=datacount, hierarchynames=hierarchynames)
+
+
+
+
+
+
+
+
+
         # get set key
         setkey = entryref + ':' + str(dataseq)
-        setparent = entryref
 
         if entrykey in self.rootdatakeys:
             id, type = self.rootdatakeys[entrykey]
@@ -879,7 +991,7 @@ Music/Rating                101     object.container
             rootname = self.rootdatanames[rootref]
         else:
             rootname = ''
-        
+
         print "************************************"
         print "setkey: " + str(setkey)
         print "first_call: " + str(first_call)
@@ -889,8 +1001,7 @@ Music/Rating                101     object.container
         
         if first_call == True:
             # first time through, process the browse
-            self.gdata_lastindex[setparent] = 0
-            self.process_browse(type, id, searchstring=searchstring, searchoperator=searchoperator, name=rootname, sequence=dataseq, count=datacount, setkey=setkey)
+            self.process_browse(type, id, searchstring=searchstring, searchoperator=searchoperator, name=rootname, sequence=dataseq, count=datacount, setkey=setkey, entryname=entryname)
             return self.gdatasets[setkey]
         else:
             # not first time, check if the data is ready from the first browse initiated async calls
@@ -976,6 +1087,15 @@ Music/Rating                101     object.container
         # process the browse
         self.gdata_lastindex[setparent] = 0
         self.process_browse(type, id, searchstring=searchstring, searchoperator=searchoperator, name=rootname, sequence=dataseq, count=datacount, setkey=setkey)
+
+    def getentrytitle(self, gdatakeys, ref):
+        ref += '::'
+        for entry in gdatakeys.keys():
+            if entry.startswith(ref):
+                entries = entry.split('::')
+                entryname = entries[3]
+                return entryname
+        return None
 
     def getrootref(self, ref):
         if '_' in ref:
@@ -1281,7 +1401,7 @@ Music/Rating                101     object.container
 
         query = param.split('=')
         request = query[1]
-        
+
         # check for multi
         if request[0:5] == 'MULTI':
         
@@ -1295,7 +1415,9 @@ Music/Rating                101     object.container
             for entry in entrylist:
                 entries = entry.split('::')
                 entryref = entries[0]
-                id, type = self.gdatakeys[entry]
+                type = self.get_root_type(entryref)
+                if type != 'SONOSPYMEDIASERVER':
+                    id, type = self.gdatakeys[entry]
                 if entry in self.gdatatracks.keys():
                     res, xml = self.gdatatracks[entry]
                 else:
@@ -1312,8 +1434,21 @@ Music/Rating                101     object.container
             entries = entry.split('::')
             entryref = entries[0]
 
+            entrysid = None
+            if '|||' in entryref:
+                entryrefs = entryref.split('|||')
+                entryref = entryrefs[0]
+                entrysid = entryrefs[1]
+            hierarchynames = entries[3]
+            hierarchynames = hierarchynames.split('|||')
+            entryname = hierarchynames[0]
+
             print "entry: " + str(entry)
-            id, type = self.gdatakeys[entry]
+            type = self.get_root_type(entryref)
+            if type == 'SONOSPYMEDIASERVER':
+                id = entrysid
+            else:
+                id, type = self.gdatakeys[entry]
             print "id: " + str(id)
             print "type: " + str(type)
             if entry in self.gdatatracks.keys():
@@ -1334,7 +1469,7 @@ Music/Rating                101     object.container
                 # TODO: playlists may be ok for non-Sonos
                 # - we need to browse the container and get the URIs for 
                 #   its contents
-                self.browse_container(id, type, entryref)        
+                self.browse_container(id, type, entryref, title=hierarchynames)        
             
         if type == 'SONOSCURRENTQUEUE':
             # special case - playing queue
@@ -1405,6 +1540,10 @@ Music/Rating                101     object.container
         '''
 
 
+    def get_root_type(self, entryref):
+        rootref = self.getrootref(entryref)
+        rootid, roottype = self.rootdatatype[rootref]
+        return roottype
 
 
     def make_device_name(self, device_object):
@@ -2482,9 +2621,14 @@ Music/Rating                101     object.container
                         self.update_rootdata(item.title, item.id, type)
 
                 else:
-                    # if not ZP, assume generic music server
+
                     log.debug("browse_media_server_root container: title:%s id:%s", item.title, item.id)
-                    self.update_rootdata(item.title, item.id, "MusicServer_ROOT")
+                    if current_server.manufacturer == 'Henkelis' and current_server.model_name == 'Windows Media Player Sharing':
+#                        self.update_rootdata(item.title, item.id, "SonospyMediaServer_ROOT")
+                        self.update_rootdata(item.title, item.id, "SONOSPYMEDIASERVER")
+                    else:
+                        # assume generic music server
+                        self.update_rootdata(item.title, item.id, "MusicServer_ROOT")
 
             else:
 
@@ -3610,7 +3754,7 @@ Music/Rating                101     object.container
                 searchcriteria += ' and @refID exists false'
 
         if action == 'SEARCH':
-            print searchcriteria
+            log.debug("Searchcriteria: %s" % searchcriteria)
             browse_result = self.control_point.searchtpms(name, id_param, searchcriteria, 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', 0, msmscount, '+dc:title')
         else:
             browse_result = self.control_point.browsetpms(name, id_param, 'BrowseDirectChildren', 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', 0, msmscount, sortcriteria)
@@ -3757,6 +3901,324 @@ Music/Rating                101     object.container
 
 
 
+
+
+
+
+
+
+    def search_sonospy_media_server_batch(self, id, root=None, entryref=None, searchstring=None, searchoperator=None, start=0, count=-1, hierarchynames=[]):
+
+        log.debug("#### search_sonospy_media_server_batch id: %s", id)
+        log.debug("#### root: %s", root)
+        log.debug("#### entryref: %s", entryref)
+        log.debug("#### searchstring: %s", searchstring)
+        log.debug("#### searchoperator: %s", searchoperator)
+        log.debug("#### start: %s", start)
+        log.debug("#### count: %s", count)
+        log.debug("#### hierarchynames: %s", hierarchynames)
+
+        spdatareturn = []
+        
+        if count == -1: count = 100
+
+        # default XML to have nothing to play
+        xml = [None, None]
+        
+        if root != None:
+
+            # NOT USED AT PRESENT
+
+            return
+
+        elif id == '101':
+
+            # NOT USED AT PRESENT
+                   
+            # rating items - manually create list
+            for item in self.msms_rating_items:
+                self.update_gdata(item[0], item[1], 'SONOSPYMEDIASERVER', sequence=sequence, setkey=setkey, parentid=id)
+
+            # finalise dataset
+            count = len(self.msms_rating_items)
+            self.finalise_gdata_dataset(sequence, count, count, setkey)
+
+            return
+
+        id_param = id
+
+        action = 'SEARCH'
+        if id in self.sonospy_search_lookup:
+        
+            searchcriteria = self.msms_search_lookup[id]
+            searchcriteria += ' and @refID exists false'
+            
+            # HACK: replace id with value Sonos uses for search
+            if id_param in self.sonospy_search_lookup_item.keys():
+                id_param = self.sonospy_search_lookup_item[id_param]
+            
+        elif '__' in id:
+
+            # separate out the type
+            idstart = id.split('__')[0]
+
+            # need to construct the search string
+            if idstart in self.sonospy_search_lookup_item3.keys():
+                log.debug(self.sonospy_search_lookup_item3[idstart])
+                searchcriteria = self.sonospy_search_lookup_item3[idstart] % tuple(hierarchynames)
+                log.debug(searchcriteria)
+            else:
+                action = 'BROWSE'
+                sortcriteria = self.msms_search_browse_sortcriteria['DEFAULT']
+
+            # HACK: replace id with value Sonos uses for search
+            if idstart in self.sonospy_search_lookup_item2.keys():
+                id_param = self.sonospy_search_lookup_item2[idstart]
+            else:
+                action = 'BROWSE'
+                sortcriteria = self.msms_search_browse_sortcriteria['DEFAULT']
+
+        else:
+            if id in self.sonospy_search_lookup_item.keys():
+                searchitem = self.sonospy_search_lookup_item[id]
+            else:
+                searchitem = 'BROWSE'
+            if searchitem == 'BROWSE':
+                # we are at object level, so Browse instead
+                action = 'BROWSE'
+                if id in self.msms_search_browse_sortcriteria.keys():
+                    sortcriteria = self.msms_search_browse_sortcriteria[id]
+                else:
+                    sortcriteria = self.msms_search_browse_sortcriteria['DEFAULT']
+            else:
+                searchcriteria = self.sonospy_search_lookup[id] + " and " + searchitem
+                searchcriteria += ' and @refID exists false'
+
+        current_server = self.control_point.get_current_server()
+
+        if action == 'SEARCH':
+            log.debug("Searchcriteria: %s" % searchcriteria)
+            log.debug("Container: %s" % id_param)
+            browse_result = self.control_point.search(id_param, searchcriteria, 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, '+dc:title', device=current_server)
+        else:
+            browse_result = self.control_point.browse(id_param, 'BrowseDirectChildren', 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, sortcriteria, device=current_server)
+
+        if 'faultcode' in browse_result:
+            self.set_messagebar(browse_result['detail'])
+            return
+        elif not 'Result' in browse_result:
+            self.set_messagebar('UNKNOWN RESPONSE FROM BROWSE REQUEST')
+            return
+        
+        items = browse_result['Result']
+        total = int(browse_result['TotalMatches'])
+        returned = int(browse_result['NumberReturned'])
+
+        self.set_messagebar("Returned %d of %d." % (returned, total))
+
+        '''
+        if total > count:
+            while returned < total:
+                if action == 'SEARCH':
+                    b = self.control_point.search(id_param, searchcriteria, 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, '+dc:title')
+                else:
+                    b = self.control_point.browse(id_param, 'BrowseDirectChildren', 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, sortcriteria)
+                items = items + b['Result']
+                returned += int(b['NumberReturned'])
+                self.set_messagebar("Returned %d of %d." % (returned, total))
+        '''
+
+        # initialise dataset
+        self.gdataparent[entryref] = entryref
+                
+        for item in items:
+
+            log.debug(item)
+            
+            if isinstance(item, Container):
+
+#                data = self.convert_item_to_uridata(item)
+                spdata = self.get_spdata(item.title, item.id, 'SONOSPYMEDIASERVER', setparent=entryref)
+                spdatareturn.append(spdata)
+
+            else:
+
+                xml = item.to_string()
+                xml = xml.replace('xmlns:ns0="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"','')
+                xml = xml.replace('ns0:','')
+
+                log.debug(xml)
+                log.debug(item.resources[0])
+                
+#                self.update_spdata(item.title, item.id, 'SONOSPYMEDIASERVER', res=item.resources[0].value, xml=xml, sequence=sequence, setkey=setkey, parentid=id)
+                spdata = self.get_spdata(item.title, item.id, 'SONOSPYMEDIASERVER', res=item.resources[0].value, setparent=entryref)
+                spdatareturn.append(spdata)
+
+        # finalise dataset
+        if len(items) == 0:
+            # nothing was returned, add a dummy entry for display
+            spdata = self.get_spdata('Nothing found', 'DUMMY', 'DUMMY', setkey=entryref)
+            spdatareturn.append(spdata)
+
+        spdatareturn.append("RETURN::" + str(returned) + ':' + str(total) + self.data_delim)
+
+        return spdatareturn
+
+    def get_spdata(self, title, id, type, res=None, searchtype=None, searchtitle=None, searchoperators=None, setparent='', extras=None):
+        log.debug("#### title: %s", title)
+        log.debug("#### id: %s", id)
+        log.debug("#### type: %s", type)
+        log.debug("#### searchtype: %s", searchtype)
+        log.debug("#### searchtitle: %s", searchtitle)
+        log.debug("#### searchoperators: %s", searchoperators)
+        log.debug("#### setparent: %s", setparent)
+        log.debug("#### extras: %s", extras)
+        
+        ref = self.gdataparent[setparent] + '_' + str(self.gdata_lastindex[setparent]+1)
+        
+        if res != None:
+            entrytype = 'T'
+        else:
+            if searchtype != None:
+                entrytype = 'S'
+            else:
+                if type == 'DUMMY':
+                    entrytype = 'N'
+                else:
+                    entrytype = 'C'
+        menu = self.get_server_menu_type(id, type)
+        new_entry = ref + '|||' + id + '::' + entrytype + '::' + menu + '::' + title
+        log.debug(new_entry)
+
+        # append id and type in case receiver is caching
+        new_entry += '::' + id + '::' + type
+
+        # append any search criteria to end of entry (but not to the keys/tracks)
+        if searchtype != None:
+            new_entry += self.search_delim + searchtype + '::' + searchtitle
+        if searchoperators != None:
+            operators = self.codeoperators(searchoperators)
+            new_entry += '::' + operators
+        # append any extras to end of entry    
+        if extras != None:
+            new_entry += self.extras_delim + extras
+        self.gdata_lastindex[setparent] += 1
+
+        return new_entry + self.data_delim
+
+
+    def search_sonospy_media_server_children(self, name, id, hierarchynames=None):
+
+        log.debug("#### search_sonospy_media_server_children: %s", id)
+        log.debug(hierarchynames)
+        
+        spmscount = 2000
+
+        self.set_messagebar("Creating Playlist...")
+
+        action = 'SEARCH'
+        if id in self.sonospy_search_lookup:
+        
+            searchcriteria = self.msms_search_lookup[id]
+            searchcriteria += ' and @refID exists false'
+            
+            # HACK: replace id with value Sonos uses for search
+            if id in self.sonospy_search_lookup_item.keys():
+                id = self.sonospy_search_lookup_item[id]
+            
+        elif '__' in id:
+
+            # separate out the type
+            idstart = id.split('__')[0]
+
+            # need to construct the search string
+            if idstart in self.sonospy_search_lookup_item3.keys():
+                log.debug(self.sonospy_search_lookup_item3[idstart])
+                searchcriteria = self.sonospy_search_lookup_item3[idstart] % tuple(hierarchynames)
+                log.debug(searchcriteria)
+            else:
+                action = 'BROWSE'
+                sortcriteria = self.msms_search_browse_sortcriteria['DEFAULT']
+
+            # HACK: replace id with value Sonos uses for search
+            if idstart in self.sonospy_search_lookup_item2.keys():
+                id = self.sonospy_search_lookup_item2[idstart]
+            else:
+                action = 'BROWSE'
+                sortcriteria = self.msms_search_browse_sortcriteria['DEFAULT']
+
+        else:
+            if id in self.sonospy_search_lookup_item.keys():
+                searchitem = self.sonospy_search_lookup_item[id]
+            else:
+                searchitem = 'BROWSE'
+            if searchitem == 'BROWSE':
+                # we are at object level, so Browse instead
+                action = 'BROWSE'
+                if id in self.msms_search_browse_sortcriteria.keys():
+                    sortcriteria = self.msms_search_browse_sortcriteria[id]
+                else:
+                    sortcriteria = self.msms_search_browse_sortcriteria['DEFAULT']
+            else:
+                searchcriteria = self.sonospy_search_lookup[id] + " and " + searchitem
+                searchcriteria += ' and @refID exists false'
+
+        current_server = self.control_point.get_current_server()
+
+        if action == 'SEARCH':
+            browse_result = self.control_point.search(id, searchcriteria, 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', 0, spmscount, '+dc:title', device=current_server)
+        else:
+            browse_result = self.control_point.browse(id, 'BrowseDirectChildren', 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', 0, spmscount, sortcriteria, device=current_server)
+        
+        if 'faultcode' in browse_result:
+            self.set_messagebar(browse_result['detail'])
+            return
+        elif not 'Result' in browse_result:
+            self.set_messagebar('UNKNOWN RESPONSE FROM BROWSE REQUEST')
+            return
+        
+        items = browse_result['Result']
+        total = int(browse_result['TotalMatches'])
+        returned = int(browse_result['NumberReturned'])
+
+        self.set_messagebar("Returned %d of %d." % (returned, total))
+
+        if total > spmscount:
+            while returned < total:
+                if action == 'SEARCH':
+                    b = self.control_point.search(id, searchcriteria, 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', returned, spmscount, '+dc:title', device=current_server)
+                else:
+                    b = self.control_point.browse(id, 'BrowseDirectChildren', 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', returned, spmscount, sortcriteria, device=current_server)
+                items = items + b['Result']
+                returned += int(b['NumberReturned'])
+                self.set_messagebar("Returned %d of %d." % (returned, total))
+                
+        playlist = []
+
+        for item in items:
+
+            if isinstance(item, Container):
+
+                # child is a container, need to browse that too
+                hierarchynames.append(item.title)
+                playlist += self.search_sonospy_media_server_children(name, item.id, hierarchynames)
+
+            else:
+
+                xml = item.to_string()
+                xml = xml.replace('xmlns:ns0="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"','')
+                xml = xml.replace('ns0:','')
+
+                if item.resources:
+                    res = item.resources[0].value
+                    dur = self.makeseconds(item.resources[0].duration)
+                else:
+                    res = ''
+                    dur = 0
+
+                playlist.append((item.title, str(dur), res, item.id, xml))
+
+        return playlist
 
 
 
@@ -4451,6 +4913,9 @@ Music/Rating                101     object.container
              type == "THIRDPARTYMEDIASERVER" or \
              type == "MSMEDIASERVER":
             menutype = "ZP_MS_PLAY"
+
+        elif type == "SONOSPYMEDIASERVER":
+            menutype = "MS_PLAY"
             
         elif type == "MUSICSERVER":
             if self.check_mediaserver_search(id) == True:
@@ -4464,13 +4929,15 @@ Music/Rating                101     object.container
 
 
 
-    def browse_container(self, id, type, ref):
+    def browse_container(self, id, type, ref, title=[]):
 
         rootref = self.getrootref(ref)
         rootname = self.rootdatanames[rootref]
         
         if type == "THIRDPARTYMEDIASERVER":
             children = self.browse_thirdparty_media_server_children(rootname, id)
+        elif type == "SONOSPYMEDIASERVER":
+            children = self.search_sonospy_media_server_children(rootname, id, title)
         elif type == "MSMEDIASERVER":
             children = self.search_ms_media_server_children(rootname, id)
         else:
@@ -4648,6 +5115,7 @@ Music/Rating                101     object.container
 
 
     def set_server_device(self, server):
+        log.debug(server)
         self.music_services = {}
         self.music_services_type = {}
         self.control_point.set_current_server(server)
@@ -5480,13 +5948,14 @@ DEBUG	sonos                         :2059:on_device_event() device_event c_v: {'
 #        rt.start()
 
 
-    def process_browse(self, type, id, searchstring='', searchoperator='', name='', sequence=0, count=-1, setkey=''):
+    def process_browse(self, type, id, searchstring='', searchoperator='', name='', sequence=0, count=-1, setkey='', entryname='', hierarchynames=[]):
 
         print "process_browse:"
         print "             type: " + type
         print "               id: " + id
         print "             name: " + name
         print "              seq: " + str(sequence)
+#        print "        entryname: " + str(entryname)
         print "            count: " + str(count)
         print "     searchstring: " + str(searchstring)
         print "   searchoperator: " + str(searchoperator)

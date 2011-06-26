@@ -1448,13 +1448,15 @@ class DummyContentDirectory(Service):
 
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
 
-            rootitems = [('6', 'Artists'),
-                         ('100', 'Contributing Artists'),
+            rootitems = [
                          ('7', 'Albums'),
+                         ('6', 'Artists'),
                          ('108', 'Composers'),
+                         ('100', 'Contributing Artists'),
                          ('5', 'Genres'),
+                         ('F', 'Playlists'),
                          ('99', 'Tracks'),
-                         ('F', 'Playlists')]
+                        ]
 
             for (id, title) in rootitems:
 
@@ -1524,28 +1526,40 @@ class DummyContentDirectory(Service):
                 log.debug('artists')
                 genres.append('dummy')
                 searchtype = 'ARTIST'
-                if self.use_albumartist and containerID == '107':
-                    artisttype = 'albumartist'
-                    countstatement = "select count(distinct albumartist) from AlbumartistAlbum"
-                    orderbylist = self.get_orderby('ALBUMARTIST', controllername)
-                    for orderbyentry in orderbylist:
-                        orderby, prefix, suffix, albumtype, table, header = orderbyentry
-                        if not orderby or orderby == '':
-                            orderby = 'albumartist'
-                        statement = "select albumartist, lastplayed, playcount from AlbumartistAlbum group by albumartist order by orderby limit ?, ?"
-                        state_pre_suf.append((orderby, prefix, suffix, albumtype, table, header))
-                    id_pre = 'ALBUMARTIST__'
-                else:                
-                    artisttype = 'artist'
+                if containerID == '107':
+                    if self.use_albumartist:
+                        artisttype = 'albumartist'
+                        countstatement = "select count(distinct albumartist) from AlbumartistAlbum"
+                        orderbylist = self.get_orderby('ALBUMARTIST', controllername)
+                        for orderbyentry in orderbylist:
+                            orderby, prefix, suffix, albumtype, table, header = orderbyentry
+                            if not orderby or orderby == '':
+                                orderby = 'albumartist'
+                            statement = "select albumartist, lastplayed, playcount from AlbumartistAlbum group by albumartist order by orderby limit ?, ?"
+                            state_pre_suf.append((orderby, prefix, suffix, albumtype, table, header))
+                        id_pre = 'ALBUMARTIST__'
+                    else:                
+                        artisttype = 'artist'
+                        countstatement = "select count(distinct artist) from ArtistAlbum"
+                        orderbylist = self.get_orderby('ARTIST', controllername)
+                        for orderbyentry in orderbylist:                                        
+                            orderby, prefix, suffix, albumtype, table, header = orderbyentry
+                            if not orderby or orderby == '':
+                                orderby = 'artist'
+                            statement = "select artist, lastplayed, playcount from ArtistAlbum group by artist order by orderby limit ?, ?"
+                            state_pre_suf.append((orderby, prefix, suffix, albumtype, table, header))
+                        id_pre = 'ARTIST__'
+                else:
+                    artisttype = 'contributingartist'
                     countstatement = "select count(distinct artist) from ArtistAlbum"
-                    orderbylist = self.get_orderby('ARTIST', controllername)
+                    orderbylist = self.get_orderby('CONTRIBUTINGARTIST', controllername)
                     for orderbyentry in orderbylist:                                        
                         orderby, prefix, suffix, albumtype, table, header = orderbyentry
                         if not orderby or orderby == '':
                             orderby = 'artist'
                         statement = "select artist, lastplayed, playcount from ArtistAlbum group by artist order by orderby limit ?, ?"
                         state_pre_suf.append((orderby, prefix, suffix, albumtype, table, header))
-                    id_pre = 'ARTIST__'
+                    id_pre = 'CONTRIBUTINGARTIST__'
             else:
                 criteria = searchCriteria.split('=')
                 if criteria[1].endswith('upnp:genre '):
@@ -1558,7 +1572,7 @@ class DummyContentDirectory(Service):
                         if genre == '[unknown genre]': genre = ''
                         log.debug('    genre: %s', genre)
                         genres.append(genre)
-                        if self.use_albumartist and containerID == '107':
+                        if self.use_albumartist:
                             artisttype = 'albumartist'
                             countstatement = "select count(distinct albumartist) from GenreAlbumartistAlbum where genre=?"
                             orderbylist = self.get_orderby('GENRE_ALBUMARTIST', controllername)
