@@ -1630,6 +1630,8 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
             c.execute('''create index inxTrackAlbums on tracks (album)''')
             c.execute('''create index inxTrackAlbumDups on tracks (album, duplicate)''')
 #            c.execute('''create index inxTrackAlbumDupTrackTitles on tracks (album, duplicate, tracknumber, title)''')
+            c.execute('''create index inxTrackAlbumDiscTrackTitles on tracks (album, discnumber, tracknumber, title)''')
+            c.execute('''create index inxTrackDiscTrackTitles on tracks (discnumber, tracknumber, title)''')
             c.execute('''create index inxTrackArtists on tracks (artist)''')
             c.execute('''create index inxTrackAlbumArtists on tracks (albumartist)''')
             c.execute('''create index inxTrackComposers on tracks (composer)''')

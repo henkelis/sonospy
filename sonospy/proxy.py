@@ -1276,12 +1276,12 @@ class DummyContentDirectory(Service):
                 statement = '''select * from tracks t, tracknumbers n where id in
                                (select track_id from TrackNumbers where %s)
                                and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=%s and n.dummyalbum="%s"
-                               order by n.tracknumber, t.title''' % (where, album_type, album_title)
+                               order by t.discnumber, n.tracknumber, t.title''' % (where, album_type, album_title)
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             else:
                 # is a normal album            
-                statement = "select * from tracks where %s order by tracknumber, title" % (where)
+                statement = "select * from tracks where %s order by discnumber, tracknumber, title" % (where)
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             for row in c:
@@ -2306,7 +2306,7 @@ order by albumartist limit ?, ?
                                     break
                                 log.debug('    composer: %s', composer)
                                 countstatement = "select count(*) from ComposerAlbumTrack where composer=? %s" % (self.album_and_duplicate)
-                                statement = "select * from tracks where id in (select track_id from ComposerAlbumTrack where composer=? %s) order by album, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                statement = "select * from tracks where id in (select track_id from ComposerAlbumTrack where composer=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
 
                         elif criteria[0].endswith('microsoft:artistAlbumArtist '):
 
@@ -2328,10 +2328,10 @@ order by albumartist limit ?, ?
                                 log.debug('    artist: %s', artist)
                                 if self.use_albumartist:
                                     countstatement = "select count(*) from AlbumartistAlbumTrack where albumartist=? %s" % (self.album_and_duplicate)
-                                    statement = "select * from tracks where id in (select track_id from AlbumartistAlbumTrack where albumartist=? %s) order by album, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                    statement = "select * from tracks where id in (select track_id from AlbumartistAlbumTrack where albumartist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                                 else:                
                                     countstatement = "select count(*) from ArtistAlbumTrack where artist=? %s" % (self.album_and_duplicate)
-                                    statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? %s) order by album, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                    statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
 
                         elif criteria[0].endswith('microsoft:artistPerformer '):
 
@@ -2348,7 +2348,7 @@ order by albumartist limit ?, ?
                                     break
                                 log.debug('    artist: %s', artist)
                                 countstatement = "select count(*) from ArtistAlbumTrack where artist=? %s" % (self.album_and_duplicate)
-                                statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? %s) order by album, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
 
                         elif criteria[0].endswith('upnp:genre '):
 
@@ -2366,10 +2366,10 @@ order by albumartist limit ?, ?
                                 log.debug('    genre: %s', genre)
                                 if self.use_albumartist:
                                     countstatement = "select count(*) from GenreAlbumartistAlbumTrack where genre=? %s" % (self.album_and_duplicate)
-                                    statement = "select * from tracks where id in (select track_id from GenreAlbumartistAlbumTrack where genre=? %s) order by albumartist, album, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                    statement = "select * from tracks where id in (select track_id from GenreAlbumartistAlbumTrack where genre=? %s) order by albumartist, album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                                 else:                
                                     countstatement = "select count(*) from GenreArtistAlbumTrack where genre=? %s" % (self.album_and_duplicate)
-                                    statement = "select * from tracks where id in (select track_id from GenreArtistAlbumTrack where genre=? %s) order by artist, album, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                    statement = "select * from tracks where id in (select track_id from GenreArtistAlbumTrack where genre=? %s) order by artist, album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                     
                     elif len(criteria) == 3:
 
@@ -2405,12 +2405,12 @@ order by albumartist limit ?, ?
                                     
                             countstatement = "select count(*) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s" % (duplicate_number)
                             countstatement2 = "select count(*) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
-                            statement = "select * from tracks where id in (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s) order by tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                            statement = "select * from tracks where id in (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
                             statement3 = '''select * from tracks t, tracknumbers n where id in 
                                            (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s)
                                            and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                           order by n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
 
                         elif criteria[0].endswith('microsoft:artistAlbumArtist '):
                             # tracks for artist/album
@@ -2450,24 +2450,24 @@ order by albumartist limit ?, ?
                                     
                                 countstatement = "select count(*) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s" % (duplicate_number)
                                 countstatement2 = "select count(*) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
-                                statement = "select * from tracks where id in (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s) order by tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                                statement = "select * from tracks where id in (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                                 statement2 = "select distinct(albumtype) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
                                 statement3 = '''select * from tracks t, tracknumbers n where id in 
                                                (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s)
                                                and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                               order by n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+                                               order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
                             else:                
                             
                                 possible_albumtypes = self.get_possible_albumtypes('ARTIST_ALBUM')
                                     
                                 countstatement = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s" % (duplicate_number)
                                 countstatement2 = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
-                                statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                                statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                                 statement2 = "select distinct(albumtype) from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
                                 statement3 = '''select * from tracks t, tracknumbers n where id in 
                                                (select track_id from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s)
                                                and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                               order by n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+                                               order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
 
                         elif criteria[0].endswith('microsoft:artistPerformer '):
                             # tracks for contributing artist/album
@@ -2496,12 +2496,12 @@ order by albumartist limit ?, ?
                                     
                             countstatement = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s" % (duplicate_number)
                             countstatement2 = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
-                            statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                            statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
                             statement3 = '''select * from tracks t, tracknumbers n where id in 
                                            (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s)
                                            and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                           order by n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
 
                         elif criteria[0].endswith('upnp:genre '):
                             # tracks for genre/artist
@@ -2529,10 +2529,10 @@ order by albumartist limit ?, ?
                                     
                             if self.use_albumartist:
                                 countstatement = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? %s" % (self.album_and_duplicate)
-                                statement = "select * from tracks where id in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? %s) order by tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                statement = "select * from tracks where id in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? %s) order by discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                             else:                
                                 countstatement = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? %s" % (self.album_and_duplicate)
-                                statement = "select * from tracks where id in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? %s) order by tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                statement = "select * from tracks where id in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? %s) order by discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                     else:
                         # len = 4
                         # tracks for genre/artist/album
@@ -2581,24 +2581,24 @@ order by albumartist limit ?, ?
                         
                             countstatement = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s" % (duplicate_number)
                             countstatement2 = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s and albumtype=?" % (duplicate_number)
-                            statement = "select * from tracks where id in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s) order by tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                            statement = "select * from tracks where id in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
                             statement3 = '''select * from tracks t, tracknumbers n where id in 
                                            (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s)
                                            and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                           order by n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
                         else:                
 
                             possible_albumtypes = self.get_possible_albumtypes('ARTIST_ALBUM')
                         
                             countstatement = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s" % (duplicate_number)
                             countstatement2 = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s and albumtype=?" % (duplicate_number)
-                            statement = "select * from tracks where id in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s) order by tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                            statement = "select * from tracks where id in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
                             statement3 = '''select * from tracks t, tracknumbers n where id in 
                                            (select track_id from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s)
                                            and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                           order by n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
 
                     log.debug("count statement: %s", countstatement)
                     log.debug("statement: %s", statement)
