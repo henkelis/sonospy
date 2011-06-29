@@ -805,7 +805,10 @@
     };
     function processmenu(option, menuObjectTarget) {
         console.log("pm: ", option, menuObjectTarget);
-        data = $(menuObjectTarget).attr('data');
+        if (menuObjectTarget != undefined) {
+            data = $(menuObjectTarget).attr('data');
+        }
+        console.log("data: ", data);
         if (data != undefined) {
             // we have been called from a flow album
             x = document.forms[0].elements["paramx"].value;
@@ -816,6 +819,7 @@
             // normal call from accordion
             parammenuoption = document.forms[0].elements["parammenuoption"];
             parammenuoption.value = option;
+            console.log("pmo: ", parammenuoption);
             ajax('{{=URL(r=request, f='calloption')}}', ['paramtitle', 'paramtype', 'paramtarget', 'paramid', 'parammenuoption', 'parammenutype', 'paramsid'], ':eval');
         }
     };        
@@ -1082,6 +1086,7 @@
         var htitle = ''
         while (atarget.lastIndexOf("_") != -1) {
             htitle = gettitle($('#' + atarget));
+            console.log(atarget, htitle);
             if (hierarchy == '') hierarchy = htitle;
             else hierarchy = htitle + "|||" + hierarchy;
             atarget = atarget.substring(0, atarget.lastIndexOf("_"))

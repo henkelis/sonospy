@@ -330,7 +330,7 @@ class ControlPointSonos(ControlPointAV):
         scpd_url = self.getscpdurl(mediaserver['Location'])
         if scpd_url != None:    # Sonos may hold out of date info, especially for proxies
             log.debug("create tpms_service: %s", mediaserver['Name'])
-            self.tpms_service[mediaserver['Name']] = Service('Browse', 'urn:schemas-upnp-org:service:ContentDirectory:1',  #'http://www.sonos.com/Services/1.1', 
+            self.tpms_service[unicode(mediaserver['Name'])] = Service('Browse', 'urn:schemas-upnp-org:service:ContentDirectory:1',  #'http://www.sonos.com/Services/1.1', 
                                                                url_base = '',
                                                                control_url = mediaserver['CURL'],
                                                                event_url = mediaserver['EURL'],
@@ -419,8 +419,8 @@ class ControlPointSonos(ControlPointAV):
     #TODO: remove AVT method
 
 
-    def browsetpms(self, name, object_id, browse_flag, filter, starting_index,
-               requested_count, sort_criteria="dc:title"):
+    def browsetpms(self, name, device, object_id, browse_flag, filter, starting_index,
+                   requested_count, sort_criteria="dc:title"):
         """ Browses media servers.
 
         @param object_id: object id
@@ -441,7 +441,10 @@ class ControlPointSonos(ControlPointAV):
         @return: a list of containers and items, or a fault
         @rtype: list
         """
-        service = self.get_tpms_service(name=name)
+        if name:
+            service = self.get_tpms_service(name)
+        else:
+            service = self.get_cd_service(device)
         browse_response = service.Browse(ObjectID=str(object_id),
                                          BrowseFlag=browse_flag,
                                          Filter=filter,
@@ -455,11 +458,14 @@ class ControlPointSonos(ControlPointAV):
         return browse_response
 
 
-    def searchtpms(self, name, container_id, search_criteria, filter, starting_index,
-               requested_count, sort_criteria="dc:title"):
+    def searchtpms(self, name, device, container_id, search_criteria, filter, starting_index,
+                   requested_count, sort_criteria="dc:title"):
         """ Searches media servers.
         """
-        service = self.get_tpms_service(name=name)
+        if name:
+            service = self.get_tpms_service(name)
+        else:
+            service = self.get_cd_service(device)
         browse_response = service.Search(ContainerID=container_id,
                                          SearchCriteria=search_criteria,
                                          Filter=filter,

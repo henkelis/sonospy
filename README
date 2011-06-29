@@ -249,8 +249,8 @@ changed etc). A utility is provided to create and maintain databases. Scan reads
 in a set of directories and extracts their tag data (this is stored in a database). This database
 is presented to Sonos controllers for browsing.
 
-Scan support multiple entry tags (so you can tag with multiple genres for instance). Multiple 
-entries in a tag are separated with a forward slash (/). Scan also supports multiple tags of the
+Scan supports multiple entry tags (so you can tag with multiple genres for instance). Multiple 
+entries in a tag are separated with a semi-colon (;). Scan also supports multiple tags of the
 same name. Scan supports duplicate files in different directories (so you can have the same track in
 more than one place and each will be displayed on the Sonos controller (suffixed with a number).
 
