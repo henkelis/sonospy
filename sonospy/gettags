@@ -32,10 +32,13 @@ import optparse
 import ConfigParser
 from collections import defaultdict
 import itertools
+from operator import itemgetter
 
 import mutagen
 from mutagen import File
 from mutagen.asf import ASFUnicodeAttribute     # seems to be an issue with multiple tag entries in wma files
+
+from scanfuncs import adjust_tracknumber, truncate_number
 
 import errors
 errors.catch_errors()
@@ -267,7 +270,7 @@ def process_dir(scanpath, options, database):
                     sys.stderr.flush()
                     processing_count += 1
 
-                success, created, lastmodified, fsize = getfilestat(ffn)
+                success, created, lastmodified, fsize, filler = getfilestat(ffn)
                 
                 get_tags = True
                 # don't process file if it hasn't changed, unless art has been added/changed
@@ -817,7 +820,7 @@ def process_dir(scanpath, options, database):
                     sys.stderr.flush()
                     processing_count += 1
 
-                success, created, lastmodified, fsize = getfilestat(ffn)
+                success, created, lastmodified, fsize, filler = getfilestat(ffn)
 
                 # process works and virtuals - we will only accept tracks that are in the database
 
@@ -836,7 +839,7 @@ def process_dir(scanpath, options, database):
                     write_error(errorstring)
 
                 # read work/virtual date and track details                                    
-                workvirtualtracks = read_workvirtualfile(ffn, ex.lower(), filepath)
+                workvirtualtracks = read_workvirtualfile(ffn, ex.lower(), filepath, database)
 
                 # check what has changed
                 # changes include:
@@ -1366,8 +1369,9 @@ def get_folderart(files):
 def getfilestat(filespec):
     try:
         fstat = os.stat(filespec)
+        directory = os.path.isdir(filespec)
     except OSError:
-        return False, None, None, None
+        return False, None, None, None, False
     fsize = unicode(fstat.st_size)
     fctime = unicode(fstat.st_ctime)
     fmtime = unicode(fstat.st_mtime)
@@ -1384,7 +1388,8 @@ def getfilestat(filespec):
     elif os.name != 'nt':
         created = ''
         lastmodified = fmtime
-    return True, created, lastmodified, fsize
+ 
+    return True, created, lastmodified, fsize, directory
 
 workvirtualkeys = {
     'type=': 'wvtype',
@@ -1402,7 +1407,7 @@ workvirtualkeys = {
 
 playlist_extensions = ['.m3u', '.m3u8']
 
-def read_workvirtualfile(wvfilespec, wvextension, wvfilepath):
+def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
     '''
         read a file containing works and virtuals
         and return a list of work/virtual records
@@ -1417,7 +1422,7 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath):
     wvtitle = wvartist = wvalbumartist = wvcomposer = wvyear = wvgenre = wvcover = wvdiscnumber = wvinserted = wvcreated = wvlastmodified = None
     tracks = []
     trackcounts = defaultdict(int)
-    success, wvfilecreated, wvfilelastmodified, wvfilefsize = getfilestat(wvfilespec)
+    success, wvfilecreated, wvfilelastmodified, wvfilefsize, filler = getfilestat(wvfilespec)
     wvtrack = 1
     for line in codecs.open(wvfilespec,'r','utf-8'):
         if line == '': continue
@@ -1436,44 +1441,87 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath):
                 break
         if not keyfound:
             filespec = line.strip()
-            ff, ex = os.path.splitext(filespec.lower())
-            if ex in playlist_extensions:
-                filespec = checkpath(filespec, wvfilepath)
-                success, plcreated, pllastmodified, plfsize = getfilestat(filespec)
-                if not success:
-                    # this playlist does not exist, reject the work/virtual line
-                    errorstring = "Error processing %s: %s : playlist does not exist" % (wvtype, filespec)
-                    write_error(errorstring)
-                    continue
-                pltracks = read_playlist(filespec, ex)
-                for pltrack in pltracks:
-                    pltrack = checkpath(pltrack, wvfilepath)
-                    success, trackcreated, tracklastmodified, trackfsize = getfilestat(pltrack)
-                    if not success:
-                        # this playlist track does not exist, reject the playlist line
-                        errorstring = "Error processing %s: %s : playlist track does not exist" % (wvtype, pltrack)
-                        write_error(errorstring)
-                        continue
-                    trackcounts[(wvtitle, pltrack)] += 1    
-                    tracks.append((wvfilespec, wvfilecreated, wvfilelastmodified, filespec, plcreated, pllastmodified, pltrack, trackcreated, tracklastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvtrack, wvgenre, wvcover, wvdiscnumber, trackcounts[(wvtitle, pltrack)], wvinserted, wvcreated, wvlastmodified))
+            filespec = checkpath(filespec, wvfilepath)
+            for filespec in generate_workvirtualfile_record(filespec, database):
+                trackcountdata, trackdata = process_workvirtualfile_file(filespec, wvfilepath, wvtype)
+                if trackdata:
+                    ftrack = trackcountdata
+                    filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified = trackdata
+                    trackdata = (wvfilespec, wvfilecreated, wvfilelastmodified, filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvtrack, wvgenre, wvcover, wvdiscnumber, trackcounts[(wvtitle, ftrack)], wvinserted, wvcreated, wvlastmodified)
+                    trackcounts[(wvtitle, ftrack)] += 1    
+                    tracks.append(trackdata)
                     wvtrack += 1
-            else:
-                if ex in work_virtual_extensions:
-                    # we don't support nested workvirtuals, reject the work/virtual line
-                    errorstring = "Error processing %s: %s : nested workvirtuals are not supported" % (wvtype, filespec)
-                    write_error(errorstring)
-                    continue
-                filespec = checkpath(filespec, wvfilepath)
-                success, trackcreated, tracklastmodified, trackfsize = getfilestat(filespec)
-                if not success:
-                    # this track does not exist, reject the work/virtual line
-                    errorstring = "Error processing %s: %s : track does not exist" % (wvtype, filespec)
-                    write_error(errorstring)
-                    continue
-                trackcounts[(wvtitle, filespec)] += 1    
-                tracks.append((wvfilespec, wvfilecreated, wvfilelastmodified, '', '', '', filespec, trackcreated, tracklastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvtrack, wvgenre, wvcover, wvdiscnumber, trackcounts[(wvtitle, filespec)], wvinserted, wvcreated, wvlastmodified))
-                wvtrack += 1
     return tracks
+
+def generate_workvirtualfile_record(filespec, database):
+    filelist = []
+    directory = os.path.isdir(filespec)
+    if directory:
+        for filepath, dirs, files in os.walk(filespec):
+            filepath = filepath.decode(enc, 'replace')
+            dirs = [d.decode(enc, 'replace') for d in dirs]
+            files = [f.decode(enc, 'replace') for f in files]
+            files.sort()
+            for fn in files:
+                if check_workvirtual_file(fn):
+                    album, discnumber, tracknumber = get_workvirtual_track_details(filepath, fn, database)
+                    filelist.append((fn, filepath, album, discnumber, tracknumber))
+        # sort the list on album/discnumber/tracknumber
+        filelist = sorted(filelist, key=itemgetter(2,3,4))
+        for entry in filelist:
+            fn, filepath, album, discnumber, tracknumber = entry
+            filespec = os.path.join(filepath, fn)
+            yield filespec
+    else:
+        if check_workvirtual_file(filespec):
+            yield filespec
+
+def check_workvirtual_file(filespec):
+    filename = os.path.basename(filespec)
+    ff, ex = os.path.splitext(filename)
+    process = True
+    if filename.lower() in file_name_exclusions: process = False
+    elif ex.lower() in artextns: process = False
+    elif ex.lower() in file_extn_exclusions: process = False
+    return process
+
+def process_workvirtualfile_file(filespec, wvfilepath, wvtype):
+    ff, ex = os.path.splitext(filespec.lower())
+    if ex in playlist_extensions:
+        success, plcreated, pllastmodified, plfsize, filler = getfilestat(filespec)
+        if not success:
+            # this playlist does not exist, reject the work/virtual line
+            errorstring = "Error processing %s: %s : playlist does not exist" % (wvtype, filespec)
+            write_error(errorstring)
+            return None, None
+        pltracks = read_playlist(filespec, ex)
+        for pltrack in pltracks:
+            pltrack = checkpath(pltrack, wvfilepath)
+            success, trackcreated, tracklastmodified, trackfsize, filler = getfilestat(pltrack)
+            if not success:
+                # this playlist track does not exist, reject the playlist line
+                errorstring = "Error processing %s: %s : playlist track does not exist" % (wvtype, pltrack)
+                write_error(errorstring)
+                continue
+            trackcountdata = pltrack
+            trackdata = (filespec, plcreated, pllastmodified, pltrack, trackcreated, tracklastmodified)
+    else:
+        if ex in work_virtual_extensions:
+            # we don't support nested workvirtuals, reject the work/virtual line
+            errorstring = "Error processing %s: %s : nested workvirtuals are not supported" % (wvtype, filespec)
+            write_error(errorstring)
+            return None, None
+        filespec = checkpath(filespec, wvfilepath)
+        success, trackcreated, tracklastmodified, trackfsize, directory = getfilestat(filespec)
+        if not success:
+            # this track does not exist, reject the work/virtual line
+            errorstring = "Error processing %s: %s : track does not exist" % (wvtype, filespec)
+            write_error(errorstring)
+            return None, None
+        trackcountdata = filespec
+        trackdata = ('', '', '', filespec, trackcreated, tracklastmodified)
+
+    return trackcountdata, trackdata
 
 def read_playlist(filespec, extension):
     tracks = []
@@ -1483,14 +1531,38 @@ def read_playlist(filespec, extension):
             if line.startswith('#'): continue
             if line.strip() == '': continue
             filespec = line.strip()
-            ff, ex = os.path.splitext(filespec.lower())
-            if ex in playlist_extensions:
-                # we don't support nested playlists, reject the playlist line
-                errorstring = "Error processing playlist: %s : nested playlists are not supported" % (filespec)
-                write_error(errorstring)
-                continue
-            tracks.append(filespec)
+            if check_workvirtual_file(filespec):
+                ff, ex = os.path.splitext(filespec.lower())
+                if ex in playlist_extensions:
+                    # we don't support nested playlists, reject the playlist line
+                    errorstring = "Error processing playlist: %s : nested playlists are not supported" % (filespec)
+                    write_error(errorstring)
+                    continue
+                tracks.append(filespec)
     return tracks
+
+def get_workvirtual_track_details(trackpath, trackfile, database):
+
+    db3 = sqlite3.connect(database)
+    c3 = db3.cursor()
+    try:
+        c3.execute("""select album, discnumber, track from tags where path=? and filename=?""", (trackpath, trackfile))
+    except sqlite3.Error, e:
+        errorstring = "Error getting tags details: %s" % e.args[0]
+        write_error(errorstring)
+    crow = c3.fetchone()
+    if crow:
+        # track exists, get data
+        print crow
+        album, discnumber, track = crow
+        track = adjust_tracknumber(track)
+        discnumber = truncate_number(discnumber)
+        crow = (album, discnumber, track)
+        print crow
+    else:
+        crow = (None, None, None)
+    c3.close()
+    return crow
 
 paths = ['http://', 'file://', 'rtsp://', 'smb://']
 

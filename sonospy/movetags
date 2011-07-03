@@ -30,6 +30,7 @@ import ConfigParser
 import datetime
 from collections import defaultdict
 from dateutil.parser import parse as parsedate
+from scanfuncs import adjust_tracknumber, truncate_number
 import errors
 errors.catch_errors()
 
@@ -1323,21 +1324,6 @@ def process_list_the(plist, the_processing):
             newlist.append(entry)
     return newlist
 
-def adjust_tracknumber(tracknumber):
-    # adjust tracknumber so that it's numeric (but save empty string if not)
-    if not tracknumber:
-        tracknumber = ''
-    else:
-        tracknumber = tracknumber.strip()
-        if tracknumber != '':
-            try:
-                tracknumber = int(re.split('\D', tracknumber)[0])
-            except ValueError:
-                tracknumber = ''
-            except AttributeError:
-                tracknumber = ''
-    return tracknumber
-
 def adjust_year(year, filespec):
     # convert year to ordinal date
     ordinal = None
@@ -1368,24 +1354,6 @@ def write_warning(warningstring):
         print warningstring.encode(enc, 'replace')
     wfile.write('%s\n' % warningstring)
 
-def truncate_number(number):
-    # find integer portion of number passed as string
-    if not number:
-        number = 0
-    else:
-        number = number.strip()
-        numberparts = re.split('\D', number)
-        if numberparts[0] == '':
-            number = 0
-        else:
-            try:
-                number = int(numberparts[0])
-            except ValueError:
-                number = 0
-            except AttributeError:
-                number = 0
-    return number
-    
 def splitworkvirtual(workstring):
     workstring = workstring.strip()
     worknumber = None
@@ -1630,6 +1598,7 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
             c.execute('''create index inxTrackAlbums on tracks (album)''')
             c.execute('''create index inxTrackAlbumDups on tracks (album, duplicate)''')
 #            c.execute('''create index inxTrackAlbumDupTrackTitles on tracks (album, duplicate, tracknumber, title)''')
+
             c.execute('''create index inxTrackAlbumDiscTrackTitles on tracks (album, discnumber, tracknumber, title)''')
             c.execute('''create index inxTrackDiscTrackTitles on tracks (discnumber, tracknumber, title)''')
             c.execute('''create index inxTrackArtists on tracks (artist)''')
