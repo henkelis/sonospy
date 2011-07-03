@@ -1100,6 +1100,8 @@
         search_operator = searchobject.parent().children("select").val();
         if (search_operator == null) search_operator = "";
         id = searchtarget.substring(6);
+        sid = $('#a'+searchtarget).attr("sid");
+        if (sid != "") id = id + "|||" + sid;
         /*
         paramtitle = document.forms[0].elements["paramtitle"];
         paramtitle.value = searchtitle;
@@ -1125,7 +1127,12 @@
             searchtypes = searchtype2.split('__');
             for (st=0;st<searchtypes.length;st++) {
                 searchkeys = searchtypes[st].split('::');
+                console.log(searchkeys)
                 id = searchkeys[0];
+                console.log(id);
+                sid = $('#atarget'+id).attr("sid");
+                if (sid != "") id = id + "|||" + sid;
+                console.log(id);
                 title = searchkeys[1];
                 target = searchtarget + '__' + (st+1);
                 searchname = $("#"+target).attr("sname");
