@@ -1273,10 +1273,18 @@ class DummyContentDirectory(Service):
 
             if album_type != 10:
                 # is a work or a virtual album
-                statement = '''select * from tracks t, tracknumbers n where id in
+#                statement = '''select * from tracks t, tracknumbers n where id in
+#                               (select track_id from TrackNumbers where %s)
+#                               and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=%s and n.dummyalbum="%s"
+#                               order by t.discnumber, n.tracknumber, t.title''' % (where, album_type, album_title)
+
+                statement = '''
+                                select * from tracks t join tracknumbers n on t.id = n.track_id where id in
                                (select track_id from TrackNumbers where %s)
-                               and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=%s and n.dummyalbum="%s"
-                               order by t.discnumber, n.tracknumber, t.title''' % (where, album_type, album_title)
+                                and n.albumtype=%s and n.dummyalbum="%s"
+                                order by n.tracknumber, t.title
+                            ''' % (where, album_type, album_title)
+
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             else:
@@ -1688,9 +1696,6 @@ class DummyContentDirectory(Service):
                     for row in c:
     #                    log.debug("row: %s", row)
 
-    #                    if startingIndex == 0 and count > 100:
-    #                        # hack to get initial display back quicker
-    #                        break
                         artist, lastplayed, playcount = row
                         playcount = str(playcount)
                         if artist == '': artist = '[unknown %s]' % artisttype
@@ -2011,10 +2016,6 @@ class DummyContentDirectory(Service):
                     for row in c:
 #                        log.debug("row: %s", row)
 
-    #                    if startingIndex == 0 and count > 100:
-    #                        # hack to get initial display back quicker
-    #                        break
-
                         id, parentID, album, artist, year, albumartist, duplicate, cover, artid, inserted, composer, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount, upnpclass = row
                         id = str(id)
                         playcount = str(playcount)
@@ -2143,10 +2144,7 @@ class DummyContentDirectory(Service):
 
                     c.execute(orderstatement, (start, length))
                     for row in c:
-    #                    log.debug("row: %s", row)
-    #                    if startingIndex == 0 and count > 100:
-    #                        # hack to get initial display back quicker
-    #                        break
+#                        log.debug("row: %s", row)
                         composer, lastplayed, playcount = row
                         if composer == '': composer = '[unknown composer]'
                         composer = escape(composer)
@@ -2228,10 +2226,7 @@ class DummyContentDirectory(Service):
 
                     c.execute(orderstatement, (start, length))
                     for row in c:
-    #                    log.debug("row: %s", row)
-                        if startingIndex == 0 and count > 100:
-                            # hack to get initial display back quicker
-                            break
+#                        log.debug("row: %s", row)
                         genre, lastplayed, playcount = row
                         playcount = str(playcount)
 
@@ -2422,10 +2417,20 @@ class DummyContentDirectory(Service):
                             countstatement2 = "select count(*) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where id in (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-                            statement3 = '''select * from tracks t, tracknumbers n where id in 
-                                           (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s)
-                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+#                            statement3 = '''select * from tracks t, tracknumbers n where id in 
+#                                           (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s)
+#                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
+#                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+
+                            statement3 = '''
+                                            select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                            (select track_id from tracknumbers where track_id in 
+                                                (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s and albumtype=?)
+                                            and albumtype=?)
+                                            and albumtype=? 
+                                            order by n.tracknumber, t.title
+                                            limit %d, %d
+                                         ''' % (duplicate_number, startingIndex, requestedCount)
 
                         elif criteria[0].endswith('microsoft:artistAlbumArtist '):
                             # tracks for artist/album
@@ -2467,10 +2472,21 @@ class DummyContentDirectory(Service):
                                 countstatement2 = "select count(*) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
                                 statement = "select * from tracks where id in (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                                 statement2 = "select distinct(albumtype) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-                                statement3 = '''select * from tracks t, tracknumbers n where id in 
-                                               (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s)
-                                               and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                               order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+#                                statement3 = '''select * from tracks t, tracknumbers n where id in 
+#                                               (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s)
+#                                               and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
+#                                               order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+
+                                statement3 = '''
+                                                select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                                (select track_id from tracknumbers where track_id in 
+                                                    (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s and albumtype=?)
+                                                and albumtype=?)
+                                                and albumtype=? 
+                                                order by n.tracknumber, t.title
+                                                limit %d, %d
+                                             ''' % (duplicate_number, startingIndex, requestedCount)
+
                             else:                
                             
                                 possible_albumtypes = self.get_possible_albumtypes('ARTIST_ALBUM')
@@ -2479,10 +2495,20 @@ class DummyContentDirectory(Service):
                                 countstatement2 = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
                                 statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                                 statement2 = "select distinct(albumtype) from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-                                statement3 = '''select * from tracks t, tracknumbers n where id in 
-                                               (select track_id from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s)
-                                               and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                               order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+#                                statement3 = '''select * from tracks t, tracknumbers n where id in 
+#                                               (select track_id from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s)
+#                                               and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
+#                                               order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+
+                                statement3 = '''
+                                                select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                                (select track_id from tracknumbers where track_id in 
+                                                    (select track_id from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s and albumtype=?)
+                                                and albumtype=?)
+                                                and albumtype=? 
+                                                order by n.tracknumber, t.title
+                                                limit %d, %d
+                                             ''' % (duplicate_number, startingIndex, requestedCount)
 
                         elif criteria[0].endswith('microsoft:artistPerformer '):
                             # tracks for contributing artist/album
@@ -2513,10 +2539,20 @@ class DummyContentDirectory(Service):
                             countstatement2 = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-                            statement3 = '''select * from tracks t, tracknumbers n where id in 
-                                           (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s)
-                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+#                            statement3 = '''select * from tracks t, tracknumbers n where id in 
+#                                           (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s)
+#                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
+#                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+
+                            statement3 = '''
+                                            select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                            (select track_id from tracknumbers where track_id in 
+                                                (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?)
+                                            and albumtype=?)
+                                            and albumtype=? 
+                                            order by n.tracknumber, t.title
+                                            limit %d, %d
+                                         ''' % (duplicate_number, startingIndex, requestedCount)
 
                         elif criteria[0].endswith('upnp:genre '):
                             # tracks for genre/artist
@@ -2598,10 +2634,21 @@ class DummyContentDirectory(Service):
                             countstatement2 = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where id in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-                            statement3 = '''select * from tracks t, tracknumbers n where id in 
-                                           (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s)
-                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+#                            statement3 = '''select * from tracks t, tracknumbers n where id in 
+#                                           (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s)
+#                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
+#                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+
+                            statement3 = '''
+                                            select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                            (select track_id from tracknumbers where track_id in 
+                                                (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s and albumtype=?)
+                                            and albumtype=?)
+                                            and albumtype=? 
+                                            order by n.tracknumber, t.title
+                                            limit %d, %d
+                                         ''' % (duplicate_number, startingIndex, requestedCount)
+
                         else:                
 
                             possible_albumtypes = self.get_possible_albumtypes('ARTIST_ALBUM')
@@ -2610,10 +2657,20 @@ class DummyContentDirectory(Service):
                             countstatement2 = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where id in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-                            statement3 = '''select * from tracks t, tracknumbers n where id in 
-                                           (select track_id from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s)
-                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+#                            statement3 = '''select * from tracks t, tracknumbers n where id in 
+#                                           (select track_id from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s)
+#                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
+#                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
+
+                            statement3 = '''
+                                            select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                            (select track_id from tracknumbers where track_id in 
+                                                (select track_id from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s and albumtype=?)
+                                            and albumtype=?)
+                                            and albumtype=? 
+                                            order by n.tracknumber, t.title
+                                            limit %d, %d
+                                         ''' % (duplicate_number, startingIndex, requestedCount)
 
                     log.debug("count statement: %s", countstatement)
                     log.debug("statement: %s", statement)
@@ -2692,22 +2749,19 @@ class DummyContentDirectory(Service):
                     c.execute(statement2, (artist, field))
                     albumtype, = c.fetchone()
                     if albumtype != 10:
-                        c.execute(statement3, (artist, field, albumtype))
+                        c.execute(statement3, (artist, field, albumtype, albumtype, albumtype))
                     else:            
                         c.execute(statement, (artist, field))
             elif tracks_type == 'GENRE':
                 c.execute(statement2, (genre, artist, field))
                 albumtype, = c.fetchone()
                 if albumtype != 10:
-                    c.execute(statement3, (genre, artist, field, albumtype))
+                    c.execute(statement3, (genre, artist, field, albumtype, albumtype, albumtype))
                 else:            
                     c.execute(statement, (genre, artist, field))
 
             for row in c:
                 log.debug("row: %s", row)
-                if startingIndex == 0 and count > 100:
-                    # hack to get initial display back quicker
-                    break
                 if albumtype != 10:
                     id, id2, parentID, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10 = row
                 else:
@@ -2797,9 +2851,6 @@ class DummyContentDirectory(Service):
             c.execute(statement)
             for row in c:
 #                log.debug("row: %s", row)
-                if startingIndex == 0 and count > 100:
-                    # hack to get initial display back quicker
-                    break
                 id, parentID, playlist, path, upnpclass = row
                 id = str(id)
                 if playlist == '': playlist = '[unknown playlist]'

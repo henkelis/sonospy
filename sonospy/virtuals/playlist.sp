@@ -21,9 +21,9 @@
 
 # If you place this file in the scan path (you can have a completely
 # different scan path for these files if you like), the scanner will
-# read the file and polulate the database with the details you specify.
+# read the file and populate the database with the details you specify.
 # When you run the proxy, the works and virtuals you create will 
-# appear just as physical albums would.
+# appear just as physical albums do.
 
 # All tracks that you specify must be in the database (tracks will be
 # scanned first, followed by work/virtual files).
@@ -63,7 +63,7 @@
 #     Header remains in force until another header is encountered or end of
 #     file.
 #
-#     Lines beginning with # are ignored.
+#     Lines beginning with # are ignored, as are blank lines
 #
 
 type=
@@ -85,11 +85,19 @@ lastmodified=
 # To add tracks to your work/virtual, list them here.
 #
 #     list of tracks for this work or virtual
+#
 #     tracks will be added in order given
+#
+#     you can specify a folder, and all tracks within that folder will be included (recursively)
+#
 #     the track list can contain playlist(s)
+#
 #     tracks can be specified more than once in the same list
+#
 #     track paths can be relative to the folder this file is stored in or absolute
-#     lines beginning with # are ignored
+#
+#     lines beginning with # are ignored, as are blank lines
+#
 #     note - embedded workvirtual files are not supported
 #            playlists containing playlists are not supported
 #
@@ -102,6 +110,10 @@ local/music/track3.wav
 21st Century Breakdown/Green Day - ¿Viva La Gloria [Little Girl] [Album Version].mp3
 21st Century Breakdown/Green Day - Know Your Enemy [Album Version].mp3
 21st Century Breakdown/Green Day - ¿Viva La Gloria [Little Girl] [Album Version].mp3
+
+R.E.M
+
+##################
 
 TYPE=work
 title=Red Curry Work

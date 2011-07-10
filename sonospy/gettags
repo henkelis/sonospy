@@ -1304,7 +1304,7 @@ def clearwv(wv, lastscanned=''):
           '', '', '', 
           '', '', '',
           '', '',
-          '', '',
+          wvtype, wvid,
           '', '', '',
           '', '',
           '', '', 
@@ -1443,14 +1443,16 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
             filespec = line.strip()
             filespec = checkpath(filespec, wvfilepath)
             for filespec in generate_workvirtualfile_record(filespec, database):
-                trackcountdata, trackdata = process_workvirtualfile_file(filespec, wvfilepath, wvtype)
-                if trackdata:
-                    ftrack = trackcountdata
-                    filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified = trackdata
-                    trackdata = (wvfilespec, wvfilecreated, wvfilelastmodified, filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvtrack, wvgenre, wvcover, wvdiscnumber, trackcounts[(wvtitle, ftrack)], wvinserted, wvcreated, wvlastmodified)
-                    trackcounts[(wvtitle, ftrack)] += 1    
-                    tracks.append(trackdata)
-                    wvtrack += 1
+                for trackcountdata, trackdata in process_workvirtualfile_file(filespec, wvfilepath, wvtype):
+                    print "============="
+                    print trackdata
+                    if trackdata:
+                        ftrack = trackcountdata
+                        filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified = trackdata
+                        trackdata = (wvfilespec, wvfilecreated, wvfilelastmodified, filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvtrack, wvgenre, wvcover, wvdiscnumber, trackcounts[(wvtitle, ftrack)], wvinserted, wvcreated, wvlastmodified)
+                        trackcounts[(wvtitle, ftrack)] += 1    
+                        tracks.append(trackdata)
+                        wvtrack += 1
     return tracks
 
 def generate_workvirtualfile_record(filespec, database):
@@ -1493,7 +1495,8 @@ def process_workvirtualfile_file(filespec, wvfilepath, wvtype):
             # this playlist does not exist, reject the work/virtual line
             errorstring = "Error processing %s: %s : playlist does not exist" % (wvtype, filespec)
             write_error(errorstring)
-            return None, None
+            yield None, None
+            return
         pltracks = read_playlist(filespec, ex)
         for pltrack in pltracks:
             pltrack = checkpath(pltrack, wvfilepath)
@@ -1505,23 +1508,25 @@ def process_workvirtualfile_file(filespec, wvfilepath, wvtype):
                 continue
             trackcountdata = pltrack
             trackdata = (filespec, plcreated, pllastmodified, pltrack, trackcreated, tracklastmodified)
+            yield trackcountdata, trackdata
     else:
         if ex in work_virtual_extensions:
             # we don't support nested workvirtuals, reject the work/virtual line
             errorstring = "Error processing %s: %s : nested workvirtuals are not supported" % (wvtype, filespec)
             write_error(errorstring)
-            return None, None
+            yield None, None
+            return
         filespec = checkpath(filespec, wvfilepath)
         success, trackcreated, tracklastmodified, trackfsize, directory = getfilestat(filespec)
         if not success:
             # this track does not exist, reject the work/virtual line
             errorstring = "Error processing %s: %s : track does not exist" % (wvtype, filespec)
             write_error(errorstring)
-            return None, None
+            yield None, None
+            return
         trackcountdata = filespec
         trackdata = ('', '', '', filespec, trackcreated, tracklastmodified)
-
-    return trackcountdata, trackdata
+        yield trackcountdata, trackdata
 
 def read_playlist(filespec, extension):
     tracks = []
