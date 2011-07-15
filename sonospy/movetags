@@ -826,6 +826,15 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                         row = cs2.fetchone()
                                         if row:
                                             n_year, n_folderart, n_trackart, n_folderartid, n_trackartid, n_inserted, n_composer, n_created, n_lastmodified = row
+					else:
+					    n_folderart = ''
+					    n_trackart = ''
+					    n_year = ''
+					    n_inserted = ''
+					    n_composer = ''
+					    n_created = ''
+					    n_lastmodified = ''
+
                                     except sqlite3.Error, e:
                                         print "Error getting track details:", e.args[0]
 
