@@ -3511,8 +3511,8 @@ def fixMime(mime):
     return mime
 
 def getProtocol(mime):
-#    return 'http-get:*:%s:*' % mime    
-    return 'http-get:*:%s:%s' % (mime, 'DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0')
+    return 'http-get:*:%s:*' % mime    
+#    return 'http-get:*:%s:%s' % (mime, 'DLNA.ORG_PN=MP3;DLNA.ORG_OP=01;DLNA.ORG_CI=0')
 
 
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-# gettags
+# gettags.py
 #
-# gettags copyright (c) 2010-2011 Mark Henkelis
+# gettags.py copyright (c) 2010-2011 Mark Henkelis
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -39,18 +39,12 @@ from mutagen import File
 from mutagen.asf import ASFUnicodeAttribute     # seems to be an issue with multiple tag entries in wma files
 
 from scanfuncs import adjust_tracknumber, truncate_number
+from filelog import write_warning, write_error, write_log, write_verbose_log
+import filelog
 
 import errors
 errors.catch_errors()
 
-G_QUIET = False
-G_VERBOSE = False
-MUTAGEN_ERROR_FILE = 'logs/scanerrors.txt'
-efile = codecs.open(MUTAGEN_ERROR_FILE,'w','utf-8')
-LOG_FILE = 'logs/scanlog.txt'
-lfile = codecs.open(LOG_FILE,'w','utf-8')
-VERBOSE_LOG_FILE = 'logs/scanlogverbose.txt'
-vfile = codecs.open(VERBOSE_LOG_FILE,'w','utf-8')
 MULTI_SEPARATOR = '\n'
 fileexclusions = ['.ds_store', 'desktop.ini', 'thumbs.db']
 artextns = ['.jpg', '.bmp', '.png', '.gif']
@@ -1197,6 +1191,11 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
         logstring = statement
         write_log(logstring)
         c.execute(statement) 
+        # copy related workvirtuals into new database
+        statement = """insert into workvirtuals select * from old.workvirtuals where id in (select id from tags)"""
+        logstring = statement
+        write_log(logstring)
+        c.execute(statement) 
         # copy associated art
         statement = """insert into art select distinct old.art.id, old.art.artpath from old.art, tags where tags.folderartid = old.art.id or tags.trackartid = old.art.id"""
         c.execute(statement) 
@@ -1213,6 +1212,7 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
 
     lastscanned = time.time()
 
+    # create audit records for tags
     try:
         statement = """insert into tags_update 
                        select id, '',
@@ -1228,7 +1228,7 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
                        '', '', '%s',
                        '', '', 
                        '', '%f',
-                       '0', 'I' from tags %s""" % (scannumber, lastscanned, where)
+                       '0', 'I' from tags""" % (scannumber, lastscanned)
         c.execute(statement) 
         statement = """insert into tags_update 
                        select id, id2,
@@ -1244,10 +1244,46 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
                        lastmodified, upnpclass, '%s',
                        folderartid, trackartid, 
                        inserted, '%f', 
-                       '1', 'I' from tags %s""" % (scannumber, lastscanned, where)
+                       '1', 'I' from tags""" % (scannumber, lastscanned)
         c.execute(statement) 
     except sqlite3.Error, e:
-        errorstring = "Error generating file tags: %s" % e.args[0]
+        errorstring = "Error generating tag_updates: %s" % e.args[0]
+        write_error(errorstring)
+
+    # create audit records for workvirtuals
+    try:
+        statement = """insert into workvirtuals_update 
+                       select title, 
+                       wvfile, plfile, trackfile,
+                       occurs,
+                       '', '', '', 
+                       '', '', '',
+                       '', '',
+                       type, id,
+                       '', '', '',
+                       '', '',
+                       '', '', 
+                       '', '', 
+                       '%s', '%f',
+                       '0', 'I' from workvirtuals""" % (scannumber, lastscanned)
+        c.execute(statement) 
+        statement = """insert into workvirtuals_update 
+                       select title,
+                       wvfile, plfile, trackfile, 
+                       occurs, 
+                       artist, albumartist, composer,
+                       year, track, genre,
+                       cover, discnumber,
+                       type, id,
+                       inserted, created, lastmodified,
+                       wvfilecreated, wvfilelastmodified,
+                       plfilecreated, plfilelastmodified,
+                       trackfilecreated, trackfilelastmodified,
+                       '%s', '%f',
+                       '1', 'I' from workvirtuals""" % (scannumber, lastscanned)
+        c.execute(statement) 
+    except sqlite3.Error, e:
+        errorstring = "Error generating workvirtual_updates: %s" % e.args[0]
         write_error(errorstring)
 
     db.commit()
@@ -1311,22 +1347,6 @@ def clearwv(wv, lastscanned=''):
           '', '', 
           scannumber, lastscanned)
     return wv
-
-def write_error(errorstring):
-    if not G_QUIET:
-        print errorstring.encode(enc, 'replace')
-    efile.write('%s\n' % errorstring)
-    write_verbose_log(errorstring)
-
-def write_log(logstring):
-    if not G_QUIET:
-        print logstring.encode(enc, 'replace')
-    lfile.write('%s\n' % logstring)
-    write_verbose_log(logstring)
-
-def write_verbose_log(logstring):
-    if G_VERBOSE:
-        vfile.write('%s\n' % logstring)
 
 def encodeunicode(data):
     if isinstance(data, str):
@@ -1444,8 +1464,8 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
             filespec = checkpath(filespec, wvfilepath)
             for filespec in generate_workvirtualfile_record(filespec, database):
                 for trackcountdata, trackdata in process_workvirtualfile_file(filespec, wvfilepath, wvtype):
-                    print "============="
-                    print trackdata
+#                    print "============="
+#                    print trackdata
                     if trackdata:
                         ftrack = trackcountdata
                         filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified = trackdata
@@ -1558,12 +1578,12 @@ def get_workvirtual_track_details(trackpath, trackfile, database):
     crow = c3.fetchone()
     if crow:
         # track exists, get data
-        print crow
+#        print crow
         album, discnumber, track = crow
         track = adjust_tracknumber(track)
         discnumber = truncate_number(discnumber)
         crow = (album, discnumber, track)
-        print crow
+#        print crow
     else:
         crow = (None, None, None)
     c3.close()
@@ -1726,6 +1746,11 @@ def delete_updates(database):
     except sqlite3.Error, e:
         errorstring = "Error deleting from tags_update: %s : %s" % (table, e)
         write_error(errorstring)
+    try:
+        c.execute('''delete from workvirtuals_update''')
+    except sqlite3.Error, e:
+        errorstring = "Error deleting from workvirtuals_update: %s : %s" % (table, e)
+        write_error(errorstring)
     db.commit()
     c.close()
     logstring = "Outstanding updates deleted"
@@ -1775,11 +1800,9 @@ def process_command_line(argv):
     return settings, args
 
 def main(argv=None):
-    global G_QUIET
-    global G_VERBOSE
     options, args = process_command_line(argv)
-    G_QUIET = options.quiet
-    G_VERBOSE = options.verbose
+    filelog.G_QUIET = options.quiet
+    filelog.G_VERBOSE = options.verbose
     if not options.database:
         logstring = "Database must be specified"
         write_log(logstring)
@@ -1798,9 +1821,10 @@ def main(argv=None):
             for path in args: 
                 if path.endswith(os.sep): path = path[:-1]
                 process_dir(path, options, database)
-    efile.close()
-    lfile.close()
-    vfile.close()
+    filelog.wfile.close()
+    filelog.efile.close()
+    filelog.lfile.close()
+    filelog.vfile.close()
     return 0
 
 if __name__ == "__main__":
