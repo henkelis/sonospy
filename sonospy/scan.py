@@ -23,7 +23,7 @@ import os, sys
 import optparse
 import subprocess
 import shlex
-from filelog import clear_log_files
+import filelog
 
 def process_command_line(argv):
     """
@@ -96,7 +96,7 @@ def main(argv=None):
         return 1
     else:
 
-        clear_log_files()
+        filelog.clear_log_files()
     
         if os.name == 'nt':
             cmdroot = 'python '

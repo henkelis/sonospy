@@ -31,7 +31,6 @@ import datetime
 from collections import defaultdict
 from dateutil.parser import parse as parsedate
 from scanfuncs import adjust_tracknumber, truncate_number
-from filelog import write_warning, write_error, write_log, write_verbose_log
 import filelog
 
 import errors
@@ -59,7 +58,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
     # state is not maintained across tag_update/track records to save memory - the db is checked for duplicates on insert
 
     logstring = "Processing tags"
-    write_log(logstring)
+    filelog.write_log(logstring)
     
     db2 = sqlite3.connect(trackdatabase)
     db2.execute("PRAGMA synchronous = 0;")
@@ -93,7 +92,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
     if options.the_processing:
         the_processing = options.the_processing.lower()
         logstring = "'The' processing: %s" % the_processing
-        write_verbose_log(logstring)
+        filelog.write_verbose_log(logstring)
     else:
         the_processing = 'remove'
         try:        
@@ -222,7 +221,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
         cs3.execute("""select * from scans""")
     except sqlite3.Error, e:
         errorstring = "Error querying scan details: %s" % e.args[0]
-        write_error(errorstring)
+        filelog.write_error(errorstring)
 
     #  buffer in memory
     scan_count = 0
@@ -236,7 +235,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
     if options.scancount != None:
         logstring = "Scan count: %d" % options.scancount
-        write_verbose_log(logstring)
+        filelog.write_verbose_log(logstring)
 
     # process outstanding scans
     scan_count = 0
@@ -255,7 +254,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
         try:
 
             logstring = "Processing tags from scan: %d" % scan_id
-            write_verbose_log(logstring)
+            filelog.write_verbose_log(logstring)
 
             # process tag records that exist for this scan
             if tagdatabase != trackdatabase:
@@ -349,8 +348,8 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                 # get second record of pair
                 row1 = cs1.fetchone()
 
-                write_verbose_log(str(row0))
-                write_verbose_log(str(row1))
+                filelog.write_verbose_log(str(row0))
+                filelog.write_verbose_log(str(row1))
 
                 if not options.quiet and not options.verbose:
                     out = "processing tag: " + str(processing_count) + "\r" 
@@ -367,7 +366,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                 if o_id != id:
                     # should only get here if we have a serious problem
                     errorstring = "tag/workvirtual update record pair does not match on ID"
-                    write_error(errorstring)
+                    filelog.write_error(errorstring)
                     continue
 
                 # save latest scan time
@@ -481,7 +480,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             duplicate = o_duplicate
                     except sqlite3.Error, e:
                         errorstring = "Error getting track id: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
 
                 else:
 
@@ -497,16 +496,16 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 duplicate = o_duplicate
                         except sqlite3.Error, e:
                             errorstring = "Error getting track id: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
 
                     if updatetype == 'D':
                         try:
                             logstring = "DELETE TRACK: %s" % str(row0)
-                            write_verbose_log(logstring)
+                            filelog.write_verbose_log(logstring)
                             cs2.execute("""delete from tracks where id=?""", (track_id,))
                         except sqlite3.Error, e:
                             errorstring = "Error deleting track details: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
                     
                     elif updatetype == 'I':
                     
@@ -515,7 +514,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         try:
                             tracks = (id, id2, track_parentid, duplicate, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, '', '', lastscanned)
                             logstring = "INSERT TRACK: %s" % str(tracks)
-                            write_verbose_log(logstring)
+                            filelog.write_verbose_log(logstring)
                             cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
                         except sqlite3.Error, e:
                             # assume we have a duplicate
@@ -530,7 +529,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 row = cs2.fetchone()
                             except sqlite3.Error, e:
                                 errorstring = "Error finding max duplicate on track insert: %s" % e
-                                write_error(errorstring)
+                                filelog.write_error(errorstring)
                             if row:
                                 tduplicate, = row
                                 # special case for second entry - first won't have been matched
@@ -541,13 +540,13 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 tstring = title + " (" + str(tcount) + ")"            
                                 tracks = (id, id2, track_parentid, tcount, tstring, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, '', '', lastscanned)
                                 logstring = "INSERT TRACK: %s" % str(tracks)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 try:
                                     cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
                                     duplicate = tcount
                                 except sqlite3.Error, e:
                                     errorstring = "Error performing duplicate processing on track insert: %s" % e
-                                    write_error(errorstring)
+                                    filelog.write_error(errorstring)
                                     
                             '''                        
                             tcount = 2
@@ -555,7 +554,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 tstring = title + " (" + str(tcount) + ")"            
                                 tracks = (id, id2, track_parentid, tcount, tstring, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, '', '', lastscanned)
                                 logstring = "INSERT TRACK: %s" % str(tracks)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 try:
                                     cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
                                     duplicate = tcount
@@ -579,7 +578,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                             tracks = (id2, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastscanned, track_id)
                             logstring = "UPDATE TRACK: %s" % str(tracks)
-                            write_verbose_log(logstring)
+                            filelog.write_verbose_log(logstring)
                             cs2.execute("""update tracks set 
                                            id2=?, title=?, artist=?, album=?, 
                                            genre=?, tracknumber=?, year=?, 
@@ -597,7 +596,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                            tracks)
                         except sqlite3.Error, e:
                             errorstring = "Error updating track details: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
 
                 # artist - one instance for all tracks from the album with the same artist/albumartist, with multi entry strings concatenated
 
@@ -617,7 +616,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             artist_id, = row
                     except sqlite3.Error, e:
                         errorstring = "Error getting artist id: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
 
                 artist_change = False
                 
@@ -637,11 +636,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         # only delete artist if other tracks don't refer to it
                         delete = (o_artistliststring, o_albumartistliststring, artist_id)
                         logstring = "DELETE ARTIST: %s" % str(delete)
-                        write_verbose_log(logstring)
+                        filelog.write_verbose_log(logstring)
                         cs2.execute("""delete from artists where not exists (select 1 from tracks where artist=? and albumartist=?) and id=?""", delete)
                     except sqlite3.Error, e:
                         errorstring = "Error deleting artist details: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
                 
                 if updatetype == 'I' or artist_change:
 
@@ -666,13 +665,13 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 artist_id = None
                             artists = (artist_id, str(artist_parentid), artistliststring, albumartistliststring, '', '', 'object.container.person.musicArtist')
                             logstring = "INSERT ARTIST: %s" % str(artists)
-                            write_verbose_log(logstring)
+                            filelog.write_verbose_log(logstring)
                             cs2.execute('insert into artists values (?,?,?,?,?,?,?)', artists)
                             artist_id = cs2.lastrowid
 
                     except sqlite3.Error, e:
                         errorstring = "Error inserting artist details: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
 
                 '''
                 # create list of album names to process
@@ -859,7 +858,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 
                         except sqlite3.Error, e:
                             errorstring = "Error getting album id: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
 
                         if album_id:
                             # check whether we are deleting a track that is the track we got the album details for
@@ -895,7 +894,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                                     except sqlite3.Error, e:
                                         errorstring = "Error getting track details: %s" % e.args[0]
-                                        write_error(errorstring)
+                                        filelog.write_error(errorstring)
 
                                     # set art
                                     if n_folderart and n_folderart != '' or prefer_folderart:
@@ -911,7 +910,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     try:
                                         albums = (n_year, n_cover, n_artid, n_inserted, n_composer, tracknumbers, n_created, n_lastmodified, album_id)
                                         logstring = "UPDATE ALBUM: %s" % str(albums)
-                                        write_verbose_log(logstring)
+                                        filelog.write_verbose_log(logstring)
                                         cs2.execute("""update albums set 
                                                        year=?,
                                                        cover=?,
@@ -925,7 +924,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                                        albums)
                                     except sqlite3.Error, e:
                                         errorstring = "Error resetting album details: %s" % e.args[0]
-                                        write_error(errorstring)
+                                        filelog.write_error(errorstring)
                                 
                                 else:
                                     # we can just remove the track from the list and update the list
@@ -934,14 +933,14 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     try:
                                         albums = (tracknumbers, album_id)
                                         logstring = "UPDATE ALBUM TRACKNUMBERS: %s" % str(albums)
-                                        write_verbose_log(logstring)
+                                        filelog.write_verbose_log(logstring)
                                         cs2.execute("""update albums set 
                                                        tracknumbers=?
                                                        where id=?""", 
                                                        albums)
                                     except sqlite3.Error, e:
                                         errorstring = "Error updating album tracknumbers: %s" % e.args[0]
-                                        write_error(errorstring)
+                                        filelog.write_error(errorstring)
 
                             else:
                                 # last track, can delete album                            
@@ -949,11 +948,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     # only delete album if other tracks don't refer to it
                                     delete = (o_album, o_artistliststring, o_albumartistliststring, o_duplicate, o_albumtype, album_id)
                                     logstring = "DELETE ALBUM: %s" % str(delete)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute("""delete from albums where not exists (select 1 from tracks where album=? and artist=? and albumartist=? and duplicate=? and albumtype=?) and id=?""", delete)
                                 except sqlite3.Error, e:
                                     errorstring = "Error deleting album details: %s" % e.args[0]
-                                    write_error(errorstring)
+                                    filelog.write_error(errorstring)
 
                     if album_updatetype == 'I':
 
@@ -984,7 +983,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 if not lowest_track or album_tracknumber < lowest_track:
                                     albums = (album, artistliststring, year, albumartistliststring, duplicate, cover, artid, inserted, composerliststring, tracknumbers, created, lastmodified, albumtype, album_id)
                                     logstring = "UPDATE ALBUM: %s" % str(albums)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute("""update albums set 
                                                    album=?,
                                                    artist=?,
@@ -1005,7 +1004,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     # just store the tracknumber
                                     albums = (tracknumbers, album_id)
                                     logstring = "UPDATE ALBUM TRACKNUMBERS: %s" % str(albums)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute("""update albums set 
                                                    tracknumbers=?
                                                    where id=?""", 
@@ -1022,13 +1021,13 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     tracknumbers = 'n'
                                 albums = (album_id, album_parentid, album, artistliststring, year, albumartistliststring, duplicate, cover, artid, inserted, composerliststring, tracknumbers, created, lastmodified, albumtype, '', '', 'object.container.album.musicAlbum')
                                 logstring = "INSERT ALBUM: %s" % str(albums)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 cs2.execute('insert into albums values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', albums)
                                 album_id = cs2.lastrowid
 
                         except sqlite3.Error, e:
                             errorstring = "Error inserting/updating album details: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
 
                     # insert multiple entry lookups at album/track level if they don't already exist
                     # note that these can change by track, hence we do it outside of album (which may not change)
@@ -1044,38 +1043,38 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 for o_artist in o_artistlist:
                                     delete = (track_id, o_genre, o_artist, o_album, o_duplicate, o_albumtype)
                                     logstring = "DELETE GenreArtistAlbumTrack: %s" % str(delete)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute("""delete from GenreArtistAlbumTrack where track_id=? and genre=? and artist=? and album=? and duplicate=? and albumtype=?""", delete)
                                 for o_albumartist in o_albumartistlist:
                                     delete = (track_id, o_genre, o_albumartist, o_album, o_duplicate, o_albumtype)
                                     logstring = "DELETE GenreAlbumartistAlbumTrack: %s" % str(delete)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute("""delete from GenreAlbumartistAlbumTrack where track_id=? and genre=? and albumartist=? and album=? and duplicate=? and albumtype=?""", delete)
                             for o_artist in o_artistlist:
                                 delete = (track_id, o_artist, o_album, o_duplicate, o_albumtype)
                                 logstring = "DELETE ArtistAlbumTrack:" + str(delete)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from ArtistAlbumTrack where track_id=? and artist=? and album=? and duplicate=? and albumtype=?""", delete)
                             for o_albumartist in o_albumartistlist:
                                 delete = (track_id, o_albumartist, o_album, o_duplicate, o_albumtype)
                                 logstring = "DELETE AlbumartistAlbumTrack:" + str(delete)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from AlbumartistAlbumTrack where track_id=? and albumartist=? and album=? and duplicate=? and albumtype=?""", delete)
                             for o_composer in o_composerlist:
                                 delete = (track_id, o_composer, o_album, o_duplicate, o_albumtype)
                                 logstring = "DELETE ComposerAlbumTrack:" + str(delete)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from ComposerAlbumTrack where track_id=? and composer=? and album=? and duplicate=? and albumtype=?""", delete)
 
                             if albumtypestring == 'work' or albumtypestring == 'virtual':
                                 delete = (track_id, o_genreliststring, o_artistliststring, o_albumartistliststring, o_originalalbum, o_album, o_composerliststring, o_duplicate, o_albumtype, album_tracknumber)
                                 logstring = "DELETE TrackNumbers:" + str(delete)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from TrackNumbers where track_id=? and genre=? and artist=? and albumartist=? and album=? and dummyalbum=? and composer=? and duplicate=? and albumtype=? and tracknumber=?""", delete)
 
                         except sqlite3.Error, e:
                             errorstring = "Error deleting lookup details: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
 
                     if album_updatetype == 'I':
 
@@ -1088,7 +1087,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     if not crow:
                                         insert = check
                                         logstring = "INSERT GenreArtistAlbumTrack: %s" % str(insert)
-                                        write_verbose_log(logstring)
+                                        filelog.write_verbose_log(logstring)
                                         cs2.execute('insert into GenreArtistAlbumTrack values (?,?,?,?,?,?)', insert)
                                 for albumartist in albumartistlist:
                                     check = (track_id, genre, albumartist, album, duplicate, albumtype)
@@ -1097,7 +1096,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     if not crow:
                                         insert = check
                                         logstring = "INSERT GenreAlbumartistAlbumTrack: %s" % str(insert)
-                                        write_verbose_log(logstring)
+                                        filelog.write_verbose_log(logstring)
                                         cs2.execute('insert into GenreAlbumartistAlbumTrack values (?,?,?,?,?,?)', insert)
                             for artist in artistlist:
                                 check = (track_id, artist, album, duplicate, albumtype)
@@ -1106,7 +1105,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 if not crow:
                                     insert = check
                                     logstring = "INSERT ArtistAlbumTrack:" + str(insert)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute('insert into ArtistAlbumTrack values (?,?,?,?,?)', insert)
                             for albumartist in albumartistlist:
                                 check = (track_id, albumartist, album, duplicate, albumtype)
@@ -1115,7 +1114,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 if not crow:
                                     insert = check
                                     logstring = "INSERT AlbumartistAlbumTrack:" + str(insert)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute('insert into AlbumartistAlbumTrack values (?,?,?,?,?)', insert)
                             for composer in composerlist:
                                 check = (track_id, composer, album, duplicate, albumtype)
@@ -1124,7 +1123,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 if not crow:
                                     insert = check
                                     logstring = "INSERT ComposerAlbumTrack:" + str(insert)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute('insert into ComposerAlbumTrack values (?,?,?,?,?)', insert)
 
                             if albumtypestring == 'work' or albumtypestring == 'virtual':
@@ -1134,12 +1133,12 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 if not crow:
                                     insert = check
                                     logstring = "INSERT TrackNumbers:" + str(insert)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute('insert into TrackNumbers values (?,?,?,?,?,?,?,?,?,?)', insert)
 
                         except sqlite3.Error, e:
                             errorstring = "Error inserting album/track lookup details: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
 
                     # insert multiple entry lookups at artist/album level if they don't already exist
                     # note that these can change by track, hence we do it outside of artist (which may not change)
@@ -1154,39 +1153,39 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 for o_artist in o_artistlist:
                                     delete = (o_genre, o_artist, artist_id)
                                     logstring = "DELETE GenreArtist:" + str(delete)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute("""delete from GenreArtist where not exists (select 1 from GenreArtistAlbum where genre=? and artist=?) and artist_id=?""", delete)
                                     delete = (o_genre, o_artist, o_album, o_duplicate, o_albumtype, album_id)
                                     logstring = "DELETE GenreArtistAlbum:" + str(delete)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute("""delete from GenreArtistAlbum where not exists (select 1 from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate=? and albumtype=?) and album_id=?""", delete)
                                 for o_albumartist in o_albumartistlist:
                                     delete = (o_genre, o_albumartist, artist_id)
                                     logstring = "DELETE GenreAlbumartist:" + str(delete)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute("""delete from GenreAlbumartist where not exists (select 1 from GenreAlbumartistAlbum where genre=? and albumartist=?) and albumartist_id=?""", delete)
                                     delete = (o_genre, o_albumartist, o_album, o_duplicate, o_albumtype, album_id)
                                     logstring = "DELETE GenreAlbumartistAlbum:" + str(delete)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute("""delete from GenreAlbumartistAlbum where not exists (select 1 from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=? and albumtype=?) and album_id=?""", delete)
                             for o_artist in o_artistlist:
                                 delete = (o_artist, o_album, o_duplicate, o_albumtype, album_id)
                                 logstring = "DELETE ArtistAlbum:" + str(delete)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from ArtistAlbum where not exists (select 1 from ArtistAlbumTrack where artist=? and album=? and duplicate=? and albumtype=?) and album_id=?""", delete)
                             for o_albumartist in o_albumartistlist:
                                 delete = (o_albumartist, o_album, o_duplicate, o_albumtype, album_id)
                                 logstring = "DELETE AlbumartistAlbum:" + str(delete)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from AlbumartistAlbum where not exists (select 1 from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=? and albumtype=?) and album_id=?""", delete)
                             for o_composer in o_composerlist:
                                 delete = (o_composer, o_album, o_duplicate, o_albumtype, album_id)
                                 logstring = "DELETE ComposerAlbum:" + str(delete)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from ComposerAlbum where not exists (select 1 from ComposerAlbumTrack where composer=? and album=? and duplicate=? and albumtype=?) and album_id=?""", delete)
                         except sqlite3.Error, e:
                             errorstring = "Error deleting (genre)/(artist/albumartist/composer)/artist lookup details: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
 
                     if album_updatetype == 'I':
 
@@ -1199,7 +1198,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     if not crow:
                                         insert = check + ('', '')
                                         logstring = "INSERT GenreArtist: %s" % str(insert)
-                                        write_verbose_log(logstring)
+                                        filelog.write_verbose_log(logstring)
                                         cs2.execute('insert into GenreArtist values (?,?,?,?)', insert)
                                     check = (album_id, genre, artist, album, duplicate, albumtype)
                                     cs2.execute("""select * from GenreArtistAlbum where album_id=? and genre=? and artist=? and album=? and duplicate=? and albumtype=?""", check)
@@ -1207,7 +1206,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     if not crow:
                                         insert = check + ('', '')
                                         logstring = "INSERT GenreArtistAlbum: %s" % str(insert)
-                                        write_verbose_log(logstring)
+                                        filelog.write_verbose_log(logstring)
                                         cs2.execute('insert into GenreArtistAlbum values (?,?,?,?,?,?,?,?)', insert)
                                 for albumartist in albumartistlist:
                                     check = (artist_id, genre)
@@ -1216,7 +1215,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     if not crow:
                                         insert = check + ('', '')
                                         logstring = "INSERT GenreAlbumartist: %s" % str(insert)
-                                        write_verbose_log(logstring)
+                                        filelog.write_verbose_log(logstring)
                                         cs2.execute('insert into GenreAlbumartist values (?,?,?,?)', insert)
                                     check = (album_id, genre, albumartist, album, duplicate, albumtype)
                                     cs2.execute("""select * from GenreAlbumartistAlbum where album_id=? and genre=? and albumartist=? and album=? and duplicate=? and albumtype=?""", check)
@@ -1224,7 +1223,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     if not crow:
                                         insert = check + ('', '')
                                         logstring = "INSERT GenreAlbumartistAlbum: %s" % str(insert)
-                                        write_verbose_log(logstring)
+                                        filelog.write_verbose_log(logstring)
                                         cs2.execute('insert into GenreAlbumartistAlbum values (?,?,?,?,?,?,?,?)', insert)
                             for artist in artistlist:
                                 check = (album_id, artist, album, duplicate, albumtype)
@@ -1233,7 +1232,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 if not crow:
                                     insert = check + ('', '')
                                     logstring = "INSERT ArtistAlbum:" + str(insert)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute('insert into ArtistAlbum values (?,?,?,?,?,?,?)', insert)
                             for albumartist in albumartistlist:
                                 check = (album_id, albumartist, album, duplicate, albumtype)
@@ -1242,7 +1241,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 if not crow:
                                     insert = check + ('', '')
                                     logstring = "INSERT AlbumartistAlbum:" + str(insert)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute('insert into AlbumartistAlbum values (?,?,?,?,?,?,?)', insert)
                             for composer in composerlist:
                                 check = (album_id, composer, album, duplicate, albumtype)
@@ -1251,11 +1250,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 if not crow:
                                     insert = check + ('', '')
                                     logstring = "INSERT ComposerAlbum:" + str(insert)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     cs2.execute('insert into ComposerAlbum values (?,?,?,?,?,?,?)', insert)
                         except sqlite3.Error, e:
                             errorstring = "Error inserting (genre)/(artist/albumartist/composer)/album lookup details: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
 
                 # composer - one instance for all tracks from the album with the same composer, with multi entry strings concatenated
 
@@ -1274,7 +1273,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             composer_id, = crow
                     except sqlite3.Error, e:
                         errorstring = "Error getting composer id: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
 
                 composer_change = False
                 
@@ -1294,12 +1293,12 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         # only delete composer if other tracks don't refer to it
                         delete = (o_composerliststring, composer_id)
                         logstring = "DELETE COMPOSER: %s" % str(delete)
-                        write_verbose_log(logstring)
+                        filelog.write_verbose_log(logstring)
                         cs2.execute("""delete from composers where not exists (select 1 from tracks where composer=?) and id=?""", delete)
 
                     except sqlite3.Error, e:
                         errorstring = "Error deleting composer details: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
                 
                 if updatetype == 'I' or composer_change:
 
@@ -1323,13 +1322,13 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 composer_id = None
                             composers = (composer_id, str(composer_parentid), composerliststring, '', '', 'object.container.person.musicArtist')
                             logstring = "INSERT COMPOSER: %s" % str(composers)
-                            write_verbose_log(logstring)
+                            filelog.write_verbose_log(logstring)
                             cs2.execute('insert into composers values (?,?,?,?,?,?)', composers)
                             composer_id = cs2.lastrowid
 
                     except sqlite3.Error, e:
                         errorstring = "Error inserting composer details: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
 
                 # genre - one instance for all tracks from the album with the same genre, with multi entry strings concatenated
 
@@ -1348,7 +1347,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             genre_id, = crow
                     except sqlite3.Error, e:
                         errorstring = "Error getting genre id: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
 
                 genre_change = False
                 
@@ -1368,12 +1367,12 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         # only delete genre if other tracks don't refer to it
                         delete = (o_genreliststring, genre_id)
                         logstring = "DELETE GENRE: %s" % str(delete)
-                        write_verbose_log(logstring)
+                        filelog.write_verbose_log(logstring)
                         cs2.execute("""delete from genres where not exists (select 1 from tracks where genre=?) and id=?""", delete)
 
                     except sqlite3.Error, e:
                         errorstring = "Error getting genre details: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
                 
                 if updatetype == 'I' or genre_change:
 
@@ -1397,12 +1396,12 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 genre_id = None
                             genres = (genre_id, str(genre_parentid), genreliststring, '', '', 'object.container.genre.musicGenre')
                             logstring = "INSERT GENRE: %s" % str(genres)
-                            write_verbose_log(logstring)
+                            filelog.write_verbose_log(logstring)
                             cs2.execute('insert into genres values (?,?,?,?,?,?)', genres)
                             genre_id = cs2.lastrowid
                     except sqlite3.Error, e:
                         errorstring = "Error inserting genre details: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
 
         except KeyboardInterrupt: 
             raise
@@ -1410,7 +1409,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 #            print str(err)
 
         logstring = "committing"
-        write_verbose_log(logstring)
+        filelog.write_verbose_log(logstring)
         db2.commit()
 
     cs1.close()
@@ -1427,41 +1426,41 @@ def process_tags(args, options, tagdatabase, trackdatabase):
         try:
             delete = (scan_id, scan_path)
             logstring = "DELETE SCAN: %s" % str(delete)
-            write_verbose_log(logstring)
+            filelog.write_verbose_log(logstring)
             cs2.execute("""delete from scans where id=? and scanpath=?""", delete)
             delete = (scan_id, )
             logstring = "DELETE TAGS UPDATES: %s" % str(delete)
-            write_verbose_log(logstring)
+            filelog.write_verbose_log(logstring)
             cs2.execute("""delete from tags_update where scannumber=?""", delete)
             logstring = "DELETE WORKVIRTUALS UPDATES: %s" % str(delete)
-            write_verbose_log(logstring)
+            filelog.write_verbose_log(logstring)
             cs2.execute("""delete from workvirtuals_update where scannumber=?""", delete)
         except sqlite3.Error, e:
             errorstring = "Error deleting scan/update details: %s" % e.args[0]
-            write_error(errorstring)
+            filelog.write_error(errorstring)
 
     # update the container update ID
     if last_scan_stamp > 1:            
         try:
             params = (last_scan_stamp, scan_id)
             logstring = "UPDATE PARAMS: %s" % str(params)
-            write_verbose_log(logstring)
+            filelog.write_verbose_log(logstring)
             cs2.execute("""update params set
                            lastscanstamp=?, lastscanid=? 
                            where key='1'""", 
                            params)
         except sqlite3.Error, e:
             errorstring = "Error updating lastscanid details: %s" % e.args[0]
-            write_error(errorstring)
+            filelog.write_error(errorstring)
 
     db2.commit()
     cs2.close()
 
     logstring = "Tags processed"
-    write_log(logstring)
+    filelog.write_log(logstring)
 
     logstring = "finished"
-    write_verbose_log(logstring)
+    filelog.write_verbose_log(logstring)
 
 def unwrap_list(liststring, multi_field_separator, include):
     # passed string can be multiple separator separated entries within multiple separator separated entries
@@ -1526,7 +1525,7 @@ def adjust_year(year, filespec):
                 break
         if not cccc:
             warningstring = "Warning processing track: %s : tag: %s : %s" % (filespec, year, "Couldn't convert year tag to cccc, year tag ignored")
-            write_warning(warningstring)
+            filelog.write_warning(warningstring)
         else:
             yeardate = datetime.date(cccc, DEFAULTMONTH, DEFAULTDAY)
             ordinal = yeardate.toordinal()
@@ -2055,7 +2054,7 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
 
     except sqlite3.Error, e:
         errorstring = "Error creating database: %s, %s" % (database, e)
-        write_error(errorstring)
+        filelog.write_error(errorstring)
     db.commit()
     c.close()
 
@@ -2086,7 +2085,7 @@ def empty_database(database):
         c.execute('''drop table if exists TrackNumbers''')
     except sqlite3.Error, e:
         errorstring = "Error dropping table: %s, %s" % (table, e)
-        write_error(errorstring)
+        filelog.write_error(errorstring)
     db.commit()
     c.close()
 
@@ -2133,8 +2132,8 @@ def process_command_line(argv):
 
 def main(argv=None):
     options, args = process_command_line(argv)
-    filelog.G_QUIET = options.quiet
-    filelog.G_VERBOSE = options.verbose
+    filelog.set_log_type(options.quiet, options.verbose)
+    filelog.open_log_files()
     if len(args) != 0 or not options.tagdatabase or not options.trackdatabase: 
         print "Usage: %s [options]" % sys.argv[0]
     else:
@@ -2148,10 +2147,7 @@ def main(argv=None):
             empty_database(trackdatabase)
         check_target_database_exists(trackdatabase)
         process_tags(args, options, tagdatabase, trackdatabase)
-    filelog.wfile.close()
-    filelog.efile.close()
-    filelog.lfile.close()
-    filelog.vfile.close()
+    filelog.close_log_files()
     return 0
 
 if __name__ == "__main__":

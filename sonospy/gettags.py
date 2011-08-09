@@ -39,7 +39,6 @@ from mutagen import File
 from mutagen.asf import ASFUnicodeAttribute     # seems to be an issue with multiple tag entries in wma files
 
 from scanfuncs import adjust_tracknumber, truncate_number
-from filelog import write_warning, write_error, write_log, write_verbose_log
 import filelog
 
 import errors
@@ -210,7 +209,7 @@ When processing workvirtuals subsequently, select from workvirtuals_update on sc
 def process_dir(scanpath, options, database):
 
     logstring = "Scanning: %s" % scanpath
-    write_log(logstring)
+    filelog.write_log(logstring)
     db = sqlite3.connect(database)
 #    db.execute("PRAGMA synchronous = 0;")
     c = db.cursor()
@@ -221,7 +220,7 @@ def process_dir(scanpath, options, database):
     c.execute('''insert into scans values (?,?)''', (None, scanpath))
     scannumber = c.lastrowid
     logstring = "Scannumber: %d" % scannumber
-    write_log(logstring)
+    filelog.write_log(logstring)
 
     processing_count = 1
 
@@ -278,7 +277,7 @@ def process_dir(scanpath, options, database):
                             get_tags = False
                 except sqlite3.Error, e:
                     errorstring = "Error checking file created: %s" % e.args[0]
-                    write_error(errorstring)
+                    filelog.write_error(errorstring)
 
                 if get_tags:                    
                 
@@ -290,7 +289,7 @@ def process_dir(scanpath, options, database):
                         etype, value, tb = sys.exc_info()
                         error = traceback.format_exception_only(etype, value)[0].strip()
                         errorstring = "Error processing file: %s : %s" % (ffn, error)
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
                         continue
                         
                     tags = {}
@@ -376,11 +375,11 @@ def process_dir(scanpath, options, database):
 
                     else:
                         logstring = "Filetype not catered for: %s" % ffn
-                        write_verbose_log(logstring)
+                        filelog.write_verbose_log(logstring)
                         
                     if tags:
                         logstring = tags
-                        write_verbose_log(logstring)
+                        filelog.write_verbose_log(logstring)
 
                         title = MULTI_SEPARATOR.join(tags.get('title', ''))
                         artist = MULTI_SEPARATOR.join(tags.get('artist', ''))
@@ -430,7 +429,7 @@ def process_dir(scanpath, options, database):
                                     artid = c.lastrowid
                             except sqlite3.Error, e:
                                 errorstring = "Error checking/inserting art: %s" % e.args[0]
-                                write_error(errorstring)
+                                filelog.write_error(errorstring)
                             ids.append(artid)
                         trackartid = None
                         if trackart:
@@ -456,14 +455,14 @@ def process_dir(scanpath, options, database):
                         tags = (scannumber, lastscanned,
                                 filepath, fn)
                         logstring = "UPDATE SCAN DETAILS: " + str(tags)
-                        write_verbose_log(logstring)
+                        filelog.write_verbose_log(logstring)
                         c.execute("""update tags set
                                      scannumber=?, lastscanned=? 
                                      where path=? and filename=?""", 
                                      tags)
                     except sqlite3.Error, e:
                         errorstring = "Error updating file scan details: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
                 else:
                     # if we can process this filetype
                     if tags:
@@ -555,14 +554,14 @@ def process_dir(scanpath, options, database):
                                                     c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
                                                 # delete record from tags
                                                 logstring = "Duplicate file replaced: %s, %s" % (o_filename, o_path)
-                                                write_log(logstring)
+                                                filelog.write_log(logstring)
                                                 logstring = "DELETE: " + str(tags)
-                                                write_verbose_log(logstring)
+                                                filelog.write_verbose_log(logstring)
                                                 c.execute("""delete from tags where id=?""", (o_id,))
 
                                             except sqlite3.Error, e:
                                                 errorstring = "Error processing duplicate deletion: %s" % e.args[0]
-                                                write_error(errorstring)
+                                                filelog.write_error(errorstring)
 
                             # get the existing record for this unique path/filename if it exists
                             c.execute("""select * from tags where path=? and filename=?""", (path, filename))
@@ -595,9 +594,9 @@ def process_dir(scanpath, options, database):
                                         folderartid, trackartid,
                                         inserted, lastscanned)
                                 logstring = "New file found: %s, %s" % (filename, path)
-                                write_log(logstring)
+                                filelog.write_log(logstring)
                                 logstring = "INSERT: " + str(tags)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 c.execute("""insert into tags values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", tags)
                                 # create audit records
                                 # pre
@@ -677,9 +676,9 @@ def process_dir(scanpath, options, database):
                                         o_inserted, lastscanned,
                                         path, filename)
                                 logstring = "Existing file updated: %s, %s" % (filename, path)
-                                write_log(logstring)
+                                filelog.write_log(logstring)
                                 logstring = "UPDATE: " + str(tags)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 c.execute("""update tags set
                                              id2=?, title=?, artist=?, album=?,
                                              genre=?, track=?, year=?,
@@ -697,7 +696,7 @@ def process_dir(scanpath, options, database):
                                              tags)
                         except sqlite3.Error, e:
                             errorstring = "Error inserting/updating file tags: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
 
             except KeyboardInterrupt: 
                 raise
@@ -751,14 +750,14 @@ def process_dir(scanpath, options, database):
             c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
             # delete record from tags
             logstring = "Existing file not found: %s, %s" % (o_filename, o_path)
-            write_log(logstring)
+            filelog.write_log(logstring)
             logstring = "DELETE: " + str(tags)
-            write_verbose_log(logstring)
+            filelog.write_verbose_log(logstring)
             c.execute("""delete from tags where id=?""", (o_id,))
 
     except sqlite3.Error, e:
         errorstring = "Error processing track deletions: %s" % e.args[0]
-        write_error(errorstring)
+        filelog.write_error(errorstring)
 
     db.commit()
 
@@ -776,7 +775,7 @@ def process_dir(scanpath, options, database):
         c2.execute("""create temporary table tempwv (wvfile text)""")
     except sqlite3.Error, e:
         errorstring = "Error creating temporary table: %s" % e.args[0]
-        write_error(errorstring)
+        filelog.write_error(errorstring)
 
     # now process works and virtuals - processing the generator first
     for filepath, dirs, files in itertools.chain(workvirtual_updates, os.walk(scanpath)):
@@ -803,7 +802,7 @@ def process_dir(scanpath, options, database):
                 if '..wv..' in dirs:
                     # this file was passed from the tracks scan, log an error
                     errorstring = "Track changed but unable to access workvirtual file: %s" % (ffn)
-                    write_error(errorstring)
+                    filelog.write_error(errorstring)
                 continue
 
             try:
@@ -830,7 +829,7 @@ def process_dir(scanpath, options, database):
                     
                 except sqlite3.Error, e:
                     errorstring = "Error processing temporary table: %s" % e.args[0]
-                    write_error(errorstring)
+                    filelog.write_error(errorstring)
 
                 # read work/virtual date and track details                                    
                 workvirtualtracks = read_workvirtualfile(ffn, ex.lower(), filepath, database)
@@ -875,7 +874,7 @@ def process_dir(scanpath, options, database):
                             wv_change = 'I'
                     except sqlite3.Error, e:
                         errorstring = "Error checking workvirtual track created: %s" % e.args[0]
-                        write_error(errorstring)
+                        filelog.write_error(errorstring)
 
 #                    print "----wvchange----"
 #                    print wv_change
@@ -891,14 +890,14 @@ def process_dir(scanpath, options, database):
                         try:
                             wv = (scannumber, lastscanned, wvtitle, wvfile, plfile, trackfile, wvoccurs)
                             logstring = "UPDATE SCAN DETAILS: " + str(wv)
-                            write_verbose_log(logstring)
+                            filelog.write_verbose_log(logstring)
                             c.execute("""update workvirtuals set
                                          scannumber=?, lastscanned=? 
                                          where title=? and wvfile=? and plfile=? and trackfile=? and occurs=?""", 
                                          wv)
                         except sqlite3.Error, e:
                             errorstring = "Error updating workvirtual track scan details: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
 
                     else:
                         # either we have a change or it's a new workvirtual track
@@ -910,11 +909,11 @@ def process_dir(scanpath, options, database):
                             crow = c.fetchone()
                         except sqlite3.Error, e:
                             errorstring = "Error getting tags details: %s" % e.args[0]
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
                         if not crow:
                             # this track does not exist, reject the work/virtual record
                             errorstring = "Error processing %s: %s : %s : %s : track does not exist in database" % (wvtype, wvfile, plfile, trackfile)
-                            write_error(errorstring)
+                            filelog.write_error(errorstring)
                             continue
                             
                         else:
@@ -967,9 +966,9 @@ def process_dir(scanpath, options, database):
                                       trackfilecreated, trackfilelastmodified, 
                                       scannumber, lastscanned)
                                 logstring = "%s track inserted: %s : %s : %s" % (wvtype, wvfile, plfile, trackfile)
-                                write_log(logstring)
+                                filelog.write_log(logstring)
                                 logstring = "INSERT: " + str(wv)
-                                write_verbose_log(logstring)
+                                filelog.write_verbose_log(logstring)
                                 c.execute("""insert into workvirtuals values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", wv)
                                 # pre                                
                                 iwv = clearwv(wv)
@@ -980,7 +979,7 @@ def process_dir(scanpath, options, database):
                                 c.execute("""insert into workvirtuals_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", iwv)
                             except sqlite3.Error, e:
                                 errorstring = "Error inserting workvirtual track details: %s" % e.args[0]
-                                write_error(errorstring)
+                                filelog.write_error(errorstring)
 
                         else:
 
@@ -995,7 +994,7 @@ def process_dir(scanpath, options, database):
 
                             except sqlite3.Error, e:
                                 errorstring = "Error getting workvirtual details: %s" % e.args[0]
-                                write_error(errorstring)
+                                filelog.write_error(errorstring)
 
                             # check if only the workvirtual/playlist/track timestamps have changed
                             # - if so we don't need to create audit records as those changes are not
@@ -1021,7 +1020,7 @@ def process_dir(scanpath, options, database):
                                           scannumber, lastscanned,
                                           wvtitle, wvfile, plfile, trackfile, wvoccurs)
                                     logstring = "UPDATE: " + str(wv)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     c.execute("""update workvirtuals set
                                                  wvfilecreated=?, wvfilelastmodified=?,
                                                  plfilecreated=?, plfilelastmodified=?, 
@@ -1031,7 +1030,7 @@ def process_dir(scanpath, options, database):
                                                  wv)
                                 except sqlite3.Error, e:
                                     errorstring = "Error updating workvirtual track details: %s" % e.args[0]
-                                    write_error(errorstring)
+                                    filelog.write_error(errorstring)
 
                             else:
 
@@ -1079,9 +1078,9 @@ def process_dir(scanpath, options, database):
                                           scannumber, lastscanned,
                                           wvtitle, wvfile, plfile, trackfile, wvoccurs)
                                     logstring = "Existing workvirtual track updated: %s" % (trackfile)
-                                    write_log(logstring)
+                                    filelog.write_log(logstring)
                                     logstring = "UPDATE: " + str(wv)
-                                    write_verbose_log(logstring)
+                                    filelog.write_verbose_log(logstring)
                                     c.execute("""update workvirtuals set
                                                  artist=?, albumartist=?, composer=?, 
                                                  year=?, track=?, genre=?, 
@@ -1096,7 +1095,7 @@ def process_dir(scanpath, options, database):
                                                  wv)
                                 except sqlite3.Error, e:
                                     errorstring = "Error updating workvirtual track details: %s" % e.args[0]
-                                    write_error(errorstring)
+                                    filelog.write_error(errorstring)
 
             except KeyboardInterrupt: 
                 raise
@@ -1139,14 +1138,14 @@ def process_dir(scanpath, options, database):
             c.execute("""insert into workvirtuals_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", wvd)
             # delete record from tags
             logstring = "Existing workvirtual track not found: %s, %s" % (wv_wvfile, wv_trackfile)
-            write_log(logstring)
+            filelog.write_log(logstring)
             logstring = "DELETE: " + str(wv)
-            write_verbose_log(logstring)
+            filelog.write_verbose_log(logstring)
             c.execute("""delete from workvirtuals where title=? and wvfile=? and plfile=? and trackfile=? and occurs=?""", (wv_title, wv_wvfile, wv_plfile, wv_trackfile, wv_occurs))
 
     except sqlite3.Error, e:
         errorstring = "Error processing workvirtual track deletions: %s" % e.args[0]
-        write_error(errorstring)
+        filelog.write_error(errorstring)
 
     db2.commit()
     db.commit()
@@ -1170,7 +1169,7 @@ def get_workvirtual_update(scannumber, database):
             
     except sqlite3.Error, e:
         errorstring = "Error processing track changes against workvirtuals: %s" % e.args[0]
-        write_error(errorstring)
+        filelog.write_error(errorstring)
     c3.close()
 
 
@@ -1183,32 +1182,32 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
     if sourcedatabase != targetdatabase:
 
         logstring = "Extracting tag data"
-        write_log(logstring)
+        filelog.write_log(logstring)
         # we are generating a new database, so attach to old and extract the data we need
         c.execute("attach ? as old", (sourcedatabase, ))
         # copy selected tags into new database
         statement = """insert into tags select * from old.tags %s""" % where
         logstring = statement
-        write_log(logstring)
+        filelog.write_log(logstring)
         c.execute(statement) 
         # copy related workvirtuals into new database
         statement = """insert into workvirtuals select * from old.workvirtuals where id in (select id from tags)"""
         logstring = statement
-        write_log(logstring)
+        filelog.write_log(logstring)
         c.execute(statement) 
         # copy associated art
         statement = """insert into art select distinct old.art.id, old.art.artpath from old.art, tags where tags.folderartid = old.art.id or tags.trackartid = old.art.id"""
         c.execute(statement) 
         logstring = "Tag data extracted"
-        write_log(logstring)
+        filelog.write_log(logstring)
 
     logstring = "Generating change data"
-    write_log(logstring)
+    filelog.write_log(logstring)
 
     c.execute('''insert into scans values (?,?)''', (None, "generated"))
     scannumber = c.lastrowid
     logstring = "Scannumber: %d" % scannumber
-    write_log(logstring)
+    filelog.write_log(logstring)
 
     lastscanned = time.time()
 
@@ -1248,7 +1247,7 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
         c.execute(statement) 
     except sqlite3.Error, e:
         errorstring = "Error generating tag_updates: %s" % e.args[0]
-        write_error(errorstring)
+        filelog.write_error(errorstring)
 
     # create audit records for workvirtuals
     try:
@@ -1284,13 +1283,13 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
         c.execute(statement) 
     except sqlite3.Error, e:
         errorstring = "Error generating workvirtual_updates: %s" % e.args[0]
-        write_error(errorstring)
+        filelog.write_error(errorstring)
 
     db.commit()
     c.close()
 
     logstring = "Change data generated"
-    write_log(logstring)
+    filelog.write_log(logstring)
 
 def cleartags(tags, lastscanned=''):
     id, id2, \
@@ -1514,7 +1513,7 @@ def process_workvirtualfile_file(filespec, wvfilepath, wvtype):
         if not success:
             # this playlist does not exist, reject the work/virtual line
             errorstring = "Error processing %s: %s : playlist does not exist" % (wvtype, filespec)
-            write_error(errorstring)
+            filelog.write_error(errorstring)
             yield None, None
             return
         pltracks = read_playlist(filespec, ex)
@@ -1524,7 +1523,7 @@ def process_workvirtualfile_file(filespec, wvfilepath, wvtype):
             if not success:
                 # this playlist track does not exist, reject the playlist line
                 errorstring = "Error processing %s: %s : playlist track does not exist" % (wvtype, pltrack)
-                write_error(errorstring)
+                filelog.write_error(errorstring)
                 continue
             trackcountdata = pltrack
             trackdata = (filespec, plcreated, pllastmodified, pltrack, trackcreated, tracklastmodified)
@@ -1533,7 +1532,7 @@ def process_workvirtualfile_file(filespec, wvfilepath, wvtype):
         if ex in work_virtual_extensions:
             # we don't support nested workvirtuals, reject the work/virtual line
             errorstring = "Error processing %s: %s : nested workvirtuals are not supported" % (wvtype, filespec)
-            write_error(errorstring)
+            filelog.write_error(errorstring)
             yield None, None
             return
         filespec = checkpath(filespec, wvfilepath)
@@ -1541,7 +1540,7 @@ def process_workvirtualfile_file(filespec, wvfilepath, wvtype):
         if not success:
             # this track does not exist, reject the work/virtual line
             errorstring = "Error processing %s: %s : track does not exist" % (wvtype, filespec)
-            write_error(errorstring)
+            filelog.write_error(errorstring)
             yield None, None
             return
         trackcountdata = filespec
@@ -1561,7 +1560,7 @@ def read_playlist(filespec, extension):
                 if ex in playlist_extensions:
                     # we don't support nested playlists, reject the playlist line
                     errorstring = "Error processing playlist: %s : nested playlists are not supported" % (filespec)
-                    write_error(errorstring)
+                    filelog.write_error(errorstring)
                     continue
                 tracks.append(filespec)
     return tracks
@@ -1574,7 +1573,7 @@ def get_workvirtual_track_details(trackpath, trackfile, database):
         c3.execute("""select album, discnumber, track from tags where path=? and filename=?""", (trackpath, trackfile))
     except sqlite3.Error, e:
         errorstring = "Error getting tags details: %s" % e.args[0]
-        write_error(errorstring)
+        filelog.write_error(errorstring)
     crow = c3.fetchone()
     if crow:
         # track exists, get data
@@ -1732,29 +1731,29 @@ def create_database(database):
 
     except sqlite3.Error, e:
         errorstring = "Error creating database: %s : %s" % (database, e)
-        write_error(errorstring)
+        filelog.write_error(errorstring)
     db.commit()
     c.close()
 
 def delete_updates(database):
     logstring = "Deleting outstanding updates"
-    write_log(logstring)
+    filelog.write_log(logstring)
     db = sqlite3.connect(database)
     c = db.cursor()
     try:
         c.execute('''delete from tags_update''')
     except sqlite3.Error, e:
         errorstring = "Error deleting from tags_update: %s : %s" % (table, e)
-        write_error(errorstring)
+        filelog.write_error(errorstring)
     try:
         c.execute('''delete from workvirtuals_update''')
     except sqlite3.Error, e:
         errorstring = "Error deleting from workvirtuals_update: %s : %s" % (table, e)
-        write_error(errorstring)
+        filelog.write_error(errorstring)
     db.commit()
     c.close()
     logstring = "Outstanding updates deleted"
-    write_log(logstring)
+    filelog.write_log(logstring)
     
 def process_command_line(argv):
     """
@@ -1800,17 +1799,18 @@ def process_command_line(argv):
     return settings, args
 
 def main(argv=None):
+    global lf
     options, args = process_command_line(argv)
-    filelog.G_QUIET = options.quiet
-    filelog.G_VERBOSE = options.verbose
+    filelog.set_log_type(options.quiet, options.verbose)
+    filelog.open_log_files()
     if not options.database:
         logstring = "Database must be specified"
-        write_log(logstring)
+        filelog.write_log(logstring)
     else:
         database = check_database_exists(options.database)
         if not options.quiet:
             logstring = "Database: %s" % database
-            write_log(logstring)
+            filelog.write_log(logstring)
         if options.regenerate:
             delete_updates(database)
             generate_subset(options, database, database, '')
@@ -1821,10 +1821,7 @@ def main(argv=None):
             for path in args: 
                 if path.endswith(os.sep): path = path[:-1]
                 process_dir(path, options, database)
-    filelog.wfile.close()
-    filelog.efile.close()
-    filelog.lfile.close()
-    filelog.vfile.close()
+    filelog.close_log_files()
     return 0
 
 if __name__ == "__main__":
