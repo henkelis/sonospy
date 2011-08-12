@@ -1598,7 +1598,9 @@ def checkpath(pathspec, wvfilepath):
     return pathspec
 
 def checktag(wvtag, tag):
-    if wvtag.lower() == '<blank>':
+    if not wvtag:
+        return tag
+    elif wvtag.lower() == '<blank>':
         return ''
     elif wvtag:
         return wvtag
