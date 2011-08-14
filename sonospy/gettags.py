@@ -325,17 +325,17 @@ def process_dir(scanpath, options, database):
                         tags['bitrate'] = kind.info.bitrate             # bps
                         tags['mime'] = kind.mime[0]
 
-#                    elif isinstance(kind, mutagen.easymp4.EasyMP4):
-#                        if kind.tags:
-#                            tags.update(kind.tags)
-#                        # assume these attributes exist (note these will overwrite kind.tags)
-#                        tags['type'] = 'MPEG-4 audio'
-#                        tags['length'] = kind.info.length               # seconds
-#                        tags['sample_rate'] = kind.info.sample_rate     # Hz
-#                        tags['bits_per_sample'] = kind.info.bits_per_sample     # bps
-#                        tags['channels'] = kind.info.channels
-#                        tags['bitrate'] = kind.info.bitrate             # bps
-#                        tags['mime'] = kind.mime[0]
+                    elif isinstance(kind, mutagen.easymp4.EasyMP4):
+                        if kind.tags:
+                            tags.update(kind.tags)
+                        # assume these attributes exist (note these will overwrite kind.tags)
+                        tags['type'] = 'MPEG-4 audio'
+                        tags['length'] = kind.info.length               # seconds
+                        tags['sample_rate'] = kind.info.sample_rate     # Hz
+                        tags['bits_per_sample'] = kind.info.bits_per_sample     # bps
+                        tags['channels'] = kind.info.channels
+                        tags['bitrate'] = kind.info.bitrate             # bps
+                        tags['mime'] = kind.mime[0]
 
                     elif isinstance(kind, mutagen.asf.ASF):
                         picture, trackart_offset, trackart_length = kind.get_picture()
