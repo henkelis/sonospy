@@ -678,7 +678,7 @@ class LaunchPanel(wx.Panel):
         else:
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
-                    launchME += "-wSonospy=" + list_txtctrlLabel[item] + "," + list_checkboxLabel[item] + " "
+                    launchME += "-wSonospy=" + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
 
         self.tc_Scratchpad.Value = launchME
         return launchME
