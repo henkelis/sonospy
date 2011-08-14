@@ -649,7 +649,7 @@ class LaunchPanel(wx.Panel):
     def buildLaunch(self):
         # Check for OS
         if os.name == 'nt':
-            cmdroot = 'sonospy_ '
+            cmdroot = 'sonospy_'
             launchME = cmdroot
             # which version are we running?
             if self.rd_Proxy.Value == True:
