@@ -29,7 +29,6 @@
 #   without overwriting.
 # - Windowsify the commands to run properly -- namely pOpen and how
 #   to capture stdout?
-# - Add scratchpad?
 #
 # Windows Command:
 # Launch: python pycpoint.py -p -wSonospy=Henk,virtualsdatabase
@@ -417,6 +416,9 @@ class LaunchPanel(wx.Panel):
         else:
             self.rd_Web.SetValue(True)
 
+        self.rd_Proxy.Bind(wx.EVT_RADIOBUTTON, self.updateScratchPad, self.rd_Proxy)
+        self.rd_Web.Bind(wx.EVT_RADIOBUTTON, self.updateScratchPad, self.rd_Web)
+
         # SAVE AS DEFAULTS
         self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
         help_SaveDefaults = "Save current settings as default."
@@ -428,12 +430,40 @@ class LaunchPanel(wx.Panel):
         sizer.Add(self.rd_Web, pos=(11,2), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_SaveDefaults, pos=(11,3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
+    # --------------------------------------------------------------------------
+    # [13] Create Scratch Pad
+
+        self.sb_Scratchpad = wx.StaticBox(panel, label="Scratchpad:", size=(200, 140))
+        help_Scratchpad = "You can cut and paste this into a command/shell window..."
+        scratchpadSizer = wx.StaticBoxSizer(self.sb_Scratchpad, wx.VERTICAL)
+        self.tc_Scratchpad = wx.TextCtrl(panel, -1,"",size=(300, 130), style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.tc_Scratchpad.SetToolTip(wx.ToolTip(help_Scratchpad))
+        self.tc_Scratchpad.SetInsertionPoint(0)
+        LogFont = wx.Font(7.5, wx.SWISS, wx.NORMAL, wx.NORMAL, False)
+        self.tc_Scratchpad.SetFont(LogFont)
+
+        scratchpadSizer.Add(self.tc_Scratchpad, flag=wx.EXPAND)
+        sizer.Add(scratchpadSizer, pos=(12, 0), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.BOTTOM|wx.ALIGN_BOTTOM, border=10)
+
+        # Bind a text event to autoupdate the scratchpad if the user decides
+        # to edit the proxy name manually.
+        self.tc_DB1.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB1)
+        self.tc_DB2.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB2)
+        self.tc_DB3.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB3)
+        self.tc_DB4.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB4)
+        self.tc_DB5.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB5)
+        self.tc_DB6.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB6)
+        self.tc_DB7.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB7)
+        self.tc_DB8.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB8)
+
         panel.Refresh()
         panel.Update()
         
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
+        self.buildLaunch()
+        
     def browseDB(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
@@ -467,8 +497,7 @@ class LaunchPanel(wx.Panel):
 #            print "Checkbox " + str(item) + ":\t\t\tID:" + str(list_checkboxID[item]) + "\tLABEL:" + list_checkboxLabel[item]
 #            print "Text Control " + str(item) + ":\t\tID:" + str(list_txtctrlID[item]) + "\tLABEL:" + list_txtctrlLabel[item]
 # ------------------------------------------------------------------------------
-
-        pass
+        self.buildLaunch()
 
     def enableAllChecks(self, event):
         if self.ck_EnableAll.Value == True:
@@ -479,6 +508,7 @@ class LaunchPanel(wx.Panel):
         for item in range(len(list_checkboxID)):
             if wx.FindWindowById(list_checkboxID[item]).Label != "<add database>":
                 wx.FindWindowById(list_checkboxID[item]).Value = self.ck_EnableAll.Value
+        self.buildLaunch()
 
     def bt_LaunchClick(self, event):
         # back up to the folder below our current one.  save cwd in variable
@@ -486,38 +516,7 @@ class LaunchPanel(wx.Panel):
         os.chdir(os.pardir)
         os.chdir(os.pardir)
 
-        # Check for OS
-        if os.name == 'nt':
-            cmdroot = 'sonospy_ '
-            launchCMD = cmdroot
-            # which version are we running?
-            if self.rd_Proxy.Value == True:
-                launchCMD += "p "
-            else:
-                launchCMD += "w "
-
-        else:
-            cmdroot = './'
-            launchCMD = cmdroot + "sonospy_"
-            # which version are we running?
-            if self.rd_Proxy.Value == True:
-                launchCMD += "proxy "
-            else:
-                launchCMD += "web "
-
-        # rebuild text labels now, user may have changed them
-        for item in range(len(list_checkboxID)):
-            list_txtctrlLabel[item] = wxFindWindowById(list_txtctrlID[item]).Value
-            list_checkboxLabel[item] = wxFindWindowById(list_checkboxID[item]).Label
-            
-        # build out the command
-        if self.bt_Launch.Label == "Stop":
-            if os.name != 'nt':
-                launchCMD = cmdroot + "sonospy_stop"
-        else:
-            for item in range(len(list_checkboxID)):
-                if wx.FindWindowById(list_checkboxID[item]).Value == True:
-                    launchCMD += "-wSonospy=" + list_txtctrlLabel[item] + "," + list_checkboxLabel[item] + " "
+        launchCMD = self.buildLaunch()
 
 # DEBUG ------------------------------------------------------------------------
 #            print launchCMD
@@ -528,10 +527,12 @@ class LaunchPanel(wx.Panel):
                 self.bt_Launch.Label = "Launch"
                 self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
                 guiFunctions.statusText(self, "Sonospy Service Stopped...")
+                self.buildLaunch()
             else:
                 self.bt_Launch.Label = "Stop"
                 self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
                 guiFunctions.statusText(self, "Sonospy Service Started...")
+                self.buildLaunch()
         else:
             proc = subprocess.Popen(launchCMD, shell=True)
 
@@ -578,44 +579,46 @@ class LaunchPanel(wx.Panel):
 
         #   Get a count of *database from the filesystem
         numDB = guiFunctions.scrubDB(os.getcwd(), filters)
-        curCount = 1
+        curCount = 0
         # Checkbox (enable, disable for launch)
         # textCtrl (for Proxy name in controller)
         # database name (based on *database)
         for db in numDB:
 
-            if curCount >= 8:
+            if curCount > 7:
                 pass
-            if curCount == 1:
-                ck = self.ck_DB1
-                tc = self.tc_DB1
-            if curCount == 2:
-                ck = self.ck_DB2
-                tc = self.tc_DB2
-            if curCount == 3:
-                ck = self.ck_DB3
-                tc = self.tc_DB3
-            if curCount == 4:
-                ck = self.ck_DB4
-                tc = self.tc_DB4
-            if curCount == 5:
-                ck = self.ck_DB5
-                tc = self.tc_DB5
-            if curCount == 6:
-                ck = self.ck_DB6
-                tc = self.tc_DB6
-            if curCount == 7:
-                ck = self.ck_DB7
-                tc = self.tc_DB7
-            if curCount == 8:
-                ck = self.ck_DB8
-                tc = self.tc_DB8
             else:
+                if curCount == 0:
+                    ck = self.ck_DB1
+                    tc = self.tc_DB1
+                if curCount == 1:
+                    ck = self.ck_DB2
+                    tc = self.tc_DB2
+                if curCount == 2:
+                    ck = self.ck_DB3
+                    tc = self.tc_DB3
+                if curCount == 3:
+                    ck = self.ck_DB4
+                    tc = self.tc_DB4
+                if curCount == 4:
+                    ck = self.ck_DB5
+                    tc = self.tc_DB5
+                if curCount == 5:
+                    ck = self.ck_DB6
+                    tc = self.tc_DB6
+                if curCount == 6:
+                    ck = self.ck_DB7
+                    tc = self.tc_DB7
+                if curCount == 7:
+                    ck = self.ck_DB8
+                    tc = self.tc_DB8
+
                 basename, extension = os.path.splitext(db)
                 tc.Value = basename
                 ck.Label = db
                 ck.Enable()
                 ck.Value = True
+
             curCount +=1
             
 #            #-------------------------------------------------------
@@ -628,6 +631,7 @@ class LaunchPanel(wx.Panel):
 #            # Bind to event for later (DEBUG)
 #                check.Bind(wx.EVT_CHECKBOX, self.OnCheck, check)
 
+        self.buildLaunch()
         # set back to original working directory
         os.chdir(owd)
     
@@ -637,3 +641,45 @@ class LaunchPanel(wx.Panel):
             wxFindWindowById(list_checkboxID[item]).Label = "<add database>"
             wxFindWindowById(list_checkboxID[item]).Value = False
             wxFindWindowById(list_checkboxID[item]).Disable()
+        self.buildLaunch()
+
+    def updateScratchPad(self, event):
+        event.Skip()
+        self.buildLaunch()
+
+    def buildLaunch(self):
+        # Check for OS
+        if os.name == 'nt':
+            cmdroot = 'sonospy_ '
+            launchME = cmdroot
+            # which version are we running?
+            if self.rd_Proxy.Value == True:
+                launchME += "p "
+            else:
+                launchME += "w "
+
+        else:
+            cmdroot = './'
+            launchME = cmdroot + "sonospy_"
+            # which version are we running?
+            if self.rd_Proxy.Value == True:
+                launchME += "proxy "
+            else:
+                launchME += "web "
+
+        # rebuild text labels now, user may have changed them
+        for item in range(len(list_checkboxID)):
+            list_txtctrlLabel[item] = wxFindWindowById(list_txtctrlID[item]).Value
+            list_checkboxLabel[item] = wxFindWindowById(list_checkboxID[item]).Label
+
+        # build out the command
+        if self.bt_Launch.Label == "Stop":
+            if os.name != 'nt':
+                launchME = cmdroot + "sonospy_stop"
+        else:
+            for item in range(len(list_checkboxID)):
+                if wx.FindWindowById(list_checkboxID[item]).Value == True:
+                    launchME += "-wSonospy=" + list_txtctrlLabel[item] + "," + list_checkboxLabel[item] + " "
+
+        self.tc_Scratchpad.Value = launchME
+        return launchME

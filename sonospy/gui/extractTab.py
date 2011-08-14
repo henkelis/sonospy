@@ -422,8 +422,9 @@ class ExtractPanel(wx.Panel):
             selected = dialog.GetFilenames()
             for selection in selected:
                 self.tc_MainDatabase.Value = selection
+                guiFunctions.statusText(self, "Main Database: " + selection + " selected...")
         dialog.Destroy()
-        guiFunctions.statusText(self, "Main Database: " + selection + " selected...")
+        
 
         # set back to original working directory
         os.chdir(owd)
@@ -443,8 +444,9 @@ class ExtractPanel(wx.Panel):
             selected = dialog.GetFilenames()
             for selection in selected:
                 self.tc_TargetDatabase.Value = selection
+                guiFunctions.statusText(self, "Target Database: " + selection + " selected...")
         dialog.Destroy()
-        guiFunctions.statusText(self, "Target Database: " + selection + " selected...")
+        
 
         # set back to original working directory
         os.chdir(owd)

@@ -306,6 +306,7 @@ class ScanPanel(wx.Panel):
             self.bt_ScanRepair.Enable()
             self.bt_ScanUpdate.Enable()
             self.ck_ScanVerbose.Enable()
+            self.bt_SaveDefaults.Enable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
         else:
             self.bt_FoldersToScanAdd.Disable()
@@ -315,6 +316,7 @@ class ScanPanel(wx.Panel):
             self.bt_ScanRepair.Disable()
             self.bt_ScanUpdate.Disable()
             self.ck_ScanVerbose.Disable()
+            self.bt_SaveDefaults.Disable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
     def bt_ScanUpdateClick(self, event):
