@@ -471,7 +471,7 @@ class LaunchPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select database...', wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog ( None, message = 'Select database...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN)
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wxID_OK:

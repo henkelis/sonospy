@@ -23,7 +23,6 @@
 # scan.py Author: Mark Henkelis <mark.henkelis@tesco.net>
 ###############################################################################
 # TODO:
-# - Hook up default_music_path from ini on file dialog opens, etc.
 # - Disable other notebook tabs
 # - Add scratchpad?
 ###############################################################################
@@ -284,7 +283,7 @@ class ScanPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
         
-        dialog = wx.FileDialog ( None, message = 'Select Database File...', wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog ( None, message = 'Select Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN)
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wxID_OK:
@@ -305,7 +304,7 @@ class ScanPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select INI File...', wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog ( None, message = 'Select INI File...', defaultDir=guiFunctions.configMe("general", "default_ini_path"), wildcard = wildcards, style = wxOPEN)
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wxID_OK:
@@ -319,7 +318,8 @@ class ScanPanel(wx.Panel):
         os.chdir(owd)
 
     def bt_FoldersToScanAddClick(self, event):
-        dialog = wx.DirDialog(self, "Add a Directory...", style=wx.DD_DEFAULT_STYLE)
+        dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE)
+
         if dialog.ShowModal() == wx.ID_OK:
             if self.multiText.Value == "":
                 self.multiText.AppendText("%s" % dialog.GetPath())

@@ -30,7 +30,6 @@
 #        cur.execute('SELECT DISTINCT genre FROM tags')
 #        for row in cur:
 #            a.append(row)
-# - Hook up default_music_path from ini on file dialog opens, etc.
 # - Disable Save Defaults and other notebook tabs
 # - Add scratchpad?
 ###############################################################################
@@ -416,7 +415,7 @@ class ExtractPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select Source Database File...', wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog ( None, message = 'Select Source Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN)
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wxID_OK:
@@ -438,7 +437,7 @@ class ExtractPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
         
-        dialog = wx.FileDialog ( None, message = 'Select Target Database File...', wildcard = wildcards, style = wxOPEN )
+        dialog = wx.FileDialog ( None, message = 'Select Target Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN )
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wxID_OK:
