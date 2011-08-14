@@ -1,0 +1,8 @@
+#!/bin/bash
+
+curl -s $(sh askSonos $1 art) -o cover
+convert -size 149x149 cover -resize 148x148 +profile '*' -bordercolor lightgrey -border 1 "cover$1.png"
+rm -I cover
+
+exit  
+
