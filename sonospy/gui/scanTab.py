@@ -24,7 +24,8 @@
 ###############################################################################
 # TODO:
 # - Hook up default_music_path from ini on file dialog opens, etc.
-# - Disable Save Defaults and other notebook tabs
+# - Disable other notebook tabs
+# - Add scratchpad?
 ###############################################################################
 
 import wx
@@ -178,6 +179,7 @@ class ScanPanel(wx.Panel):
         self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 300), style=wx.TE_MULTILINE|wx.TE_READONLY)
         LogFont = wx.Font(7.5, wx.SWISS, wx.NORMAL, wx.NORMAL, False)
         self.LogWindow.SetFont(LogFont)
+        self.LogWindow.Disable()
         help_LogWindow = "Results of a scan or repair will appear here."
         self.LogWindow.SetToolTip(wx.ToolTip(help_LogWindow))
         self.LogWindow.SetInsertionPoint(0)
@@ -215,7 +217,7 @@ class ScanPanel(wx.Panel):
 # self.tc_MainDatabase.Value = "test.db"
 # ------------------------------------------------------------------------------
         global scanCMD
-
+        
         # Set Original Working Directory so we can get back to here.
         owd = os.getcwd()
         os.chdir(os.pardir)

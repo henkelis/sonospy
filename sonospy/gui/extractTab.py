@@ -32,6 +32,7 @@
 #            a.append(row)
 # - Hook up default_music_path from ini on file dialog opens, etc.
 # - Disable Save Defaults and other notebook tabs
+# - Add scratchpad?
 ###############################################################################
 
 import wx
@@ -40,7 +41,7 @@ import os
 import subprocess
 from threading import *
 import guiFunctions
-import sqlite3
+# import sqlite3
 
 EVT_RESULT_ID = wx.NewId()
 
