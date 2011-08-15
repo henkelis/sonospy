@@ -25,11 +25,12 @@
 # - Kill sonsopy process on window close.
 # - Look at installers for entire sonospy project (not just GUI)
 # - Minimize to tray?
-# - Dynamically scale the window to fit the visible tab.
 # - Move sonospyGUI.py to the root of the Sonospy app
 ###############################################################################
 import wx
 from wxPython.wx import *
+import os
+import subprocess
 ################################################################################
 import scanTab
 import extractTab
@@ -51,6 +52,7 @@ class SonospyNotebook(wx.Notebook):
         self.AddPage(scanTab.ScanPanel(self), "Scan")
         self.AddPage(extractTab.ExtractPanel(self), "Extract")
         self.AddPage(virtualsTab.VirtualsPanel(self), "Virtuals")
+
 
         # Now Playing is SUPER EXPERIMENTAL, WILL PROBABLY BREAK!
 #        self.AddPage(nowPlayingTab.NowPlayingPanel(self), "Now Playing")
@@ -76,27 +78,31 @@ class SonospyFrame(wx.Frame):
         self.SetIcons(ib)
         self.CreateStatusBar(style=0)
         self.SetStatusText("Welcome to Sonospy...")
-        
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+
         self.Layout()
 
         self.Show()
         self.Centre()
 
-    def OnCloseWindow(self, event):
+    def OnClose(self, event):
     # tell the window to kill itself and kill the running sonospy process
         owd = os.getcwd()
         os.chdir(os.pardir)
-
+        os.chdir(os.pardir)
+        
         if os.name == 'nt':
             cmdroot = 'python '
         else:
             cmdroot = './'
         
         launchCMD = cmdroot + "sonospy_stop"
-        
-        proc = subprocess.Popen([launchCMD],shell=True)
-        os.chdir(owd)
 
+        # check if service is running...
+        if os.path.exists('pycpoint.pid') == True:
+            proc = subprocess.Popen([launchCMD],shell=True)
+        os.chdir(owd)
+        event.Skip()
         self.Destroy()
 
 #----------------------------------------------------------------------
