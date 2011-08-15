@@ -461,7 +461,9 @@ class LaunchPanel(wx.Panel):
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
+        self.populateMe()
         self.buildLaunch()
+
         
     def browseDB(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
@@ -570,6 +572,9 @@ class LaunchPanel(wx.Panel):
         guiFunctions.statusText(self, "Defaults saved...")
 
     def bt_AutoPopulateClick(self, event):
+        self.populateMe()
+
+    def populateMe(self):
         filters = guiFunctions.configMe("general", "database_extensions").split()
 
         # Set Original Working Directory so we can get back to here.
