@@ -30,7 +30,7 @@
 #        cur.execute('SELECT DISTINCT genre FROM tags')
 #        for row in cur:
 #            a.append(row)
-# - Disable Save Defaults and other notebook tabs
+# - Disable other notebook tabs
 # - Add scratchpad?
 ###############################################################################
 
@@ -462,6 +462,7 @@ class ExtractPanel(wx.Panel):
             self.bt_TargetDatabase.Enable()
             self.ck_ExtractVerbose.Enable()
             self.ck_OverwriteExisting.Enable()
+            self.bt_SaveDefaults.Enable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
         else:
             self.bt_Extract.Disable()
@@ -470,6 +471,7 @@ class ExtractPanel(wx.Panel):
             self.bt_TargetDatabase.Disable()
             self.ck_ExtractVerbose.Disable()
             self.ck_OverwriteExisting.Disable()
+            self.bt_SaveDefaults.Disable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
     def bt_ExtractClick(self, event):
