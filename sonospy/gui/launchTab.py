@@ -492,7 +492,6 @@ class LaunchPanel(wx.Panel):
         os.chdir(owd)
 
     def OnCheck(self, event):
-
 # DEBUG ------------------------------------------------------------------------
 #        for item in range(len(list_checkboxID)):
 #            print "Checkbox " + str(item) + ":\t\t\tID:" + str(list_checkboxID[item]) + "\tLABEL:" + list_checkboxLabel[item]

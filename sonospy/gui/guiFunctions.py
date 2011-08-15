@@ -48,7 +48,7 @@ def configMe(heading, term, integer=False, bool=False, parse=False):
 
         if parse == True:
             if fetchMe != "":
-                if "," in fetchMe:
+                if "|" in fetchMe:
                     fetchMe = fetchMe.replace("| ", "|")
                     fetchMe = fetchMe.replace("|", "\n")
                 else:

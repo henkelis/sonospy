@@ -25,6 +25,7 @@
 # TODO:
 # - Disable other notebook tabs
 # - Add scratchpad?
+# - Cumulative time in statusbar?
 ###############################################################################
 
 import wx
@@ -34,6 +35,7 @@ import sys
 import subprocess
 from threading import *
 import guiFunctions
+from datetime import datetime
 
 # Define notification event for thread completion
 EVT_RESULT_ID = wx.NewId()
@@ -222,8 +224,11 @@ class ScanPanel(wx.Panel):
         """Show Result status."""
         if event.data is None:
             # Thread aborted (using our convention of None return)
-            self.LogWindow.AppendText("\n[Complete]\n\n")
-            guiFunctions.statusText(self, "Job Complete")
+            endTime = datetime.now()
+            calcdTime = endTime - startTime
+
+            self.LogWindow.AppendText("\n[ Job Complete ] (Duration: " + str(calcdTime)[:-4] +")\n\n")
+            guiFunctions.statusText(self, "Job Complete...")
             self.setButtons(True)
         else:
             # Process results here
@@ -237,6 +242,7 @@ class ScanPanel(wx.Panel):
 # self.tc_MainDatabase.Value = "test.db"
 # ------------------------------------------------------------------------------
         global scanCMD
+        global startTime
         
         # Set Original Working Directory so we can get back to here.
         owd = os.getcwd()
@@ -263,8 +269,8 @@ class ScanPanel(wx.Panel):
 #                iniOverride = "-i " + self.tc_INI.Value
 
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " -r"
-
-            self.LogWindow.AppendText("Running Repair on " + self.tc_MainDatabase.Value + "...\n\n")
+            startTime = datetime.now()
+            self.LogWindow.AppendText("[ Starting Repair ] (" + startTime.strftime("%T") + ")\n\n")
             guiFunctions.statusText(self, "Running Repair...")
 
             if not self.worker:
@@ -372,6 +378,7 @@ class ScanPanel(wx.Panel):
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
     def bt_ScanUpdateClick(self, event):
+
         if os.name == 'nt':
             cmdroot = 'python '
         else:
@@ -401,6 +408,8 @@ class ScanPanel(wx.Panel):
 #                iniOverride = "-i " + self.tc_INI.Value
 
             global scanCMD
+            global startTime
+
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " "
 
             numLines=0
@@ -409,7 +418,10 @@ class ScanPanel(wx.Panel):
             if self.multiText.GetLineText(numLines) == "":
                 self.LogWindow.AppendText("ERROR\tNo folder selected to scan!\n")
             else:
-                self.LogWindow.AppendText("Running Scan...\n\n")
+                startTime = datetime.now()
+                self.LogWindow.AppendText("[ Starting Scan ] (" + startTime.strftime("%T") + ")\n\n")
+
+
                 guiFunctions.statusText(self, "Running Scan...")
                 while (numLines < maxLines):
                     if os.name == "nt":
@@ -426,6 +438,7 @@ class ScanPanel(wx.Panel):
                 if not self.worker:
                     self.worker = WorkerThread(self)
                     self.setButtons(False)
+
 
                 # set back to original working directory
                 os.chdir(owd)
