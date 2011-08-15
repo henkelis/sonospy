@@ -23,6 +23,7 @@
 import os, sys
 import locale
 import time
+import string
 import traceback
 import codecs
 
@@ -42,6 +43,7 @@ from scanfuncs import adjust_tracknumber, truncate_number
 import filelog
 
 import errors
+
 errors.catch_errors()
 
 MULTI_SEPARATOR = '\n'
@@ -50,116 +52,18 @@ artextns = ['.jpg', '.bmp', '.png', '.gif']
 #enc = locale.getpreferredencoding()
 enc = sys.getfilesystemencoding()
 
-# get ini settings
-config = ConfigParser.ConfigParser()
-config.optionxform = str
-config.read('scan.ini')
-
-# file exclusions
-try:        
-    file_name_exclusions_list = config.get('gettags', 'file_name_exclusions')
-    file_name_exclusions_list = file_name_exclusions_list.lower()
-except ConfigParser.NoSectionError:
-    pass
-except ConfigParser.NoOptionError:
-    pass
+# globals; settings overriden in process_ini_file_settings()
 file_name_exclusions = []
-if file_name_exclusions_list and file_name_exclusions_list != '':
-    exclusions = file_name_exclusions_list.split(',')
-    for exclusion in exclusions:
-        if exclusion != '': file_name_exclusions.append(exclusion)
-
-try:        
-    file_extn_exclusions_list = config.get('gettags', 'file_extension_exclusions')
-    file_extn_exclusions_list = file_extn_exclusions_list.lower()
-except ConfigParser.NoSectionError:
-    pass
-except ConfigParser.NoOptionError:
-    pass
-file_extn_exclusions = []
-if file_extn_exclusions_list and file_extn_exclusions_list != '':
-    exclusions = file_extn_exclusions_list.split(',')
-    for exclusion in exclusions:
-        if exclusion != '': file_extn_exclusions.append(exclusion)
-
-# linux file stats
-linux_file_modification_time = 'mtime'
-try:        
-    linux_file_modification_time = config.get('gettags', 'linux_file_modification_time')
-except ConfigParser.NoSectionError:
-    pass
-except ConfigParser.NoOptionError:
-    pass
+linux_file_modification_time = 'mtime'   # linux file stats
 linux_file_creation_time = ''
-try:        
-    linux_file_creation_time = config.get('gettags', 'linux_file_creation_time')
-except ConfigParser.NoSectionError:
-    pass
-except ConfigParser.NoOptionError:
-    pass
-
-# duplicate processing
 ignore_duplicate_tracks = 'n'
-try:        
-    ignore_duplicate_tracks = config.get('gettags', 'ignore_duplicate_tracks')
-    ignore_duplicate_tracks = ignore_duplicate_tracks.lower()
-except ConfigParser.NoSectionError:
-    pass
-except ConfigParser.NoOptionError:
-    pass
-
-# blank tag processing
 ignore_blank_tags = 'n'
-try:        
-    ignore_blank_tags = config.get('gettags', 'ignore_blank_tags')
-    ignore_blank_tags = ignore_blank_tags.lower()
-except ConfigParser.NoSectionError:
-    pass
-except ConfigParser.NoOptionError:
-    pass
-
-# duplicate precedence
 duplicate_tracks_precedence = 'flac,ogg,wma,mp3'
-try:        
-    duplicate_tracks_precedence = config.get('gettags', 'duplicate_tracks_precedence')
-    duplicate_tracks_precedence = duplicate_tracks_precedence.lower()
-except ConfigParser.NoSectionError:
-    pass
-except ConfigParser.NoOptionError:
-    pass
-mimeconv = {'flac': u"audio/x-flac", 
-            'mp3': u"audio/mp3",
-            'ogg': u"audio/vorbis",
-            'wma': u"audio/x-ms-wma"}
 mime_precedence=[]
-mimes = duplicate_tracks_precedence.split(',')
-for mime in mimes:
-    if mime in mimeconv:
-        mime_precedence.append(mimeconv[mime])
+work_virtual_extensions = {}
+file_extn_exclusions = []
 
-# work and virtual filename extensions
-work_file_extension = '.sp'
-try:        
-    work_file_extension = config.get('gettags', 'work_file_extension')
-    work_file_extension = work_file_extension.lower()
-except ConfigParser.NoSectionError:
-    pass
-except ConfigParser.NoOptionError:
-    pass
 
-virtual_file_extension = '.sp'
-try:        
-    virtual_file_extension = config.get('gettags', 'virtual_file_extension')
-    virtual_file_extension = virtual_file_extension.lower()
-except ConfigParser.NoSectionError:
-    pass
-except ConfigParser.NoOptionError:
-    pass
-
-if work_file_extension == virtual_file_extension:
-    work_virtual_extensions = {work_file_extension: 'workvirtual'}
-else:
-    work_virtual_extensions = {work_file_extension: 'work', virtual_file_extension: 'virtual'}
 
 '''
 For the path supplied
@@ -1759,9 +1663,12 @@ def delete_updates(database):
     
 def process_command_line(argv):
     """
-        Return a 2-tuple: (settings object, args list).
+        Return a 3-tuple: (settings object, args list, errorCondition).
+        fatalError is an error message or None if all OK.
         `argv` is a list of arguments, or `None` for ``sys.argv[1:]``.
     """
+    fatalError = None
+    
     if argv is None:
         argv = sys.argv[1:]
 
@@ -1783,6 +1690,9 @@ def process_command_line(argv):
     parser.add_option("-e", "--exclude", dest="exclude", type="string",
                       action="append", metavar="EXCLUDE",
                       help="exclude foldernames containing this string")
+    parser.add_option("-i", "--inifile", dest="inifile", type="string",
+                      help="ini file name", action="store", default = "scan.ini",
+                      metavar="INI_File")
     parser.add_option("-r", "--regenerate",
                       action="store_true", dest="regenerate", default=False,
                       help="regenerate update records")
@@ -1798,16 +1708,141 @@ def process_command_line(argv):
     parser.add_option('-h', '--help', action='help',
                       help='Show this help message and exit.')
     settings, args = parser.parse_args(argv)
-    return settings, args
+    if settings.inifile:
+        if os.path.splitdrive(settings.inifile)[0] == '':
+            settings.inifile = os.path.join(os.getcwd(), settings.inifile.lstrip(os.sep))
+        if not os.path.isfile(settings.inifile):
+            fatalError = "ini file not found; {0}".format(settings.inifile)
+            settings.quiet = False
+    return settings, args, fatalError
+
+def apply_ini_file_overrides(options):
+    '''
+    Put run time options into global variables.    '''
+    
+    global file_name_exclusions,linux_file_modification_time, linux_file_creation_time, ignore_duplicate_tracks
+    global ignore_blank_tags, duplicate_tracks_precedence, mime_precedence, work_virtual_extensions, file_extn_exclusions
+
+    # get ini settings
+    config = ConfigParser.ConfigParser()
+    config.optionxform = str
+    config.read(options.inifile)
+    
+    # file exclusions
+    try:        
+        file_name_exclusions_list = config.get('gettags', 'file_name_exclusions')
+        file_name_exclusions_list = file_name_exclusions_list.lower()
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+    
+    if file_name_exclusions_list and file_name_exclusions_list != '':
+        exclusions = file_name_exclusions_list.split(',')
+        for exclusion in exclusions:
+            if exclusion != '': file_name_exclusions.append(exclusion)
+    
+    try:        
+        file_extn_exclusions_list = config.get('gettags', 'file_extension_exclusions')
+        file_extn_exclusions_list = file_extn_exclusions_list.lower()
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+    if file_extn_exclusions_list and file_extn_exclusions_list != '':
+        exclusions = file_extn_exclusions_list.split(',')
+        for exclusion in exclusions:
+            if exclusion != '': file_extn_exclusions.append(exclusion)
+    
+    # linux file stats
+    try:        
+        linux_file_modification_time = config.get('gettags', 'linux_file_modification_time')
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+    
+    try:        
+        linux_file_creation_time = config.get('gettags', 'linux_file_creation_time')
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+    
+    # duplicate processing
+    try:        
+        ignore_duplicate_tracks = config.get('gettags', 'ignore_duplicate_tracks')
+        ignore_duplicate_tracks = ignore_duplicate_tracks.lower()
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+    
+    # blank tag processing
+    try:        
+        ignore_blank_tags = config.get('gettags', 'ignore_blank_tags')
+        ignore_blank_tags = ignore_blank_tags.lower()
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+    
+    # duplicate precedence
+    try:        
+        duplicate_tracks_precedence = config.get('gettags', 'duplicate_tracks_precedence')
+        duplicate_tracks_precedence = duplicate_tracks_precedence.lower()
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+    
+    mimeconv = {'flac': u"audio/x-flac", 
+                'mp3': u"audio/mp3",
+                'ogg': u"audio/vorbis",
+                'wma': u"audio/x-ms-wma"}
+    mimes = duplicate_tracks_precedence.split(',')
+    for mime in mimes:
+        if mime in mimeconv:
+            mime_precedence.append(mimeconv[mime])
+    
+    # work and virtual filename extensions
+    work_file_extension = '.sp'
+    try:        
+        work_file_extension = config.get('gettags', 'work_file_extension')
+        work_file_extension = work_file_extension.lower()
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+    
+    virtual_file_extension = '.sp'
+    try:        
+        virtual_file_extension = config.get('gettags', 'virtual_file_extension')
+        virtual_file_extension = virtual_file_extension.lower()
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+    
+    if work_file_extension == virtual_file_extension:
+        work_virtual_extensions = {work_file_extension: 'workvirtual'}
+    else:
+        work_virtual_extensions = {work_file_extension: 'work', virtual_file_extension: 'virtual'}
 
 def main(argv=None):
     global lf
-    options, args = process_command_line(argv)
+    options, args, fatalError = process_command_line(argv)
+    
+    if not fatalError:
+        apply_ini_file_overrides(options)
+    
     filelog.set_log_type(options.quiet, options.verbose)
     filelog.open_log_files()
     if not options.database:
         logstring = "Database must be specified"
         filelog.write_log(logstring)
+    elif fatalError:
+        filelog.write_error(fatalError)
     else:
         database = check_database_exists(options.database)
         if not options.quiet:
@@ -1829,4 +1864,6 @@ def main(argv=None):
 if __name__ == "__main__":
     status = main()
     sys.exit(status)
+
+    
 
