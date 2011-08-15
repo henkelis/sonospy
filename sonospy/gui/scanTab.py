@@ -268,19 +268,11 @@ class ScanPanel(wx.Panel):
                 iniOverride = ""
 #                iniOverride = "-i " + self.tc_INI.Value
 
-<<<<<<< HEAD
-<<<<<<< HEAD
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -r"
-=======
-            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " -r"
->>>>>>> parent of 28624bb... Merge remote-tracking branch 'origin/unstable' into unstable
 
             self.LogWindow.AppendText("Running Repair on " + self.tc_MainDatabase.Value + "...\n\n")
-=======
-            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " -r"
             startTime = datetime.now()
             self.LogWindow.AppendText("[ Starting Repair ] (" + startTime.strftime("%T") + ")\n\n")
->>>>>>> 28624bb1341c37a9e6433f0c79a43a336534fddb
             guiFunctions.statusText(self, "Running Repair...")
 
             if not self.worker:
