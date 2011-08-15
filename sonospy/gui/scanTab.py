@@ -236,7 +236,11 @@ class ScanPanel(wx.Panel):
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
 
+<<<<<<< HEAD
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -r"
+=======
+            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " -r"
+>>>>>>> parent of 28624bb... Merge remote-tracking branch 'origin/unstable' into unstable
 
             self.LogWindow.AppendText("Running Repair on " + self.tc_MainDatabase.Value + "...\n\n")
             guiFunctions.statusText(self, "Running Repair...")
@@ -345,7 +349,11 @@ class ScanPanel(wx.Panel):
                 getOpts = "-v "
 
             global scanCMD
+<<<<<<< HEAD
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " "
+=======
+            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " "
+>>>>>>> parent of 28624bb... Merge remote-tracking branch 'origin/unstable' into unstable
 
             numLines=0
             maxLines=(int(self.multiText.GetNumberOfLines()))
