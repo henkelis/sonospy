@@ -22,7 +22,6 @@
 # sonospyGUI.py Author: John Chowanec <chowanec@gmail.com>
 ###############################################################################
 # TODO:
-# - Kill sonsopy process on window close.
 # - Look at installers for entire sonospy project (not just GUI)
 # - Minimize to tray?
 # - Move sonospyGUI.py to the root of the Sonospy app
