@@ -25,6 +25,7 @@
 # TODO:
 # - Disable other notebook tabs
 # - Add scratchpad?
+# - Cumulative time in statusbar?
 ###############################################################################
 
 import wx
