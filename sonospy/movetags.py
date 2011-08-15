@@ -25,6 +25,7 @@ import sqlite3
 import optparse
 import re
 import time
+import string
 import codecs
 import ConfigParser
 import datetime
@@ -85,7 +86,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
     # get ini settings
     config = ConfigParser.ConfigParser()
     config.optionxform = str
-    config.read('scan.ini')
+    config.read(options.inifile)
 
     # 'the' processing
     # command line overrides ini
@@ -2091,9 +2092,11 @@ def empty_database(database):
 
 def process_command_line(argv):
     """
-        Return a 2-tuple: (settings object, args list).
+        Return a 3-tuple: (settings object, args list).
+        fatalError is an error message, or None if all OK.
         `argv` is a list of arguments, or `None` for ``sys.argv[1:]``.
     """
+    fatalError = None
     if argv is None:
         argv = sys.argv[1:]
 
@@ -2116,6 +2119,9 @@ def process_command_line(argv):
     parser.add_option("-c", "--count", dest="scancount", type="int", 
                       help="process 'count' number of scans", action="store",
                       metavar="COUNT")
+    parser.add_option("-i", "--inifile", dest="inifile", type="string",
+                      help="ini file name", action="store", default = "scan.ini",
+                      metavar="INI_File")
     parser.add_option("-r", "--regenerate",
                       action="store_true", dest="regenerate", default=False,
                       help="regenerate database")
@@ -2128,14 +2134,23 @@ def process_command_line(argv):
     parser.add_option('-h', '--help', action='help',
                       help='Show this help message and exit.')
     settings, args = parser.parse_args(argv)
-    return settings, args
+    if settings.inifile:
+        if os.path.splitdrive(settings.inifile)[0] == '':
+            settings.inifile = os.path.join(os.getcwd(), settings.inifile.lstrip(os.sep))
+        if not os.path.isfile(settings.inifile):
+            fatalError = "ini file not found; {0}.".format(settings.inifile)
+            settings.quiet = False
+    return settings, args, fatalError
 
 def main(argv=None):
-    options, args = process_command_line(argv)
+    options, args, fatalError = process_command_line(argv)
     filelog.set_log_type(options.quiet, options.verbose)
     filelog.open_log_files()
     if len(args) != 0 or not options.tagdatabase or not options.trackdatabase: 
         print "Usage: %s [options]" % sys.argv[0]
+        filelog.write_error('Unexpected error; options were {0}'.format(sys.argv))
+    elif fatalError:
+        filelog.write_error(fatalError)
     else:
         tagdatabase = options.tagdatabase
         trackdatabase = options.trackdatabase

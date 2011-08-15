@@ -23,9 +23,9 @@
 # scan.py Author: Mark Henkelis <mark.henkelis@tesco.net>
 ###############################################################################
 # TODO:
-# - Hook up default_music_path from ini on file dialog opens, etc.
 # - Disable other notebook tabs
 # - Add scratchpad?
+# - Cumulative time in statusbar?
 ###############################################################################
 
 import wx
@@ -35,6 +35,7 @@ import sys
 import subprocess
 from threading import *
 import guiFunctions
+from datetime import datetime
 
 # Define notification event for thread completion
 EVT_RESULT_ID = wx.NewId()
@@ -87,21 +88,39 @@ class ScanPanel(wx.Panel):
         panel = self
         sizer = wx.GridBagSizer(6, 5)
 
+        xIndex = 0
     # [0] Main Database Text, Entry and Browse Button --------------------------
         label_MainDatabase = wx.StaticText(panel, label="Database:")
         help_Database = "The 'Database' is the main collection of music you will create or update. Click BROWSE to select a previously created database, or enter a new name here."
         label_MainDatabase.SetToolTip(wx.ToolTip(help_Database))
-        sizer.Add(label_MainDatabase, pos=(0, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        sizer.Add(label_MainDatabase, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
 
         self.tc_MainDatabase = wx.TextCtrl(panel)
         self.tc_MainDatabase.SetToolTip(wx.ToolTip(help_Database))
         self.tc_MainDatabase.Value = guiFunctions.configMe("scan", "database")
-        sizer.Add(self.tc_MainDatabase, pos=(0, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.tc_MainDatabase, pos=(xIndex, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
 
         self.bt_MainDatabase = wx.Button(panel, label="Browse...")
         self.bt_MainDatabase.SetToolTip(wx.ToolTip(help_Database))
-        sizer.Add(self.bt_MainDatabase, pos=(0, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.bt_MainDatabase, pos=(xIndex, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
         self.bt_MainDatabase.Bind(wx.EVT_BUTTON, self.bt_MainDatabaseClick,self.bt_MainDatabase)
+        xIndex += 1
+    # [0] INI Overide ----------------------------------------------------------
+        label_INI = wx.StaticText(panel, label="INI File:")
+        help_INI = "Override scan.ini with your own INI file."
+        label_INI.SetToolTip(wx.ToolTip(help_Database))
+        sizer.Add(label_INI, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+
+        self.tc_INI = wx.TextCtrl(panel)
+        self.tc_INI.SetToolTip(wx.ToolTip(help_INI))
+        self.tc_INI.Value = guiFunctions.configMe("scan", "inioverride")
+        sizer.Add(self.tc_INI, pos=(xIndex, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
+
+        self.bt_INI = wx.Button(panel, label="Browse...")
+        self.bt_INI.SetToolTip(wx.ToolTip(help_INI))
+        sizer.Add(self.bt_INI, pos=(xIndex, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        self.bt_INI.Bind(wx.EVT_BUTTON, self.bt_INIClick,self.bt_INI)
+        xIndex += 1
     # --------------------------------------------------------------------------
     # [1] Paths to scan for new Music ------------------------------------------
         self.sb_FoldersToScan = wx.StaticBox(panel, label="Folders to Scan:", size=(200, 100))
@@ -112,8 +131,8 @@ class ScanPanel(wx.Panel):
         self.multiText.SetInsertionPoint(0)
         self.multiText.Value = guiFunctions.configMe("scan", "folder", parse=True)
         folderBoxSizer.Add(self.multiText, flag=wx.EXPAND)
-        sizer.Add(folderBoxSizer, pos=(1, 0), span=(1, 6), flag=wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, border=10)
-
+        sizer.Add(folderBoxSizer, pos=(xIndex, 0), span=(1, 6), flag=wx.EXPAND|wx.TOP|wx.LEFT|wx.RIGHT, border=10)
+        xIndex += 1
     # --------------------------------------------------------------------------
     # [2] Buttons to Add Folder, Clear Scan Area -------------------------------
         # ADD FOLDER
@@ -121,18 +140,20 @@ class ScanPanel(wx.Panel):
         help_FoldersToScanAdd = "Add a top-level folder to the 'Folders to Scan' field. The scan will search any sub-folders beneath whatever folder you add."
         self.bt_FoldersToScanAdd.SetToolTip(wx.ToolTip(help_FoldersToScanAdd))
         self.bt_FoldersToScanAdd.Bind(wx.EVT_BUTTON, self.bt_FoldersToScanAddClick, self.bt_FoldersToScanAdd)
-        sizer.Add(self.bt_FoldersToScanAdd, pos=(2,0), span=(1,2), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.bt_FoldersToScanAdd, pos=(xIndex,0), span=(1,2), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
         # CLEAR SCAN AREA
         self.bt_FoldersToScanClear = wx.Button(panel, label="Clear")
         help_FoldersToScanClear = "Clear the Folders to Scan field."
         self.bt_FoldersToScanClear.SetToolTip(wx.ToolTip(help_FoldersToScanClear))
-        sizer.Add(self.bt_FoldersToScanClear, pos=(2,5), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.bt_FoldersToScanClear, pos=(xIndex,5), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
         self.bt_FoldersToScanClear.Bind(wx.EVT_BUTTON, self.bt_FoldersToScanClearClick, self.bt_FoldersToScanClear)
+        xIndex += 1
     # --------------------------------------------------------------------------
     # [3] Separator line -------------------------------------------------------
         hl_SepLine1 = wx.StaticLine(panel, 0, (250, 50), (300,1))
-        sizer.Add(hl_SepLine1, pos=(3, 0), span=(1, 6), flag=wx.EXPAND, border=10)
+        sizer.Add(hl_SepLine1, pos=(xIndex, 0), span=(1, 6), flag=wx.EXPAND, border=10)
+        xIndex += 1
     # --------------------------------------------------------------------------
     # [4] Add Scan Options and Scan Button -------------------------------------
         # SCAN/UPDATE
@@ -140,51 +161,52 @@ class ScanPanel(wx.Panel):
         help_ScanUpdate = "Click here to begin your scan of the folders listed above. This will create a new database if one doesn't exist. Otherwise it will update the database with any new music it finds."
         self.bt_ScanUpdate.SetToolTip(wx.ToolTip(help_ScanUpdate))
         self.bt_ScanUpdate.Bind(wx.EVT_BUTTON, self.bt_ScanUpdateClick, self.bt_ScanUpdate)
-        sizer.Add(self.bt_ScanUpdate, pos=(4,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.bt_ScanUpdate, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
         # REPAIR
         self.bt_ScanRepair = wx.Button(panel, label="Repair")
         help_ScanRepair = "Click here to repair the 'Database' listed above."
         self.bt_ScanRepair.SetToolTip(wx.ToolTip(help_ScanRepair))
         self.bt_ScanRepair.Bind(wx.EVT_BUTTON, self.bt_ScanRepairClick, self.bt_ScanRepair)
-        sizer.Add(self.bt_ScanRepair, pos=(4,1), span=(1,2), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.bt_ScanRepair, pos=(xIndex,1), span=(1,2), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
         # VERBOSE
         self.ck_ScanVerbose = wx.CheckBox(panel, label="Verbose")
         help_ScanVerbose = "Select this checkbox if you want to turn on the verbose settings during the scan."
         self.ck_ScanVerbose.SetToolTip(wx.ToolTip(help_ScanVerbose))
         self.ck_ScanVerbose.Value = guiFunctions.configMe("scan", "verbose", bool=True)
-        sizer.Add(self.ck_ScanVerbose, pos=(4,3), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.ck_ScanVerbose, pos=(xIndex,3), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
         # SAVE LOG TO FILE
         self.bt_SaveLog = wx.Button(panel, label="Save Log")
         help_SaveLogToFile = "Save the log below to a file."
         self.bt_SaveLog.SetToolTip(wx.ToolTip(help_SaveLogToFile))
         self.bt_SaveLog.Bind(wx.EVT_BUTTON, self.bt_SaveLogClick, self.bt_SaveLog)
-        sizer.Add(self.bt_SaveLog, pos=(4,4), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=5)
+        sizer.Add(self.bt_SaveLog, pos=(xIndex,4), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=5)
 
         # SAVE AS DEFAULTS
         self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
         help_SaveDefaults = "Save current settings as default."
         self.bt_SaveDefaults.SetToolTip(wx.ToolTip(help_SaveDefaults))
         self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
-        sizer.Add(self.bt_SaveDefaults, pos=(4,5), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-
+        sizer.Add(self.bt_SaveDefaults, pos=(xIndex,5), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        xIndex += 1
     # --------------------------------------------------------------------------
     # [5] Separator line ------------------------------------------------------
         hl_SepLine2 = wx.StaticLine(panel, 0, (250, 50), (300,1))
-        sizer.Add(hl_SepLine2, pos=(5, 0), span=(1, 6), flag=wx.EXPAND, border=10)
+        sizer.Add(hl_SepLine2, pos=(xIndex, 0), span=(1, 6), flag=wx.EXPAND, border=10)
+        xIndex += 1
     # --------------------------------------------------------------------------
     # [6] Output/Log Box -------------------------------------------------------
-        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 300), style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 260), style=wx.TE_MULTILINE|wx.TE_READONLY)
         LogFont = wx.Font(7.5, wx.SWISS, wx.NORMAL, wx.NORMAL, False)
         self.LogWindow.SetFont(LogFont)
         self.LogWindow.Disable()
         help_LogWindow = "Results of a scan or repair will appear here."
         self.LogWindow.SetToolTip(wx.ToolTip(help_LogWindow))
         self.LogWindow.SetInsertionPoint(0)
-        sizer.Add(self.LogWindow, pos=(6,0), span=(1,6), flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-
+        sizer.Add(self.LogWindow, pos=(xIndex,0), span=(1,6), flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        xIndex += 1
 # DEBUG ------------------------------------------------------------------------
 # self.multiText.Value = "~/Network/Music/Weezer\n"
 # self.multiText.Value += "~/Network/Music/Yuck"
@@ -202,8 +224,11 @@ class ScanPanel(wx.Panel):
         """Show Result status."""
         if event.data is None:
             # Thread aborted (using our convention of None return)
-            self.LogWindow.AppendText("\n[Complete]\n\n")
-            guiFunctions.statusText(self, "Job Complete")
+            endTime = datetime.now()
+            calcdTime = endTime - startTime
+
+            self.LogWindow.AppendText("\n[ Job Complete ] (Duration: " + str(calcdTime)[:-4] +")\n\n")
+            guiFunctions.statusText(self, "Job Complete...")
             self.setButtons(True)
         else:
             # Process results here
@@ -217,12 +242,14 @@ class ScanPanel(wx.Panel):
 # self.tc_MainDatabase.Value = "test.db"
 # ------------------------------------------------------------------------------
         global scanCMD
+        global startTime
         
         # Set Original Working Directory so we can get back to here.
         owd = os.getcwd()
         os.chdir(os.pardir)
 
         getOpts = ""
+        iniOverride = ""
 
         if os.name == 'nt':
             cmdroot = 'python '
@@ -235,7 +262,13 @@ class ScanPanel(wx.Panel):
         else:
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
+            if self.tc_INI.Value != "":
+# DEBUG ------------------------------------------------------------------------
+# UNCOMMENT THIS ONCE BARRY'S CHANGE MAKES IT INTO SCAN.PY, ETC.
+                iniOverride = ""
+#                iniOverride = "-i " + self.tc_INI.Value
 
+<<<<<<< HEAD
 <<<<<<< HEAD
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -r"
 =======
@@ -243,6 +276,11 @@ class ScanPanel(wx.Panel):
 >>>>>>> parent of 28624bb... Merge remote-tracking branch 'origin/unstable' into unstable
 
             self.LogWindow.AppendText("Running Repair on " + self.tc_MainDatabase.Value + "...\n\n")
+=======
+            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " -r"
+            startTime = datetime.now()
+            self.LogWindow.AppendText("[ Starting Repair ] (" + startTime.strftime("%T") + ")\n\n")
+>>>>>>> 28624bb1341c37a9e6433f0c79a43a336534fddb
             guiFunctions.statusText(self, "Running Repair...")
 
             if not self.worker:
@@ -261,7 +299,7 @@ class ScanPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
         
-        dialog = wx.FileDialog ( None, message = 'Select Database File...', wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog ( None, message = 'Select Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN)
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wxID_OK:
@@ -274,8 +312,30 @@ class ScanPanel(wx.Panel):
         # set back to original working directory
         os.chdir(owd)
 
+    def bt_INIClick(self, event):
+        filters = "*.ini"
+        wildcards = "INIFiles (" + filters + ")|" + filters + "|All files (*.*)|*.*"
+
+        # back up to the folder below our current one.  save cwd in variable
+        owd = os.getcwd()
+        os.chdir(os.pardir)
+
+        dialog = wx.FileDialog ( None, message = 'Select INI File...', defaultDir=guiFunctions.configMe("general", "default_ini_path"), wildcard = wildcards, style = wxOPEN)
+
+        # Open Dialog Box and get Selection
+        if dialog.ShowModal() == wxID_OK:
+            selected = dialog.GetFilenames()
+            for selection in selected:
+                self.tc_INI.Value = selection
+                guiFunctions.statusText(self, "INI File: " + selection + " selected...")
+        dialog.Destroy()
+
+        # set back to original working directory
+        os.chdir(owd)
+
     def bt_FoldersToScanAddClick(self, event):
-        dialog = wx.DirDialog(self, "Add a Directory...", style=wx.DD_DEFAULT_STYLE)
+        dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE)
+
         if dialog.ShowModal() == wx.ID_OK:
             if self.multiText.Value == "":
                 self.multiText.AppendText("%s" % dialog.GetPath())
@@ -313,6 +373,7 @@ class ScanPanel(wx.Panel):
             self.bt_ScanUpdate.Enable()
             self.ck_ScanVerbose.Enable()
             self.bt_SaveDefaults.Enable()
+            self.bt_INI.Enable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
         else:
             self.bt_FoldersToScanAdd.Disable()
@@ -323,9 +384,11 @@ class ScanPanel(wx.Panel):
             self.bt_ScanUpdate.Disable()
             self.ck_ScanVerbose.Disable()
             self.bt_SaveDefaults.Disable()
+            self.bt_INI.Disable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
     def bt_ScanUpdateClick(self, event):
+
         if os.name == 'nt':
             cmdroot = 'python '
         else:
@@ -344,16 +407,28 @@ class ScanPanel(wx.Panel):
             os.chdir(os.pardir)
 
             getOpts = ""
-
+            iniOverride = ""
+            
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
+            if self.tc_INI.Value != "":
+# DEBUG ------------------------------------------------------------------------
+# UNCOMMENT THIS ONCE BARRY'S CHANGE MAKES IT INTO SCAN.PY, ETC.
+                iniOverride = ""
+#                iniOverride = "-i " + self.tc_INI.Value
 
             global scanCMD
+<<<<<<< HEAD
 <<<<<<< HEAD
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " "
 =======
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " "
 >>>>>>> parent of 28624bb... Merge remote-tracking branch 'origin/unstable' into unstable
+=======
+            global startTime
+
+            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " "
+>>>>>>> 28624bb1341c37a9e6433f0c79a43a336534fddb
 
             numLines=0
             maxLines=(int(self.multiText.GetNumberOfLines()))
@@ -361,7 +436,10 @@ class ScanPanel(wx.Panel):
             if self.multiText.GetLineText(numLines) == "":
                 self.LogWindow.AppendText("ERROR\tNo folder selected to scan!\n")
             else:
-                self.LogWindow.AppendText("Running Scan...\n\n")
+                startTime = datetime.now()
+                self.LogWindow.AppendText("[ Starting Scan ] (" + startTime.strftime("%T") + ")\n\n")
+
+
                 guiFunctions.statusText(self, "Running Scan...")
                 while (numLines < maxLines):
                     if os.name == "nt":
@@ -379,6 +457,7 @@ class ScanPanel(wx.Panel):
                     self.worker = WorkerThread(self)
                     self.setButtons(False)
 
+
                 # set back to original working directory
                 os.chdir(owd)
 
@@ -392,6 +471,9 @@ class ScanPanel(wx.Panel):
         # Database setting
         guiFunctions.configWrite(section, "database", self.tc_MainDatabase.Value)
 
+        # INI Setting
+        guiFunctions.configWrite(section, "inioverride", self.tc_INI.Value)
+        
         # Folder setting, comma delineate multiple folder entries
         folders = ""
         numLines = 0

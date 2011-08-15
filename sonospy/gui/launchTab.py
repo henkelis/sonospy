@@ -462,7 +462,9 @@ class LaunchPanel(wx.Panel):
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
+        self.populateMe()
         self.buildLaunch()
+
         
     def browseDB(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
@@ -472,7 +474,7 @@ class LaunchPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select database...', wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog ( None, message = 'Select database...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN)
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wxID_OK:
@@ -491,7 +493,6 @@ class LaunchPanel(wx.Panel):
         os.chdir(owd)
 
     def OnCheck(self, event):
-
 # DEBUG ------------------------------------------------------------------------
 #        for item in range(len(list_checkboxID)):
 #            print "Checkbox " + str(item) + ":\t\t\tID:" + str(list_checkboxID[item]) + "\tLABEL:" + list_checkboxLabel[item]
@@ -571,6 +572,9 @@ class LaunchPanel(wx.Panel):
         guiFunctions.statusText(self, "Defaults saved...")
 
     def bt_AutoPopulateClick(self, event):
+        self.populateMe()
+
+    def populateMe(self):
         filters = guiFunctions.configMe("general", "database_extensions").split()
 
         # Set Original Working Directory so we can get back to here.
@@ -650,7 +654,7 @@ class LaunchPanel(wx.Panel):
     def buildLaunch(self):
         # Check for OS
         if os.name == 'nt':
-            cmdroot = 'sonospy_ '
+            cmdroot = 'sonospy_'
             launchME = cmdroot
             # which version are we running?
             if self.rd_Proxy.Value == True:
@@ -679,7 +683,7 @@ class LaunchPanel(wx.Panel):
         else:
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
-                    launchME += "-wSonospy=" + list_txtctrlLabel[item] + "," + list_checkboxLabel[item] + " "
+                    launchME += "-wSonospy=" + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
 
         self.tc_Scratchpad.Value = launchME
         return launchME

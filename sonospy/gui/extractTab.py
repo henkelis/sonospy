@@ -30,9 +30,9 @@
 #        cur.execute('SELECT DISTINCT genre FROM tags')
 #        for row in cur:
 #            a.append(row)
-# - Hook up default_music_path from ini on file dialog opens, etc.
-# - Disable Save Defaults and other notebook tabs
+# - Disable other notebook tabs
 # - Add scratchpad?
+# - Add timestamp (per the scan tab)
 ###############################################################################
 
 import wx
@@ -416,7 +416,7 @@ class ExtractPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select Source Database File...', wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog ( None, message = 'Select Source Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN)
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wxID_OK:
@@ -438,7 +438,7 @@ class ExtractPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
         
-        dialog = wx.FileDialog ( None, message = 'Select Target Database File...', wildcard = wildcards, style = wxOPEN )
+        dialog = wx.FileDialog ( None, message = 'Select Target Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN )
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wxID_OK:
@@ -463,6 +463,7 @@ class ExtractPanel(wx.Panel):
             self.bt_TargetDatabase.Enable()
             self.ck_ExtractVerbose.Enable()
             self.ck_OverwriteExisting.Enable()
+            self.bt_SaveDefaults.Enable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
         else:
             self.bt_Extract.Disable()
@@ -471,6 +472,7 @@ class ExtractPanel(wx.Panel):
             self.bt_TargetDatabase.Disable()
             self.ck_ExtractVerbose.Disable()
             self.ck_OverwriteExisting.Disable()
+            self.bt_SaveDefaults.Disable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
     def bt_ExtractClick(self, event):

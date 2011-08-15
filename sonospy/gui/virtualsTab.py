@@ -24,7 +24,6 @@
 # TODO:
 # - Load in an SP file
 #   How to handle multiple SPs in one File?
-# - Hook up default_music_path from ini on file dialog opens, etc.
 ###############################################################################
 
 import wx
@@ -229,7 +228,7 @@ class VirtualsPanel(wx.Panel):
         panel.SetSizer(sizer)
 
     def bt_FoldersToScanAddClick(self, event):
-        dialog = wx.DirDialog(self, "Add a Directory...", style=wx.DD_DEFAULT_STYLE)
+        dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE)
         if dialog.ShowModal() == wx.ID_OK:
             if self.tc_FilesFolders.Value == "":
                 self.tc_FilesFolders.AppendText("%s" % dialog.GetPath())
@@ -244,7 +243,7 @@ class VirtualsPanel(wx.Panel):
         guiFunctions.statusText(self, "Cleared folder and track list...")
 
     def bt_FilesToScanAddClick(self, event):
-        dialog = wx.FileDialog(self, "Add Track(s)...", style=wx.DD_DEFAULT_STYLE|wx.FD_MULTIPLE)
+        dialog = wx.FileDialog(self, "Add Track(s)...", defaultDir=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE|wx.FD_MULTIPLE)
         if dialog.ShowModal() == wxID_OK:
             selected = dialog.GetFilenames()
             for selection in selected:
@@ -271,7 +270,7 @@ class VirtualsPanel(wx.Panel):
         dataToSave += "\n\n"
         dataToSave += self.tc_FilesFolders.Value
 
-        dialog = wx.FileDialog(self, message='Choose a file', wildcard="Playlist Files (*.sp)|*.sp", style=wx.SAVE|wx.OVERWRITE_PROMPT)
+        dialog = wx.FileDialog(self, message='Choose a file', defaultDir=guiFunctions.configMe("general", "default_sp_path"), wildcard="Playlist Files (*.sp)|*.sp", style=wx.SAVE|wx.OVERWRITE_PROMPT)
         if dialog.ShowModal() == wx.ID_OK:
             savefile = dialog.GetFilename()
             saveMe = open(savefile, 'w')
