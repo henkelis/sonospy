@@ -64,7 +64,7 @@ class WorkerThread(Thread):
 
     def run(self):
         """Run Worker Thread."""
-
+        wx.PostEvent(self._notify_window, ResultEvent("Command: " + scanCMD + "\n\n"))
         proc = subprocess.Popen(scanCMD, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
         while True:
@@ -265,12 +265,10 @@ class ScanPanel(wx.Panel):
             if self.tc_INI.Value != "":
 # DEBUG ------------------------------------------------------------------------
 # UNCOMMENT THIS ONCE BARRY'S CHANGE MAKES IT INTO SCAN.PY, ETC.
-                iniOverride = ""
-#                iniOverride = "-i " + self.tc_INI.Value
+#                iniOverride = ""
+                iniOverride = "-i " + self.tc_INI.Value
 
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -r"
-
-            self.LogWindow.AppendText("Running Repair on " + self.tc_MainDatabase.Value + "...\n\n")
             startTime = datetime.now()
             self.LogWindow.AppendText("[ Starting Repair ] (" + startTime.strftime("%T") + ")\n\n")
             guiFunctions.statusText(self, "Running Repair...")
@@ -388,9 +386,6 @@ class ScanPanel(wx.Panel):
 
         self.LogWindow.Enable()
 
-# DEBUG ------------------------------------------------------------------------
-# self.tc_MainDatabase.Value = "test.db"
-#-------------------------------------------------------------------------------
         if self.tc_MainDatabase.Value == "":
             self.LogWindow.AppendText("ERROR:\tNo database name selected!\n")
         else:
@@ -404,23 +399,12 @@ class ScanPanel(wx.Panel):
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
             if self.tc_INI.Value != "":
-# DEBUG ------------------------------------------------------------------------
-# UNCOMMENT THIS ONCE BARRY'S CHANGE MAKES IT INTO SCAN.PY, ETC.
-                iniOverride = ""
-#                iniOverride = "-i " + self.tc_INI.Value
+                iniOverride = " -i " + self.tc_INI.Value
 
             global scanCMD
-<<<<<<< HEAD
-<<<<<<< HEAD
-            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " "
-=======
-            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " "
->>>>>>> parent of 28624bb... Merge remote-tracking branch 'origin/unstable' into unstable
-=======
             global startTime
 
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " "
->>>>>>> 28624bb1341c37a9e6433f0c79a43a336534fddb
 
             numLines=0
             maxLines=(int(self.multiText.GetNumberOfLines()))
@@ -429,7 +413,7 @@ class ScanPanel(wx.Panel):
                 self.LogWindow.AppendText("ERROR\tNo folder selected to scan!\n")
             else:
                 startTime = datetime.now()
-                self.LogWindow.AppendText("[ Starting Scan ] (" + startTime.strftime("%T") + ")\n\n")
+                self.LogWindow.AppendText("[ Starting Scan ] (" + startTime.strftime("%T") + ")\n")
 
 
                 guiFunctions.statusText(self, "Running Scan...")
@@ -448,7 +432,6 @@ class ScanPanel(wx.Panel):
                 if not self.worker:
                     self.worker = WorkerThread(self)
                     self.setButtons(False)
-
 
                 # set back to original working directory
                 os.chdir(owd)

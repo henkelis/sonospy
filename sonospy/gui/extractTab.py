@@ -41,6 +41,7 @@ import os
 import subprocess
 from threading import *
 import guiFunctions
+from datetime import datetime
 # import sqlite3
 
 EVT_RESULT_ID = wx.NewId()
@@ -399,7 +400,10 @@ class ExtractPanel(wx.Panel):
         """Show Result status."""
         if event.data is None:
             # Thread aborted (using our convention of None return)
-            self.LogWindow.AppendText("\n[Complete]\n\n")
+            endTime = datetime.now()
+            calcdTime = endTime - startTime
+
+            self.LogWindow.AppendText("\n[ Job Complete ] (Duration: " + str(calcdTime)[:-4] +")\n\n")
             guiFunctions.statusText(self, "Job Complete...")
             self.setButtons(True)
         else:
@@ -478,6 +482,8 @@ class ExtractPanel(wx.Panel):
     def bt_ExtractClick(self, event):
         global scanCMD
         global getOpts
+        global startTime
+
         # Set Original Working Directory so we can get back to here.
         owd = os.getcwd()
         os.chdir(os.pardir)
@@ -578,7 +584,10 @@ class ExtractPanel(wx.Panel):
                     getOpts = "-v "
 
                 scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -x " + self.tc_TargetDatabase.Value + " -w " + searchCMD
-                self.LogWindow.AppendText("\nExtracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "...\n\n")
+                startTime = datetime.now()
+                self.LogWindow.AppendText("[ Starting Extract ] (" + startTime.strftime("%T") + ")\n")
+                self.LogWindow.AppendText("Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "\n")
+                self.LogWindow.AppendText("Command: " + scanCMD + "\n\n")
                 guiFunctions.statusText(self, "Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "...")
 
 
