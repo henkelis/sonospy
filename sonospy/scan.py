@@ -21,7 +21,6 @@
 
 import os, sys
 import optparse
-import string
 import subprocess
 import shlex
 import filelog
@@ -52,9 +51,6 @@ def process_command_line(argv):
     parser.add_option("-e", "--exclude", dest="exclude", type="string",
                       action="append", metavar="EXCLUDE",
                       help="exclude foldernames containing this string")
-    parser.add_option("-i", "--inifile", dest="inifile", type="string",
-                      help="ini file name", action="store", default = "scan.ini",
-                      metavar="INI_File")
     parser.add_option("-r", "--regenerate",
                       action="store_true", dest="regenerate", default=False,
                       help="regenerate update records")
@@ -92,32 +88,23 @@ def main(argv=None):
         usage = "if '-x' and '-w' are specified, '-e' must not be specified"
     if options.where and options.extract and options.regenerate:
         usage = "if '-x' and '-w' are specified, '-r' must not be specified"
-    if options.inifile:
-        if os.path.splitdrive(options.inifile)[0] == '':
-            options.inifile = os.path.join(os.getcwd(), options.inifile.lstrip(os.sep))
-        if not os.path.isfile(options.inifile):
-            usage = "ini file not found; {0}".format(options.inifile)
     if options.exclude and options.regenerate:
         usage = "'-e' and '-r' cannot be specified together"
-        
-    filelog.clear_log_files()
 
     if usage != '':
-        filelog.open_log_files()
-        filelog.set_log_type(False,False)
-        filelog.write_error(usage)
-        filelog.close_log_files()
+        print usage
         return 1
+    else:
+
+        filelog.clear_log_files()
     
-    else: 
         if os.name == 'nt':
             cmdroot = 'python '
         else:
             cmdroot = ''
 
         # run gettags
-        cmd = "{0}./gettags.py -i '{1}' -d {2}".format(cmdroot, options.inifile, options.database)
-        #cmd = cmdroot + "./gettags.py" + " -d " + options.database
+        cmd = cmdroot + "./gettags.py" + " -d " + options.database
         if options.extract:
             cmd += " -x " + options.extract
         if options.where:
@@ -143,9 +130,9 @@ def main(argv=None):
         else:
             # run movetags
             if options.extract:
-                cmd = "{0}./movetags.py -i '{1}' -s {2} -d {3}".format(cmdroot, options.inifile, options.extract, options.extract)
+                cmd = cmdroot + "./movetags.py" + " -s " + options.extract  + " -d " + options.extract
             else:
-                cmd = "{0}./movetags.py -i '{1}' -s {2} -d {3} ".format(cmdroot, options.inifile, options.database, options.database)
+                cmd = cmdroot + "./movetags.py" + " -s " + options.database  + " -d " + options.database
             if options.the_processing:
                 cmd += " -t " + options.the_processing
             if options.regenerate:
