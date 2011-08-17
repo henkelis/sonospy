@@ -45,18 +45,21 @@ class filelog(object):
 
     def write_warning(self, warningstring):
         if self.verbose:
-            print warningstring.encode(enc, 'replace')
+            if type(warningstring) == 'unicode': print warningstring
+            else: print warningstring.encode(enc, 'replace')
         self.wfile.write('%s\n' % warningstring)
 
     def write_error(self, errorstring):
         if not self.quiet:
-            print errorstring.encode(enc, 'replace')
+            if type(errorstring) == 'unicode': print errorstring
+            else: print errorstring.encode(enc, 'replace')
         self.efile.write('%s\n' % errorstring)
         self.write_verbose_log(errorstring)
 
     def write_log(self, logstring):
         if not self.quiet:
-            print logstring.encode(enc, 'replace')
+            if type(logstring) == 'unicode': print logstring
+            else: print logstring.encode(enc, 'replace')
         self.lfile.write('%s\n' % logstring)
         self.write_verbose_log(logstring)
 
