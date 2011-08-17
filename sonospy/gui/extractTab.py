@@ -32,7 +32,6 @@
 #            a.append(row)
 # - Disable other notebook tabs
 # - Add scratchpad?
-# - Add timestamp (per the scan tab)
 ###############################################################################
 
 import wx

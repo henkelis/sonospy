@@ -106,21 +106,21 @@ class ScanPanel(wx.Panel):
         self.bt_MainDatabase.Bind(wx.EVT_BUTTON, self.bt_MainDatabaseClick,self.bt_MainDatabase)
         xIndex += 1
     # [0] INI Overide ----------------------------------------------------------
-        label_INI = wx.StaticText(panel, label="INI File:")
-        help_INI = "Override scan.ini with your own INI file."
-        label_INI.SetToolTip(wx.ToolTip(help_Database))
-        sizer.Add(label_INI, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-
-        self.tc_INI = wx.TextCtrl(panel)
-        self.tc_INI.SetToolTip(wx.ToolTip(help_INI))
-        self.tc_INI.Value = guiFunctions.configMe("scan", "inioverride")
-        sizer.Add(self.tc_INI, pos=(xIndex, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
-
-        self.bt_INI = wx.Button(panel, label="Browse...")
-        self.bt_INI.SetToolTip(wx.ToolTip(help_INI))
-        sizer.Add(self.bt_INI, pos=(xIndex, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-        self.bt_INI.Bind(wx.EVT_BUTTON, self.bt_INIClick,self.bt_INI)
-        xIndex += 1
+#        label_INI = wx.StaticText(panel, label="INI File:")
+#        help_INI = "Override scan.ini with your own INI file."
+#        label_INI.SetToolTip(wx.ToolTip(help_Database))
+#        sizer.Add(label_INI, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+#
+#        self.tc_INI = wx.TextCtrl(panel)
+#        self.tc_INI.SetToolTip(wx.ToolTip(help_INI))
+#        self.tc_INI.Value = guiFunctions.configMe("scan", "inioverride")
+#        sizer.Add(self.tc_INI, pos=(xIndex, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
+#
+#        self.bt_INI = wx.Button(panel, label="Browse...")
+#        self.bt_INI.SetToolTip(wx.ToolTip(help_INI))
+#        sizer.Add(self.bt_INI, pos=(xIndex, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+#        self.bt_INI.Bind(wx.EVT_BUTTON, self.bt_INIClick,self.bt_INI)
+#        xIndex += 1
     # --------------------------------------------------------------------------
     # [1] Paths to scan for new Music ------------------------------------------
         self.sb_FoldersToScan = wx.StaticBox(panel, label="Folders to Scan:", size=(200, 100))
@@ -193,12 +193,12 @@ class ScanPanel(wx.Panel):
         xIndex += 1
     # --------------------------------------------------------------------------
     # [5] Separator line ------------------------------------------------------
-        hl_SepLine2 = wx.StaticLine(panel, 0, (250, 50), (300,1))
+        hl_SepLine2 = wx.StaticLine(panel, 0, (250, 50), (330,1))
         sizer.Add(hl_SepLine2, pos=(xIndex, 0), span=(1, 6), flag=wx.EXPAND, border=10)
         xIndex += 1
     # --------------------------------------------------------------------------
     # [6] Output/Log Box -------------------------------------------------------
-        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 260), style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 310), style=wx.TE_MULTILINE|wx.TE_READONLY)
         LogFont = wx.Font(7.5, wx.SWISS, wx.NORMAL, wx.NORMAL, False)
         self.LogWindow.SetFont(LogFont)
         self.LogWindow.Disable()
@@ -262,11 +262,9 @@ class ScanPanel(wx.Panel):
         else:
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
-            if self.tc_INI.Value != "":
-# DEBUG ------------------------------------------------------------------------
-# UNCOMMENT THIS ONCE BARRY'S CHANGE MAKES IT INTO SCAN.PY, ETC.
-#                iniOverride = ""
-                iniOverride = "-i " + self.tc_INI.Value
+#            if self.tc_INI.Value != "":
+##                iniOverride = ""
+#                iniOverride = "-i " + self.tc_INI.Value
 
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -r"
             startTime = datetime.now()
