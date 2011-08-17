@@ -233,6 +233,7 @@ class ScanPanel(wx.Panel):
         else:
             # Process results here
             self.LogWindow.AppendText(event.data)
+
         # In either event, the worker is done
         self.worker = None
         guiFunctions.statusText(self, "")
@@ -361,7 +362,7 @@ class ScanPanel(wx.Panel):
             self.bt_ScanUpdate.Enable()
             self.ck_ScanVerbose.Enable()
             self.bt_SaveDefaults.Enable()
-            self.bt_INI.Enable()
+#            self.bt_INI.Enable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
         else:
             self.bt_FoldersToScanAdd.Disable()
@@ -372,7 +373,7 @@ class ScanPanel(wx.Panel):
             self.bt_ScanUpdate.Disable()
             self.ck_ScanVerbose.Disable()
             self.bt_SaveDefaults.Disable()
-            self.bt_INI.Disable()
+#            self.bt_INI.Disable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
     def bt_ScanUpdateClick(self, event):
@@ -396,8 +397,8 @@ class ScanPanel(wx.Panel):
             
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
-            if self.tc_INI.Value != "":
-                iniOverride = " -i " + self.tc_INI.Value
+#            if self.tc_INI.Value != "":
+#                iniOverride = " -i " + self.tc_INI.Value
 
             global scanCMD
             global startTime
