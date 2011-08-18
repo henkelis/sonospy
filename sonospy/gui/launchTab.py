@@ -529,11 +529,13 @@ class LaunchPanel(wx.Panel):
                 self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
                 guiFunctions.statusText(self, "Sonospy Service Stopped...")
                 self.buildLaunch()
+                self.setButtons(True)
             else:
                 self.bt_Launch.Label = "Stop"
                 self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
                 guiFunctions.statusText(self, "Sonospy Service Started...")
                 self.buildLaunch()
+                self.setButtons(False)
         else:
             proc = subprocess.Popen(launchCMD, shell=True)
 
@@ -687,3 +689,71 @@ class LaunchPanel(wx.Panel):
 
         self.tc_Scratchpad.Value = launchME
         return launchME
+
+    def setButtons(self, state):
+        """
+        Toggle for the button states.
+        """
+        if state == True:
+            self.ck_DB1.Enable()
+            self.tc_DB1.Enable()
+            self.bt_DB1.Enable()
+            self.ck_DB2.Enable()
+            self.tc_DB2.Enable()
+            self.bt_DB2.Enable()
+            self.ck_DB3.Enable()
+            self.tc_DB3.Enable()
+            self.bt_DB3.Enable()
+            self.ck_DB4.Enable()
+            self.tc_DB4.Enable()
+            self.bt_DB4.Enable()
+            self.ck_DB5.Enable()
+            self.tc_DB5.Enable()
+            self.bt_DB5.Enable()
+            self.ck_DB6.Enable()
+            self.tc_DB6.Enable()
+            self.bt_DB6.Enable()
+            self.ck_DB7.Enable()
+            self.tc_DB7.Enable()
+            self.bt_DB7.Enable()
+            self.ck_DB8.Enable()
+            self.tc_DB8.Enable()
+            self.bt_DB8.Enable()
+            self.bt_AutoPopulate.Enable()
+            self.bt_Clear.Enable()
+            self.bt_SaveDefaults.Enable()
+            self.ck_EnableAll.Enable()
+            self.rd_Proxy.Enable()
+            self.rd_Web.Enable()
+        else:
+            self.ck_DB1.Disable()
+            self.tc_DB1.Disable()
+            self.bt_DB1.Disable()
+            self.ck_DB2.Disable()
+            self.tc_DB2.Disable()
+            self.bt_DB2.Disable()
+            self.ck_DB3.Disable()
+            self.tc_DB3.Disable()
+            self.bt_DB3.Disable()
+            self.ck_DB4.Disable()
+            self.tc_DB4.Disable()
+            self.bt_DB4.Disable()
+            self.ck_DB5.Disable()
+            self.tc_DB5.Disable()
+            self.bt_DB5.Disable()
+            self.ck_DB6.Disable()
+            self.tc_DB6.Disable()
+            self.bt_DB6.Disable()
+            self.ck_DB7.Disable()
+            self.tc_DB7.Disable()
+            self.bt_DB7.Disable()
+            self.ck_DB8.Disable()
+            self.tc_DB8.Disable()
+            self.bt_DB8.Disable()
+            self.bt_AutoPopulate.Disable()
+            self.bt_Clear.Disable()
+            self.bt_SaveDefaults.Disable()
+            self.ck_EnableAll.Disable()
+            self.rd_Proxy.Disable()
+            self.rd_Web.Disable()
+
