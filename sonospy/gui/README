@@ -69,7 +69,6 @@ TO DO
 
 [VIRTUALS]
  - Load existing Virtual
- - Hook up default_music_path to ease user interface issues on adding new folders, music, etc.
 
 [GUIFUNCTIONS]
  - Would love to globalize the file dialog mess in this code I wrote... I've got it working right now, just want more elegance.
