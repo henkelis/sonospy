@@ -228,10 +228,10 @@ def process_dir(scanpath, options, database):
 
     for filepath, dirs, files in os.walk(scanpath):
 
-        filepath = filepath.decode(enc, 'replace')
-        dirs = [d.decode(enc, 'replace') for d in dirs]
-        files = [f.decode(enc, 'replace') for f in files]
-        
+        if type(filepath) == 'str': filepath = filepath.decode(enc, 'replace')
+        if type(dirs) == 'str': dirs = [d.decode(enc, 'replace') for d in dirs]
+        if type(files) == 'str': files = [f.decode(enc, 'replace') for f in files]
+
         dont_process = False
         if options.exclude:
             for ex in options.exclude:
@@ -325,17 +325,17 @@ def process_dir(scanpath, options, database):
                         tags['bitrate'] = kind.info.bitrate             # bps
                         tags['mime'] = kind.mime[0]
 
-                    elif isinstance(kind, mutagen.easymp4.EasyMP4):
-                        if kind.tags:
-                            tags.update(kind.tags)
-                        # assume these attributes exist (note these will overwrite kind.tags)
-                        tags['type'] = 'MPEG-4 audio'
-                        tags['length'] = kind.info.length               # seconds
-                        tags['sample_rate'] = kind.info.sample_rate     # Hz
-                        tags['bits_per_sample'] = kind.info.bits_per_sample     # bps
-                        tags['channels'] = kind.info.channels
-                        tags['bitrate'] = kind.info.bitrate             # bps
-                        tags['mime'] = kind.mime[0]
+#                    elif isinstance(kind, mutagen.easymp4.EasyMP4):
+#                        if kind.tags:
+#                            tags.update(kind.tags)
+#                        # assume these attributes exist (note these will overwrite kind.tags)
+#                        tags['type'] = 'MPEG-4 audio'
+#                        tags['length'] = kind.info.length               # seconds
+#                        tags['sample_rate'] = kind.info.sample_rate     # Hz
+#                        tags['bits_per_sample'] = kind.info.bits_per_sample     # bps
+#                        tags['channels'] = kind.info.channels
+#                        tags['bitrate'] = kind.info.bitrate             # bps
+#                        tags['mime'] = kind.mime[0]
 
                     elif isinstance(kind, mutagen.asf.ASF):
                         picture, trackart_offset, trackart_length = kind.get_picture()
@@ -780,9 +780,9 @@ def process_dir(scanpath, options, database):
     # now process works and virtuals - processing the generator first
     for filepath, dirs, files in itertools.chain(workvirtual_updates, os.walk(scanpath)):
 
-        filepath = filepath.decode(enc, 'replace')
-        dirs = [d.decode(enc, 'replace') for d in dirs]
-        files = [f.decode(enc, 'replace') for f in files]
+        if type(filepath) == 'str': filepath = filepath.decode(enc, 'replace')
+        if type(dirs) == 'str': dirs = [d.decode(enc, 'replace') for d in dirs]
+        if type(files) == 'str': files = [f.decode(enc, 'replace') for f in files]
         
         dont_process = False
         if options.exclude:
@@ -1478,10 +1478,13 @@ def generate_workvirtualfile_record(filespec, database):
     filelist = []
     directory = os.path.isdir(filespec)
     if directory:
+    
         for filepath, dirs, files in os.walk(filespec):
-            filepath = filepath.decode(enc, 'replace')
-            dirs = [d.decode(enc, 'replace') for d in dirs]
-            files = [f.decode(enc, 'replace') for f in files]
+
+            if type(filepath) == 'str': filepath = filepath.decode(enc, 'replace')
+            if type(dirs) == 'str': dirs = [d.decode(enc, 'replace') for d in dirs]
+            if type(files) == 'str': files = [f.decode(enc, 'replace') for f in files]
+
             files.sort()
             for fn in files:
                 if check_workvirtual_file(fn):
@@ -1822,7 +1825,7 @@ def main(argv=None):
         else:
             for path in args: 
                 if path.endswith(os.sep): path = path[:-1]
-                process_dir(path, options, database)
+                process_dir(path.decode(enc), options, database)
     filelog.close_log_files()
     return 0
 
