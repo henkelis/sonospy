@@ -668,27 +668,31 @@ Music/Rating                101     object.container
                     wmpcontroller2 = None
                 else:
                     startwmp = False
-                print "Proxy. Name: " + name
-                proxy = Proxy(name, 'WMP', wmptrans, proxyuuid, self.config, None,
-                              createwebserver=True, webserverurl=listen_url, wmpurl=serve_url, startwmp=startwmp, dbname=dbname, wmpudn=self.internal_proxy_udn, wmpcontroller=wmpcontroller, wmpcontroller2=wmpcontroller2)
-                proxy.start()
-                wmpcontroller = proxy.wmpcontroller                              
-                wmpcontroller2 = proxy.wmpcontroller2                              
-                '''                
-                if internal_count == 0:
+                print "Proxy. Name: %s" % name
+                try:
+                    proxy = Proxy(name, 'WMP', wmptrans, proxyuuid, self.config, None,
+                                  createwebserver=True, webserverurl=listen_url, wmpurl=serve_url, startwmp=startwmp, dbname=dbname, wmpudn=self.internal_proxy_udn, wmpcontroller=wmpcontroller, wmpcontroller2=wmpcontroller2)
+                except ValueError, e:
+                    print "Proxy. Name: %s error - %s" % (name, e.args[0])
+                else:
+                    proxy.start()
+                    wmpcontroller = proxy.wmpcontroller                              
+                    wmpcontroller2 = proxy.wmpcontroller2                              
+                    '''                
+                    if internal_count == 0:
 
-                    from brisa.core import webserver, network
+                        from brisa.core import webserver, network
 
-                    p = network.parse_url(serve_url)
-                    self.wmpwebserver = webserver.WebServer(host=p.hostname, port=p.port)
-                    self.wmplocation = self.wmpwebserver.get_listen_url()
-                    self.wmpwebserver.get_render = proxy.get_render
-                    self.wmpwebserver.start()
-                '''
-                self.proxies.append(proxy)
-                self.sonospyproxies[proxyuuid[5:]] = name
-                self.wmpfound = True
-                internal_count += 1
+                        p = network.parse_url(serve_url)
+                        self.wmpwebserver = webserver.WebServer(host=p.hostname, port=p.port)
+                        self.wmplocation = self.wmpwebserver.get_listen_url()
+                        self.wmpwebserver.get_render = proxy.get_render
+                        self.wmpwebserver.start()
+                    '''
+                    self.proxies.append(proxy)
+                    self.sonospyproxies[proxyuuid[5:]] = name
+                    self.wmpfound = True
+                    internal_count += 1
 
 
 
