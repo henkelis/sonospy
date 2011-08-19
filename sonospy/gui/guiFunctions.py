@@ -25,6 +25,7 @@
 # - Globalize ONE folder selection dialog.
 ###############################################################################
 from wxPython.wx import *
+from wx.lib.pubsub import Publisher
 
 #-------------------------------------------------------------------------------
 # configMe, configWrite
@@ -102,6 +103,6 @@ def scrubDB(path, ext=False):
 # Simple function to set the status text in any of the other notebook tabs.
 #-------------------------------------------------------------------------------
 def statusText(object, line):
-    object.GetParent().GetParent().GetParent().SetStatusText(line)
-
+#    object.GetParent().GetParent().GetParent().SetStatusText(line)
+    Publisher().sendMessage(('change_statusbar'), line)
 

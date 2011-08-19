@@ -30,6 +30,7 @@ import wx
 from wxPython.wx import *
 import os
 import subprocess
+from wx.lib.pubsub import Publisher
 ################################################################################
 import scanTab
 import extractTab
@@ -79,10 +80,15 @@ class SonospyFrame(wx.Frame):
         self.SetStatusText("Welcome to Sonospy...")
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
+        Publisher().subscribe(self.change_statusbar, 'change_statusbar')
+
         self.Layout()
 
         self.Show()
         self.Centre()
+
+    def change_statusbar(self, msg):
+        self.SetStatusText(msg.data)
 
     def OnClose(self, event):
     # tell the window to kill itself and kill the running sonospy process
