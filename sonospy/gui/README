@@ -15,21 +15,14 @@ In general, everything has a tool tip associated with it for some attempts at cl
 Preferences are stored in gui/GUIpref.ini and can be manually edited or can be saved within
 the app on each specific tab using the SAVE DEFAULTS button.
 
-Database extensions are assuming .sdb and .sqlite by default.  You can change these in GUIpref.ini
-
 You can run this by ./sonsopyGUI.py (linux) or python sonospyGUI.py (linux/windows).  Databases created here are still stored where scan, etc. uses them.
 
 [LAUNCH TAB]
  - Will launch and stop Sonospy.
  - AUTO POPULATE will search for databases (extensions can be set in GUIpref.ini) and will autopopulate the databases and proxy names for you.
- - I have NOT tested this with sonospy_web as I could never get it to work. :P
- - Unless Mark has fixed it already, you cannot have a space in the Display Name fields.
- - I added a scratchpad, like Blue's launcher, per Barry's request.
 
 [SCAN TAB]
- - I've tested FOLDERS TO SCAN with spaces, etc.  Works under linux, but I am sure it is not bug-free. :)
  - SCAN and REPAIR both log to the log window, but it comes through chunk at a time.  Not quite in realtime, but close enough.
- - Add dialog for .ini to override scan.ini per Barry's latest round of changes.
 
 [EXTRACT TAB]
  - Last <X> Albums is experimental, it gets the job done, but it's not perfect.
@@ -68,6 +61,3 @@ TO DO
 
 [VIRTUALS]
  - Load existing Virtual
-
-[GUIFUNCTIONS]
- - Would love to globalize the file dialog mess in this code I wrote... I've got it working right now, just want more elegance.
