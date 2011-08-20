@@ -84,7 +84,17 @@ class Proxy(object):
         self.webserverurl = webserverurl
         self.wmpurl = wmpurl
         self.startwmp = startwmp
-        self.dbname = dbname
+        if dbname == None:
+            self.dbspec = None
+            self.dbname = None
+        else:
+            if not os.path.isabs(dbname):
+                dbname = os.path.join(os.getcwd(), dbname)
+            self.dbspec = dbname
+            self.dbpath, self.dbname = os.path.split(dbname)
+            if self.dbname == '':
+                self.dbname = 'sonospy.sqlite'
+                self.dbspec = os.path.join(os.getcwd(), self.dbname)
         self.wmpudn = wmpudn
         self.wmpwebserver = None
         self.wmpcontroller = wmpcontroller
@@ -95,6 +105,28 @@ class Proxy(object):
             self.destaddress = None
         else:
             self.destaddress = mediaserver.address
+
+        # check database
+        error = None
+        if self.dbspec != None:
+            if not os.access(self.dbspec, os.R_OK):
+                error = "Unable to access database file"
+            else:
+                try:
+                    db = sqlite3.connect(self.dbspec)
+                    c = db.cursor()
+                except sqlite3.Error, e:
+                    error = "Unable to open database (%s)" % e.args[0]
+                else:
+                    try:
+                        c.execute("select count(*) from tracks")
+                        count, = c.fetchone()
+                        if count == 0:
+                            error = "Database is empty"
+                    except sqlite3.Error, e:
+                        error = "Unable to read track table (%s)" % e.args[0]
+        if error:
+            raise ValueError(error)
 
     def _add_root_device(self):
         """ Creates the root device object which will represent the device
@@ -134,7 +166,7 @@ class Proxy(object):
         #       causes the controlpoint to receive a duplicate _new_device_event_impl
         #       for the device being proxied
         if self.mediaserver == None:
-            self.cdservice = DummyContentDirectory(self.root_device.location, self, self.webserverurl, self.wmpurl, self.dbname, self.wmpudn)
+            self.cdservice = DummyContentDirectory(self.root_device.location, self, self.webserverurl, self.wmpurl, self.dbspec, self.wmpudn)
             self.root_device.add_service(self.cdservice)
             self.cmservice = DummyConnectionManager()
             self.root_device.add_service(self.cmservice)
@@ -192,9 +224,9 @@ class Proxy(object):
         # and create a staticfile for the track and albumart (if that exists)
         log.debug("proxy.get_Track objectname: %s" % objectname)
         # object name is either:
-        #   db + id + type_extension e.g. mp3tag.sqlite.6000022.flac (also could be mp3tag.sqlite.6000022.jpg)
+        #   db + id + type_extension e.g. database.sqlite.6000022.flac (also could be database.sqlite.6000022.jpg)
         # or
-        #   db + id + transcode_extension(s) + type extension e.g. mp3tag.sqlite.6000023.mp2.mp3
+        #   db + id + transcode_extension(s) + type extension e.g. database.sqlite.6000023.mp2.mp3
         # the id is a 32 char hex MD5, assume that the extensions are not
         # note that db can be any number of facets (e.g. name, name.ext, name1.name2.ext etc)
         # assume this is only called for a valid id
@@ -220,8 +252,16 @@ class Proxy(object):
         dbname = dbfacets[0]
         log.debug("proxy.get_Track objectID: %s" % objectID)
         log.debug("proxy.get_Track dbname: %s" % dbname)
-        db = sqlite3.connect(os.path.join(os.getcwd(), dbname))
-        c = db.cursor()
+        # try and open the database in the same folder as the proxy database
+        # if it is the proxy database, that will work
+        # if it isn't, then it will only work if the database specified is where the proxy database is
+        # TODO: work out whether we want to store the database path somewhere
+        try:
+            db = sqlite3.connect(os.path.join(self.dbpath, dbname))
+            c = db.cursor()
+        except sqlite3.Error, e:
+            log.debug("error opening database: %s %s %s", self.dbpath, dbname, e.args[0])
+            return
 
         statement = "select * from tracks where id = '%s'" % (objectID)
         log.debug("statement: %s", statement)
@@ -916,15 +956,14 @@ class DummyContentDirectory(Service):
 #    playlist_class = ''
 
 
-    def __init__(self, proxyaddress, proxy , webserverurl, wmpurl, dbname, wmpudn):
+    def __init__(self, proxyaddress, proxy , webserverurl, wmpurl, dbspec, wmpudn):
         self.proxyaddress = proxyaddress
         self.proxy = proxy
         self.webserverurl = webserverurl
         self.wmpurl = wmpurl
-        self.dbname = dbname
+        self.dbspec = dbspec
+        dbpath, self.dbname = os.path.split(dbspec)
         self.wmpudn = wmpudn
-        if self.dbname == '':
-            self.dbname = 'sonospy.sqlite'
 
 #        self.prime_cache()
         
@@ -1205,7 +1244,7 @@ class DummyContentDirectory(Service):
         browseFlag = kwargs['BrowseFlag']
         log.debug("objectID: %s" % objectID)
 
-        db = sqlite3.connect(os.path.join(os.getcwd(), self.dbname))
+        db = sqlite3.connect(self.dbspec)
         c = db.cursor()
 
         startingIndex = int(kwargs['StartingIndex'])
@@ -1522,7 +1561,7 @@ class DummyContentDirectory(Service):
             searchcontainer = searchtype
             if searchcontainer == 'Contributing Artist': searchcontainer = 'Artist'
 
-        db = sqlite3.connect(os.path.join(os.getcwd(), self.dbname))
+        db = sqlite3.connect(self.dbspec)
         c = db.cursor()
 
         startingIndex = int(kwargs['StartingIndex'])
@@ -3162,7 +3201,7 @@ class DummyContentDirectory(Service):
             return artistlist[-1]        
 
     def prime_cache(self):
-        db = sqlite3.connect(os.path.join(os.getcwd(), self.dbname))
+        db = sqlite3.connect(self.dbspec)
         c = db.cursor()
         try:
             c.execute("""select * from albums""")
@@ -3189,7 +3228,7 @@ class DummyContentDirectory(Service):
         if not self.use_sorts:
             return [(None, None, None, 10, 'dummy', None)]
         order_out = []
-        db = sqlite3.connect(os.path.join(os.getcwd(), self.dbname))
+        db = sqlite3.connect(self.dbspec)
         db.create_function("checkkeys", 4, self.checkkeys)
         c = db.cursor()
         try:
@@ -3301,7 +3340,7 @@ class DummyContentDirectory(Service):
             return [28, 34]
 
     def get_updateid(self):
-        db = sqlite3.connect(os.path.join(os.getcwd(), self.dbname))
+        db = sqlite3.connect(self.dbspec)
         c = db.cursor()
         statement = "select lastscanid from params where key = '1'"
         log.debug("statement: %s", statement)
