@@ -36,6 +36,7 @@ import subprocess
 from threading import *
 import guiFunctions
 from datetime import datetime
+import launchTab
 
 # Define notification event for thread completion
 EVT_RESULT_ID = wx.NewId()
@@ -446,7 +447,7 @@ class ScanPanel(wx.Panel):
         guiFunctions.configWrite(section, "database", self.tc_MainDatabase.Value)
 
         # INI Setting
-        guiFunctions.configWrite(section, "inioverride", self.tc_INI.Value)
+#        guiFunctions.configWrite(section, "inioverride", self.tc_INI.Value)
         
         # Folder setting, comma delineate multiple folder entries
         folders = ""
