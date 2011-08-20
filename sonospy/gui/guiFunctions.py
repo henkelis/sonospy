@@ -89,12 +89,11 @@ def scrubDB(path, ext=False):
     asps = []
     filters = ext
     
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            basename, extension = os.path.splitext(file)
-            extension = "*" + extension
-            if extension in filters:
-                asps.append(file)
+    for file in os.listdir(path):
+        basename, extension = os.path.splitext(file)
+        extension = "*" + extension
+        if extension in filters:
+            asps.append(file)
     return asps
 
 #-------------------------------------------------------------------------------
