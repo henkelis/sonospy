@@ -21,8 +21,6 @@
 # guiFunctions.py Author: John Chowanec <chowanec@gmail.com>
 ###############################################################################
 # TODO:
-# - Globalize ONE file selection dialog
-# - Globalize ONE folder selection dialog.
 ###############################################################################
 from wxPython.wx import *
 from wx.lib.pubsub import Publisher

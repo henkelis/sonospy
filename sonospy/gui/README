@@ -51,11 +51,9 @@ TO DO
 
 [SCAN]
  - Disable notebook tabs during scan
- - Add scratchpad?
 
 [EXTRACT]
  - Disable notebook tabs during scan
- - Add scratchpad?
  - Scrub SQL database for valid entries to limit user error.  Blue did this, but I am of split mind on whether or not we want to limit the user this way.  In thoery, we could do "contains" on Genre to get a extract with ROCK, CLASSIC ROCK, etc. if "ROCK" is provided.
  - Lots of error checking, I am sure, to make sure people don't enter a string when the query will expect an int.
 

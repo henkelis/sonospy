@@ -462,7 +462,7 @@ class LaunchPanel(wx.Panel):
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
-        self.populateMe()
+        # self.populateMe()
         self.buildLaunch()
 
         

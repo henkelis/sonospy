@@ -31,7 +31,6 @@
 #        for row in cur:
 #            a.append(row)
 # - Disable other notebook tabs
-# - Add scratchpad?
 ###############################################################################
 
 import wx

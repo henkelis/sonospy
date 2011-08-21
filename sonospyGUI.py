@@ -24,7 +24,6 @@
 # TODO:
 # - Look at installers for entire sonospy project (not just GUI)
 # - Minimize to tray?
-# - Move sonospyGUI.py to the root of the Sonospy app
 ###############################################################################
 import wx
 from wxPython.wx import *
@@ -66,6 +65,21 @@ class SonospyNotebook(wx.Notebook):
         # Now Playing is SUPER EXPERIMENTAL, WILL PROBABLY BREAK!
 #        self.AddPage(nowPlayingTab.NowPlayingPanel(self), "Now Playing")
 
+## Task bar
+#class BibTaskBarIcon(wx.TaskBarIcon):
+#    def __init__(self, frame):
+#        wx.TaskBarIcon.__init__(self)
+#        self.frame = frame
+#        icon = wx.Icon('sonospy.png', wx.BITMAP_TYPE_PNG)
+#        self.SetIcon(icon, "title")
+#
+#    def CreatePopupMenu(self):
+#        self.menu = wx.Menu()
+#        self.menu.Append(wx.NewId(), "Launch Sonospy")
+#        self.menu.Append(wx.NewId(), "dummy menu 2")
+#        return self.menu
+## Task bar ends
+
 ########################################################################
 class SonospyFrame(wx.Frame):
     """
@@ -78,23 +92,32 @@ class SonospyFrame(wx.Frame):
         wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(580,645))
         panel = wx.Panel(self)
 
+
         notebook = SonospyNotebook(panel)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(notebook, 1, wx.ALL|wx.EXPAND, 5)
         panel.SetSizer(sizer)
         ib = wx.IconBundle()
-        ib.AddIconFromFile("sonospy.png", wx.BITMAP_TYPE_ANY)
+        ib.AddIconFromFile("sonospy.png", wx.BITMAP_TYPE_PNG)
         self.SetIcons(ib)
         self.CreateStatusBar(style=0)
         self.SetStatusText("Welcome to Sonospy...")
         self.Bind(wx.EVT_CLOSE, self.OnClose)
-
         Publisher().subscribe(self.change_statusbar, 'change_statusbar')
 
-        self.Layout()
+#        # Task bar stuff here...
+#        self.tbicon = BibTaskBarIcon(self)
+#        wx.EVT_TASKBAR_LEFT_UP(self.tbicon, self.OnTaskBarLeftClick)
+#        wx.EVT_TASKBAR_RIGHT_UP(self.tbicon, self.OnClose)
 
+        self.Layout()
         self.Show()
         self.Centre()
+
+#    def OnTaskBarLeftClick(self, evt):
+#        self.tbicon.PopupMenu(self.tbicon.CreatePopupMenu())
+
+    # Task bar stuff ends here...
 
     def change_statusbar(self, msg):
         self.SetStatusText(msg.data)
