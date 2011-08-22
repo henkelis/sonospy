@@ -80,5 +80,6 @@
         <stateVariable sendEvents="no"><name>SortCapabilities</name><dataType>string</dataType></stateVariable>
         <stateVariable sendEvents="no"><name>SearchCapabilities</name><dataType>string</dataType></stateVariable>
         <stateVariable sendEvents="yes"><name>SystemUpdateID</name><dataType>ui4</dataType></stateVariable>
+        <stateVariable sendEvents="yes"><name>ContainerUpdateIDs</name><dataType>ui4</dataType></stateVariable>
     </serviceStateTable>
 </scpd>

@@ -1899,20 +1899,20 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
             c.execute('''delete from genres where id=500000000''')
             
         # playlists
-        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="playlists"')
-        n, = c.fetchone()
-        if n == 0:
-            c.execute('''create table playlists (id integer primary key autoincrement,
-                                                 parentID text, 
-                                                 playlist text COLLATE NOCASE,
-                                                 path text,
-                                                 upnpclass text)
-                      ''')
-            c.execute('''create unique index inxPlaylists on playlists (playlist)''')
-            c.execute('''create unique index inxPlaylistId on playlists (id)''')
-            # seed autoincrement
-            c.execute('''insert into playlists values (700000000,'','','','')''')
-            c.execute('''delete from playlists where id=700000000''')
+#        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="playlists"')
+#        n, = c.fetchone()
+#        if n == 0:
+#            c.execute('''create table playlists (id integer primary key autoincrement,
+#                                                 parentID text, 
+#                                                 playlist text COLLATE NOCASE,
+#                                                 path text,
+#                                                 upnpclass text)
+#                      ''')
+#            c.execute('''create unique index inxPlaylists on playlists (playlist)''')
+#            c.execute('''create unique index inxPlaylistId on playlists (id)''')
+#            # seed autoincrement
+#            c.execute('''insert into playlists values (700000000,'','','','')''')
+#            c.execute('''delete from playlists where id=700000000''')
             
         # multi entry fields lookups - genre/artist level
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="GenreArtist"')

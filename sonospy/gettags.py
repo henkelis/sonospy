@@ -27,6 +27,7 @@ import traceback
 import codecs
 
 import hashlib
+import zlib
 import sqlite3
 import optparse
 import ConfigParser
@@ -197,11 +198,17 @@ For the path supplied
             the workvirtuals record is deleted
             the old record is written to workvirtuals_update (D, 0)
             a blank record is written to workvirtuals_update (D, 1)
+    For playlists
+        These are processes as for works/virtuals but writing to playlists
+        and playlists_updates instead
 
 When processing tags subsequently, select from tags_update on scannumber 
     the update type is on both records
     record 0 is the before image, record 1 the after image
 When processing workvirtuals subsequently, select from workvirtuals_update on scannumber 
+    the update type is on both records
+    record 0 is the before image, record 1 the after image
+When processing playlists subsequently, select from playlists_update on scannumber 
     the update type is on both records
     record 0 is the before image, record 1 the after image
 '''
@@ -774,8 +781,20 @@ def process_dir(scanpath, options, database):
     try:
         c2.execute("""create temporary table tempwv (wvfile text)""")
     except sqlite3.Error, e:
-        errorstring = "Error creating temporary table: %s" % e.args[0]
+        errorstring = "Error creating temporary workvirtual table: %s" % e.args[0]
         filelog.write_error(errorstring)
+
+    # we also need to check tracks against playlists
+    playlist_updates = get_playlist_update(scannumber, database)
+    try:
+        c2.execute("""create temporary table temppl (plfile text)""")
+    except sqlite3.Error, e:
+        errorstring = "Error creating temporary playlist table: %s" % e.args[0]
+        filelog.write_error(errorstring)
+
+
+
+
 
     # now process works and virtuals - processing the generator first
     for filepath, dirs, files in itertools.chain(workvirtual_updates, os.walk(scanpath)):
@@ -828,7 +847,7 @@ def process_dir(scanpath, options, database):
                         c2.execute("""insert into tempwv values (?)""", (ffn, ))
                     
                 except sqlite3.Error, e:
-                    errorstring = "Error processing temporary table: %s" % e.args[0]
+                    errorstring = "Error processing temporary workvirtual table: %s" % e.args[0]
                     filelog.write_error(errorstring)
 
                 # read work/virtual date and track details                                    
@@ -1150,6 +1169,340 @@ def process_dir(scanpath, options, database):
     db2.commit()
     db.commit()
 
+    # now process playlists - processing the generator first
+    for filepath, dirs, files in itertools.chain(playlist_updates, os.walk(scanpath)):
+
+        if type(filepath) == 'str': filepath = filepath.decode(enc, 'replace')
+        if type(dirs) == 'str': dirs = [d.decode(enc, 'replace') for d in dirs]
+        if type(files) == 'str': files = [f.decode(enc, 'replace') for f in files]
+        
+        dont_process = False
+        if options.exclude:
+            for ex in options.exclude:
+                if ex in filepath:
+                    dont_process = True
+        if dont_process:
+            continue
+        
+        files.sort()
+
+        for fn in files:
+            ff, ex = os.path.splitext(fn)
+            if not ex.lower() in playlist_extensions: continue
+            ffn = os.path.join(filepath, fn)
+            if not os.access(ffn, os.R_OK):
+                if '..pl..' in dirs:
+                    # this file was passed from the tracks scan, log an error
+                    errorstring = "Track changed but unable to access playlist file: %s" % (ffn)
+                    filelog.write_error(errorstring)
+                continue
+
+            try:
+            
+                if options.verbose:
+                    out = "processing file: " + str(processing_count) + "\r" 
+                    sys.stderr.write(out)
+                    sys.stderr.flush()
+                    processing_count += 1
+
+                success, created, lastmodified, fsize, filler = getfilestat(ffn)
+
+                # process playlists - we will only accept tracks that are in the database
+
+                # check whether we have processed this file before
+
+                try:
+                    c2.execute("""select plfile from temp.temppl where plfile=?""", (ffn, ))
+                    row = c2.fetchone()
+                    if row:
+                        continue
+                    else:
+                        c2.execute("""insert into temppl values (?)""", (ffn, ))
+                    
+                except sqlite3.Error, e:
+                    errorstring = "Error processing temporary playlist table: %s" % e.args[0]
+                    filelog.write_error(errorstring)
+
+                # read playlist date and track details                                    
+                playlisttracks = read_playlistfile(ffn, filepath)
+
+                # check what has changed
+                # changes include:
+                #     playlist has changed
+                #     track referred to by playlist has changed
+                #     tracknumber for file in playlist has changed
+                # all these changes can result in a track change, which is what we track
+
+                for playlisttrack in playlisttracks:
+
+#                    print "----playlisttrack----"
+#                    print playlisttrack
+#                    print
+
+                    plfile, plfilecreated, plfilelastmodified, trackfile, trackfilecreated, trackfilelastmodified, pltrack, ploccurs = playlisttrack
+                    pltitle = ff
+                    plid = "%X" % (zlib.crc32(plfile) & 0xffffffff)
+
+                    # check if any details have changed for this playlist/track
+
+                    pl_change = None
+                    try:
+                        # when searching for a track find one that matches the occurrence we have
+                        # I = not found, track needs inserting
+                        # U = found, updated
+                        # N = found, not updated
+                        c.execute("""select plfilecreated, plfilelastmodified, trackfilecreated, trackfilelastmodified, track from playlists where playlist=? and plfile=? and trackfile=? and occurs=?""",
+                                    (pltitle, plfile, trackfile, ploccurs))
+                        row = c.fetchone()
+                        if row:
+                            pl_change = 'U'
+                            plcreate, pllastmod, trackcreate, tracklastmod, track = row
+                            if plcreate == plfilecreated and pllastmod == plfilelastmodified and \
+                               trackcreate == trackfilecreated and tracklastmod == trackfilelastmodified and \
+                               int(track) == pltrack:
+                                pl_change = 'N'
+                        else:
+                            pl_change = 'I'
+                    except sqlite3.Error, e:
+                        errorstring = "Error checking playlist track created: %s" % e.args[0]
+                        filelog.write_error(errorstring)
+
+#                    print "----plchange----"
+#                    print pl_change
+#                    print
+
+                    currenttime = time.time()
+                    inserted = currenttime
+                    lastscanned = currenttime
+
+                    if pl_change == 'N':
+                        # nothing has changed so we just want to update the scannumber to show we processed the track
+                        # (record must exist as we found it earlier)
+                        try:
+                            pl = (scannumber, lastscanned, pltitle, plfile, trackfile, ploccurs)
+                            logstring = "UPDATE SCAN DETAILS: " + str(pl)
+                            filelog.write_verbose_log(logstring)
+                            c.execute("""update playlists set
+                                         scannumber=?, lastscanned=? 
+                                         where playlist=? and plfile=? and trackfile=? and occurs=?""", 
+                                         pl)
+                        except sqlite3.Error, e:
+                            errorstring = "Error updating playlist track scan details: %s" % e.args[0]
+                            filelog.write_error(errorstring)
+
+                    else:
+                        # either we have a change or it's a new playlist track
+                        # find the track that this relates to
+
+                        tr_trackpath, tr_trackfile = os.path.split(trackfile)
+                        try:
+                            c.execute("""select * from tags where path=? and filename=?""", (tr_trackpath, tr_trackfile))
+                            crow = c.fetchone()
+                        except sqlite3.Error, e:
+                            errorstring = "Error getting tags details: %s" % e.args[0]
+                            filelog.write_error(errorstring)
+                        if not crow:
+                            # this track does not exist, reject the work/virtual record
+                            errorstring = "Error processing playlist: %s : %s : track does not exist in database" % (plfile, trackfile)
+                            filelog.write_error(errorstring)
+                            continue
+                            
+                        else:
+
+                            # track exists, get data
+                            tr_id, tr_id2, tr_title, tr_artist, tr_album, \
+                            tr_genre, tr_track, tr_year, \
+                            tr_albumartist, tr_composer, tr_codec,  \
+                            tr_length, tr_size,  \
+                            tr_created, tr_path, tr_filename,  \
+                            tr_discnumber, tr_comment,  \
+                            tr_folderart, tr_trackart,  \
+                            tr_bitrate, tr_samplerate, \
+                            tr_bitspersample, tr_channels, tr_mime, \
+                            tr_lastmodified, tr_upnpclass, tr_scannumber,  \
+                            tr_folderartid, tr_trackartid,  \
+                            tr_inserted, tr_lastscanned = crow
+
+                        # process the track
+
+                        if pl_change == 'I':
+                        
+                            # is an insert
+                            # insert master and create audit records
+                            try:
+                                pl = (pltitle,
+                                      plid, 
+                                      plfile, trackfile, 
+                                      ploccurs, pltrack, tr_id, 
+                                      tr_inserted, tr_created, tr_lastmodified,
+                                      plfilecreated, plfilelastmodified, 
+                                      trackfilecreated, trackfilelastmodified, 
+                                      scannumber, lastscanned)
+                                logstring = "playlist track inserted: %s : %s" % (plfile, trackfile)
+                                filelog.write_log(logstring)
+                                logstring = "INSERT: " + str(pl)
+                                filelog.write_verbose_log(logstring)
+                                c.execute("""insert into playlists values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pl)
+                                # pre                                
+                                ipl = clearpl(pl)
+                                ipl += (0, 'I')
+                                c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", ipl)
+                                # post
+                                ipl = pl + (1, 'I')
+                                c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", ipl)
+                            except sqlite3.Error, e:
+                                errorstring = "Error inserting playlist track details: %s" % e.args[0]
+                                filelog.write_error(errorstring)
+
+                        else:
+
+                            # is an update
+                            # create audit records and update master
+                            try:
+                                # get existing record, must be found as we got it earlier
+                                c.execute("""select * from playlists where playlist=? and plfile=? and trackfile=? and occurs=?""",
+                                            (pltitle, plfile, trackfile, ploccurs))
+                                row = c.fetchone()
+                                pl_playlist, pl_plid, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+                            except sqlite3.Error, e:
+                                errorstring = "Error getting playlist details: %s" % e.args[0]
+                                filelog.write_error(errorstring)
+
+                            # check if only the playlist/track timestamps have changed
+                            # - if so we don't need to create audit records as those changes are not
+                            #   propagated into tracks
+
+                            if int(pl_track) == pltrack and \
+                               pl_inserted == plinserted and \
+                               pl_created == plcreated and \
+                               pl_lastmodified == pllastmodified:
+
+                                try:
+                                    pl = (plfilecreated, plfilelastmodified, 
+                                          trackfilecreated, trackfilelastmodified, 
+                                          scannumber, lastscanned,
+                                          pltitle, plfile, trackfile, ploccurs)
+                                    logstring = "UPDATE: " + str(pl)
+                                    filelog.write_verbose_log(logstring)
+                                    c.execute("""update playlists set
+                                                 plfilecreated=?, plfilelastmodified=?, 
+                                                 trackfilecreated=?, trackfilelastmodified=?, 
+                                                 scannumber=?, lastscanned=?
+                                                 where playlist=? and plfile=? and trackfile=? and occurs=?""", 
+                                                 pl)
+                                except sqlite3.Error, e:
+                                    errorstring = "Error updating playlist track details: %s" % e.args[0]
+                                    filelog.write_error(errorstring)
+
+                            else:
+
+                                # create audit records and update master
+                                try:
+                                    # pre                                
+                                    pl = (pl_playlist, 
+                                          pl_plid,
+                                          pl_plfile, pl_trackfile, 
+                                          pl_occurs, pl_track, pl_track_id,
+                                          pl_inserted, pl_created, pl_lastmodified, 
+                                          pl_plfilecreated, pl_plfilelastmodified, 
+                                          pl_trackfilecreated, pl_trackfilelastmodified, 
+                                          scannumber, pl_lastscanned)
+                                    plu = pl + (0, 'U')
+                                    c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", plu)
+                                    # post
+                                    pl = (pltitle,
+                                          plid,
+                                          plfile, trackfile, 
+                                          ploccurs, pltrack, pl_track_id,
+                                          pl_inserted, pl_created, pl_lastmodified,
+                                          plfilecreated, plfilelastmodified, 
+                                          trackfilecreated, trackfilelastmodified, 
+                                          scannumber, lastscanned)
+                                    plu = pl + (1, 'U')
+                                    c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", plu)
+                                    # now update the existing record
+                                    pl = (pltrack, pl_track_id, 
+                                          pl_inserted, pl_created, pl_lastmodified,
+                                          plfilecreated, plfilelastmodified, 
+                                          trackfilecreated, trackfilelastmodified, 
+                                          scannumber, lastscanned,
+                                          pltitle, plfile, trackfile, ploccurs)
+                                    logstring = "Existing playlist track updated: %s" % (trackfile)
+                                    filelog.write_log(logstring)
+                                    logstring = "UPDATE: " + str(pl)
+                                    filelog.write_verbose_log(logstring)
+                                    c.execute("""update playlists set
+                                                 track=?, track_id=?, 
+                                                 inserted=?, created=?, lastmodified=?,
+                                                 plfilecreated=?, plfilelastmodified=?, 
+                                                 trackfilecreated=?, trackfilelastmodified=?, 
+                                                 scannumber=?, lastscanned=?
+                                                 where playlist=? and plfile=? and trackfile=? and occurs=?""", 
+                                                 pl)
+                                except sqlite3.Error, e:
+                                    errorstring = "Error updating playlist track details: %s" % e.args[0]
+                                    filelog.write_error(errorstring)
+
+            except KeyboardInterrupt: 
+                raise
+
+    db.commit()
+
+    # now look for playlist entries for this path that we didn't encounter - they must have been deleted or moved so flag for deletion
+    # we use the playlist filespec to compare against (it's saved against each file in the set)
+    try:
+        scanpathlike = "%s%s" % (scanpath, '%')
+        c2.execute("""select * from playlists where scannumber != ? and plfile like ?""",
+                    (scannumber, scanpathlike))
+        for crow in c2:
+            lastscanned = time.time()
+            # get data
+            pl_playlist, pl_plid, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = crow
+            # check if we have matched a partial path
+            if scanpath != pl_plfile:
+                if pl_plfile[len(scanpath)] != os.sep:
+                    continue
+            # create audit records
+
+            pl = (pl_playlist,
+                  pl_plid,
+                  pl_plfile, pl_trackfile, 
+                  pl_occurs, pl_track, pl_track_id,
+                  pl_inserted, pl_created, pl_lastmodified, 
+                  pl_plfilecreated, pl_plfilelastmodified, 
+                  pl_trackfilecreated, pl_trackfilelastmodified, 
+                  scannumber, pl_lastscanned)
+            # pre
+            pld = pl + (0, 'D')
+            c.execute("""insert into workvirtuals_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pld)
+            # post
+            pld = clearpl(pl, lastscanned=lastscanned)
+            pld += (1, 'D')
+            c.execute("""insert into workvirtuals_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pld)
+            # delete record from tags
+            logstring = "Existing playlist track not found: %s, %s" % (pl_plfile, pl_trackfile)
+            filelog.write_log(logstring)
+            logstring = "DELETE: " + str(pl)
+            filelog.write_verbose_log(logstring)
+            c.execute("""delete from playlists where playlist=? and plfile=? and trackfile=? and occurs=?""", (pl_title, pl_plfile, pl_trackfile, pl_occurs))
+
+    except sqlite3.Error, e:
+        errorstring = "Error processing playlist track deletions: %s" % e.args[0]
+        filelog.write_error(errorstring)
+
+
+    # TODO: we don't process playlists in movetags, so here we're removing redundant audit records
+    # - we need to remove their creation when this is finalised (and remove this code)
+    try:
+        c.execute("""delete from playlists_update""")
+    except sqlite3.Error, e:
+        errorstring = "Error deleting playlists_update entries: %s" % e.args[0]
+        filelog.write_error(errorstring)
+
+
+    db2.commit()
+    db.commit()
+
     # complete
     c.close()
     c2.close()
@@ -1172,6 +1525,23 @@ def get_workvirtual_update(scannumber, database):
         filelog.write_error(errorstring)
     c3.close()
 
+def get_playlist_update(scannumber, database):
+
+    db3 = sqlite3.connect(database)
+    c3 = db3.cursor()
+    # get tag records that have been changed and find all associated playlists
+    try:
+        statement = """select distinct(plfile) from playlists where trackfile in (select distinct(path || "%s" || filename) from tags_update where scannumber=?)""" % (os.sep)
+        c3.execute(statement, (scannumber, ))
+        for crow in c3:
+            plfile, = crow
+            path, spec = os.path.split(plfile)
+            yield path, ['..pl..'], [spec]
+            
+    except sqlite3.Error, e:
+        errorstring = "Error processing track changes against playlists: %s" % e.args[0]
+        filelog.write_error(errorstring)
+    c3.close()
 
 def generate_subset(options, sourcedatabase, targetdatabase, where):
 
@@ -1347,6 +1717,25 @@ def clearwv(wv, lastscanned=''):
           scannumber, lastscanned)
     return wv
 
+def clearpl(pl, lastscanned=''):
+    pltitle, \
+    plid, \
+    plfile, trackfile, \
+    ploccurs, pltrack, plid, \
+    plinserted, plcreated, pllastmodified, \
+    plfilecreated, plfilelastmodified, \
+    trackfilecreated, trackfilelastmodified, \
+    scannumber, lastscanned = pl
+    pl = (pltitle, 
+          plid,
+          plfile, trackfile,
+          ploccurs, '', plid,
+          '', '', '',
+          '', '',
+          '', '', 
+          scannumber, lastscanned)
+    return pl
+
 def encodeunicode(data):
     if isinstance(data, str):
         return unicode(data)
@@ -1472,6 +1861,26 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
                         trackcounts[(wvtitle, ftrack)] += 1    
                         tracks.append(trackdata)
                         wvtrack += 1
+    return tracks
+
+def read_playlistfile(filespec, filepath):
+    '''
+        read a file containing tracks
+        and return a list of track records
+    '''
+    tracks = []
+    trackcounts = defaultdict(int)
+    pltrack = 1
+    for trackcountdata, trackdata in process_workvirtualfile_file(filespec, filepath, 'playlist'):
+#        print "============="
+#        print trackdata
+        if trackdata:
+            ftrack = trackcountdata
+            filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified = trackdata
+            trackdata = (filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified, pltrack, trackcounts[ftrack])
+            trackcounts[ftrack] += 1    
+            tracks.append(trackdata)
+            pltrack += 1
     return tracks
 
 def generate_workvirtualfile_record(filespec, database):
@@ -1733,6 +2142,42 @@ def create_database(database):
             c.execute('''create unique index inxWorkvirtualUpdateScanUpdateId on workvirtuals_update (scannumber, updatetype, title, wvfile, plfile, trackfile, occurs, updateorder)''')
             c.execute('''create index inxWorkvirtualUpdateScannumber on workvirtuals_update (scannumber)''')
 
+        # playlists
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="playlists"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table playlists (playlist text COLLATE NOCASE,
+                                                 id text,
+                                                 plfile text, trackfile text, 
+                                                 occurs text, track text, track_id text,
+                                                 inserted text, created text, lastmodified text,
+                                                 plfilecreated text, plfilelastmodified text,
+                                                 trackfilecreated text, trackfilelastmodified text,
+                                                 scannumber integer, lastscanned text)
+                      ''')
+            c.execute('''create unique index inxPlaylistTrackFiles on playlists (playlist, plfile, trackfile, occurs)''')
+            c.execute('''create index inxPlaylists on playlists (playlist)''')
+#            c.execute('''create index inxPlaylistFiles on playlists (plfile)''')
+            c.execute('''create index inxPlaylistIDs on playlists (id)''')
+            c.execute('''create index inxPlaylistsScannumber on playlists (scannumber)''')
+            
+        # playlists_update - pre and post data from playlists around an update
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="playlists_update"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table playlists_update (playlist text COLLATE NOCASE,
+                                                        id text,
+                                                        plfile text, trackfile text, 
+                                                        occurs text, track text, track_id text,
+                                                        inserted text, created text, lastmodified text,
+                                                        plfilecreated text, plfilelastmodified text,
+                                                        trackfilecreated text, trackfilelastmodified text,
+                                                        scannumber integer, lastscanned text,
+                                                        updateorder integer, updatetype text)
+                      ''')
+            c.execute('''create unique index inxPlaylistUpdateIdScanUpdate on playlists_update (playlist, plfile, trackfile, occurs, scannumber, updateorder)''')
+            c.execute('''create unique index inxPlaylistUpdateScanUpdateId on playlists_update (scannumber, updatetype, playlist, plfile, trackfile, occurs, updateorder)''')
+            c.execute('''create index inxPlaylistUpdateScannumber on playlists_update (scannumber)''')
 
     except sqlite3.Error, e:
         errorstring = "Error creating database: %s : %s" % (database, e)
@@ -1754,6 +2199,11 @@ def delete_updates(database):
         c.execute('''delete from workvirtuals_update''')
     except sqlite3.Error, e:
         errorstring = "Error deleting from workvirtuals_update: %s : %s" % (table, e)
+        filelog.write_error(errorstring)
+    try:
+        c.execute('''delete from playlists_update''')
+    except sqlite3.Error, e:
+        errorstring = "Error deleting from playlists_update: %s : %s" % (table, e)
         filelog.write_error(errorstring)
     db.commit()
     c.close()

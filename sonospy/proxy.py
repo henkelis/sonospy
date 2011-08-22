@@ -953,7 +953,7 @@ class DummyContentDirectory(Service):
     composer_class = 'object.container.person.musicArtist'
     genre_class = 'object.container.person.musicArtist'
     track_class = 'object.container.person.musicArtist'
-#    playlist_class = ''
+    playlist_class = 'object.container.playlistContainer'
 
 
     def __init__(self, proxyaddress, proxy , webserverurl, wmpurl, dbspec, wmpudn):
@@ -1187,9 +1187,17 @@ class DummyContentDirectory(Service):
 
         Service.__init__(self, self.service_name, self.service_type, url_base='', scpd_xml_filepath=self.scpd_xml_path)
 
-        self.updateid = ''
-        self.update_loop = LoopingCall(self.get_updateid)
+        self.containerupdateid = 0
+        self.systemupdateid = 0
+        self.playlistupdateid = 0
+        self.update_loop = LoopingCall(self.get_containerupdateid)
         self.update_loop.start(60.0, now=True)
+#        self.inc_playlistupdateid()
+#        from brisa.core.threaded_call import run_async_function
+#        run_async_function(self.inc_playlistupdateid, (), 10)
+
+
+
 
     def get_delim(self, delimname, default, special, when=None):
         delim = default
@@ -1250,17 +1258,24 @@ class DummyContentDirectory(Service):
         startingIndex = int(kwargs['StartingIndex'])
         requestedCount = int(kwargs['RequestedCount'])
 
-        # TODO: work out whether we need support for anything other than album and track
+        # TODO: work out whether we need support for anything other than album, track and playlist
         if '__' in objectID:
             objectfacets = objectID.split('__')
             objectTable = objectfacets[0]
             objectID = objectfacets[1]
-        try:
-            objectIDval = int(objectID)
-        except ValueError:
-            objectIDval = -1
+        elif len(objectID) == 8:
+            # playlist id is 8 hex chars, everything else will be 10 or more
+            plid = objectID
+            objectIDval = -2
+        else:
+            try:
+                objectIDval = int(objectID)
+            except ValueError:
+                # must be track
+                objectIDval = -1
             
         browsetype = ''
+        log.debug("objectIDval: %s" % objectIDval)
         
         if objectIDval == 0:
             browsetype = 'Root'
@@ -1268,6 +1283,8 @@ class DummyContentDirectory(Service):
             browsetype = 'Album'
         elif objectIDval == -1:
             browsetype = 'Track'
+        elif objectIDval == -2:
+            browsetype = 'Playlist'
         elif objectIDval >= self.artist_parentid and objectIDval <= (self.artist_parentid + self.id_range):
             print "proxy_browse - asked for artist, not supported in code"
         elif objectIDval >= self.contributingartist_parentid and objectIDval <= (self.contributingartist_parentid + self.id_range):
@@ -1276,8 +1293,6 @@ class DummyContentDirectory(Service):
             print "proxy_browse - asked for composer, not supported in code"
         elif objectIDval >= self.genre_parentid and objectIDval <= (self.genre_parentid + self.id_range):
             print "proxy_browse - asked for genre, not supported in code"
-        elif objectIDval >= self.playlist_parentid and objectIDval <= (self.playlist_parentid + self.id_range):
-            print "proxy_browse - asked for playlist, not supported in code yet"
 
         if browsetype == 'Album':
 
@@ -1491,6 +1506,90 @@ class DummyContentDirectory(Service):
                 ret += '</item>'
             ret += '</DIDL-Lite>'
 
+        elif browsetype == 'Playlist':
+
+            ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
+            count = 0
+            statement = '''select * from tracks t join playlists p on t.id = p.track_id
+                           where p.id = '%s' order by p.track limit %d, %d
+                        ''' % (plid, startingIndex, requestedCount)
+            log.debug("statement: %s", statement)
+            c.execute(statement)
+            for row in c:
+#                log.debug("row: %s", row)
+                id, id2, parentID, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+                mime = fixMime(mime)
+                cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
+
+                # TODO: automate mount
+                wsfile = filename
+                wspath = os.path.join(path, filename)
+                path = self.convert_path(path)
+                filepath = path + filename
+                filepath = encode_path(filepath)
+                filepath = escape(filepath, escape_entities)
+                protocol = getProtocol(mime)
+                contenttype = mime
+                filetype = getFileType(filename)
+                
+                transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+                if transcode:
+                    dummyfile = self.dbname + '.' + id + '.' + newtype
+                else:
+                    dummyfile = self.dbname + '.' + id + '.' + filetype
+                res = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+                if transcode:
+                    log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wspath, contenttype, newtype))
+                    dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wspath, newtype, contenttype, cover=cover)
+                    self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+                else:
+                    log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s' % (dummyfile, wsfile, wspath, contenttype))
+                    dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
+                    self.proxy.wmpcontroller.add_static_file(dummystaticfile)
+                
+                if cover != '' and not cover.startswith('EMBEDDED_'):
+                    cvfile = getFile(cover)
+                    cvpath = cover
+                    coverfiletype = getFileType(cvfile)
+                    dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
+                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                    dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
+                    self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+                
+                duration = maketime(float(length))
+
+                if title == '': title = '[unknown title]'
+                if artist == '': artist = '[unknown artist]'
+                else: artist = self.get_artist(artist, self.now_playing_artist, self.now_playing_artist_combiner)
+                if albumartist == '': albumartist = '[unknown albumartist]'
+                else: albumartist = self.get_artist(albumartist, self.now_playing_artist, self.now_playing_artist_combiner)
+                if album == '': album = '[unknown album]'
+#                title = escape(title, escape_entities_quotepos)
+#                artist = escape(artist, escape_entities_quotepos)
+#                albumartist = escape(albumartist, escape_entities_quotepos)
+#                album = escape(album, escape_entities_quotepos)
+                title = escape(title)
+                artist = escape(artist)
+                albumartist = escape(albumartist)
+                album = escape(album)
+                tracknumber = self.convert_tracknumber(tracknumber)
+
+                count += 1
+                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, parentID)
+                ret += '<dc:title>%s</dc:title>' % (title)
+                ret += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (albumartist)
+                ret += '<upnp:artist role="Performer">%s</upnp:artist>' % (artist)
+                ret += '<upnp:album>%s</upnp:album>' % (album)
+                if tracknumber != 0:
+                    ret += '<upnp:originalTrackNumber>%s</upnp:originalTrackNumber>' % (pl_track)
+                ret += '<upnp:class>%s</upnp:class>' % (upnpclass)
+                ret += '<res duration="%s" protocolInfo="%s">%s</res>' % (duration, protocol, res)
+#####                ret += '<desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">%s</desc>' % (self.wmpudn)
+#                if cover != '' and not cover.startswith('EMBEDDED_'):
+#                    ret += '<upnp:albumArtURI>%s</upnp:albumArtURI>' % (coverres)
+                ret += '</item>'
+            ret += '</DIDL-Lite>'
+
         elif browsetype == 'Root':
 
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
@@ -1527,7 +1626,7 @@ class DummyContentDirectory(Service):
         ret = ret.replace(self.webserverurl, self.wmpurl)
 
         log.debug("BROWSE ret: %s", ret)
-        result = {'NumberReturned': str(count), 'UpdateID': self.updateid, 'Result': ret, 'TotalMatches': count}
+        result = {'NumberReturned': str(count), 'UpdateID': self.systemupdateid, 'Result': ret, 'TotalMatches': count}
 
         return result
 
@@ -2883,21 +2982,22 @@ class DummyContentDirectory(Service):
             count = 0
             parentid = '0'
 
-            c.execute("select count(*) from playlists")
+            c.execute("select count(distinct plfile) from playlists")
             totalMatches, = c.fetchone()
             
-            statement = "select * from playlists order by playlist limit %d, %d" % (startingIndex, requestedCount)
+            statement = "select * from playlists group by plfile order by playlist limit %d, %d" % (startingIndex, requestedCount)
             c.execute(statement)
             for row in c:
 #                log.debug("row: %s", row)
-                id, parentID, playlist, path, upnpclass = row
-                id = str(id)
+                playlist, plid, plfile, trackfile, occurs, track, track_id, inserted, created, lastmodified, plfilecreated, plfilelastmodified, trackfilecreated, trackfilelastmodified, scannumber, lastscanned = row
+                id = plid
+                parentid = '13'
                 if playlist == '': playlist = '[unknown playlist]'
                 playlist = escape(playlist)
                 count += 1
                 res += '<container id="%s" parentID="%s" restricted="true">' % (id, parentid)
                 res += '<dc:title>%s</dc:title>' % (playlist)
-                res += '<upnp:class>%s</upnp:class>' % (upnpclass)
+                res += '<upnp:class>%s</upnp:class>' % (self.playlist_class)
                 res += '</container>'
             res += '</DIDL-Lite>'
             
@@ -2914,7 +3014,7 @@ class DummyContentDirectory(Service):
         res = res.replace(self.webserverurl, self.wmpurl)
 
         log.debug("SEARCH res: %s", res)
-        result = {'NumberReturned': str(count), 'UpdateID': self.updateid, 'Result': res, 'TotalMatches': totalMatches}
+        result = {'NumberReturned': str(count), 'UpdateID': self.systemupdateid, 'Result': res, 'TotalMatches': totalMatches}
         log.debug("SEARCH result: %s", result)
 
         log.debug("end: %.3f" % time.time())
@@ -3339,17 +3439,43 @@ class DummyContentDirectory(Service):
         elif table == 'CONTRIBUTINGARTIST_ALBUM':
             return [28, 34]
 
-    def get_updateid(self):
+    def get_containerupdateid(self):
+        # get containerupdateid from db, eventing systemupdateid if necessary
         db = sqlite3.connect(self.dbspec)
         c = db.cursor()
         statement = "select lastscanid from params where key = '1'"
         log.debug("statement: %s", statement)
         c.execute(statement)
         new_updateid, = c.fetchone()
-        if new_updateid != self.updateid:
-            self.updateid = new_updateid
-            self._state_variables['SystemUpdateID'].update(self.updateid)
+        new_updateid = int(new_updateid)
+        if new_updateid != self.containerupdateid:
+            self.containerupdateid = new_updateid
+            self.systemupdateid += 1
+            self._state_variables['SystemUpdateID'].update(self.systemupdateid)
             log.debug("SystemUpdateID value: %s" % self._state_variables['SystemUpdateID'].get_value())
+
+
+    # this method not used at present
+    def inc_playlistupdateid(self):
+        # increment and event playlistupdateid, incrementing and eventing systemupdateid too
+        self.systemupdateid += 1
+        updateid1 = '10,%s' % (self.systemupdateid)
+        self._state_variables['ContainerUpdateIDs'].update(updateid1)
+        self._state_variables['SystemUpdateID'].update(self.systemupdateid)
+        log.debug("ContainerUpdateIDs value: %s" % self._state_variables['ContainerUpdateIDs'].get_value())
+        self.systemupdateid += 1
+        updateid2 = '11,%s' % (self.systemupdateid)
+        self.systemupdateid += 1
+        updateid3 = '13,%s' % (self.systemupdateid)
+        self.systemupdateid += 1
+        updateid4 = 'F,%s' % (self.systemupdateid)
+        updateid = '%s,%s,%s' % (updateid2, updateid3, updateid4)
+        self.playlistupdateid = self.systemupdateid
+        self._state_variables['ContainerUpdateIDs'].update(updateid)
+        self._state_variables['SystemUpdateID'].update(self.systemupdateid)
+        log.debug("ContainerUpdateIDs value: %s" % self._state_variables['ContainerUpdateIDs'].get_value())
+
+
 
     def fixcriteria(self, criteria):
         criteria = criteria.replace('\\"', '"')
@@ -3414,7 +3540,7 @@ class DummyContentDirectory(Service):
         return result
     def soap_GetSystemUpdateID(self, *args, **kwargs):
         log.debug("PROXY_GetSystemUpdateID: %s", kwargs)
-        result = {'Id': self.updateid}
+        result = {'Id': self.systemupdateid}
         return result
 
 def encode_path(path):
