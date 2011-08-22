@@ -109,7 +109,6 @@ class SonospyFrame(wx.Frame):
 #        self.tbicon = BibTaskBarIcon(self)
 #        wx.EVT_TASKBAR_LEFT_UP(self.tbicon, self.OnTaskBarLeftClick)
 #        wx.EVT_TASKBAR_RIGHT_UP(self.tbicon, self.OnClose)
-
         self.Layout()
         self.Show()
         self.Centre()

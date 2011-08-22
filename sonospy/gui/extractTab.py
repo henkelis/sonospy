@@ -41,6 +41,7 @@ from threading import *
 import guiFunctions
 from datetime import datetime
 # import sqlite3
+from wx.lib.pubsub import Publisher
 
 EVT_RESULT_ID = wx.NewId()
 
@@ -391,9 +392,17 @@ class ExtractPanel(wx.Panel):
         EVT_RESULT(self,self.onResult)
         self.worker = None
 
+        Publisher().subscribe(self.setExtractPanel, 'setExtractPanel')
+
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
-        
+
+    def setExtractPanel(self, msg):
+        if msg.data == "Disable":
+            self.Disable()
+        else:
+            self.Enable()
+
     def onResult(self, event):
         """Show Result status."""
         if event.data is None:
@@ -466,6 +475,9 @@ class ExtractPanel(wx.Panel):
             self.ck_ExtractVerbose.Enable()
             self.ck_OverwriteExisting.Enable()
             self.bt_SaveDefaults.Enable()
+            Publisher().sendMessage(('setLaunchPanel'), "Enable")
+            Publisher().sendMessage(('setScanPanel'), "Enable")
+            Publisher().sendMessage(('setVirtualPanel'), "Enable")
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
         else:
             self.bt_Extract.Disable()
@@ -475,6 +487,9 @@ class ExtractPanel(wx.Panel):
             self.ck_ExtractVerbose.Disable()
             self.ck_OverwriteExisting.Disable()
             self.bt_SaveDefaults.Disable()
+            Publisher().sendMessage(('setLaunchPanel'), "Disable")
+            Publisher().sendMessage(('setScanPanel'), "Disable")
+            Publisher().sendMessage(('setVirtualPanel'), "Disable")
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
     def bt_ExtractClick(self, event):

@@ -33,6 +33,7 @@ import subprocess
 from threading import *
 import guiFunctions
 from datetime import datetime
+from wx.lib.pubsub import Publisher
 
 # Define notification event for thread completion
 EVT_RESULT_ID = wx.NewId()
@@ -209,9 +210,16 @@ class ScanPanel(wx.Panel):
         EVT_RESULT(self,self.onResult)
         self.worker = None
 
+        Publisher().subscribe(self.setScanPanel, 'setScanPanel')
 
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
+
+    def setScanPanel(self, msg):
+        if msg.data == "Disable":
+            self.Disable()
+        else:
+            self.Enable()
 
     def onResult(self, event):
         """Show Result status."""
@@ -358,6 +366,9 @@ class ScanPanel(wx.Panel):
             self.bt_SaveDefaults.Enable()
 #            self.bt_INI.Enable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
+            Publisher().sendMessage(('setLaunchPanel'), "Enable")
+            Publisher().sendMessage(('setExtractPanel'), "Enable")
+            Publisher().sendMessage(('setVirtualPanel'), "Enable")
         else:
             self.bt_FoldersToScanAdd.Disable()
             self.bt_FoldersToScanClear.Disable()
@@ -368,6 +379,10 @@ class ScanPanel(wx.Panel):
             self.ck_ScanVerbose.Disable()
             self.bt_SaveDefaults.Disable()
 #            self.bt_INI.Disable()
+            Publisher().sendMessage(('setLaunchPanel'), "Disable")
+            Publisher().sendMessage(('setExtractPanel'), "Disable")
+            Publisher().sendMessage(('setVirtualPanel'), "Disable")
+
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
     def bt_ScanUpdateClick(self, event):
