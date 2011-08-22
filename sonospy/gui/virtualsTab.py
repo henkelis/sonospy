@@ -32,7 +32,7 @@ import os
 import subprocess
 from threading import *
 import guiFunctions
-
+from wx.lib.pubsub import Publisher
 
 class VirtualsPanel(wx.Panel):
     """
@@ -224,8 +224,18 @@ class VirtualsPanel(wx.Panel):
         self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
         sizer.Add(self.bt_SaveDefaults, pos=(xIndex,4), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
+        Publisher().subscribe(self.setVirtualPanel, 'setVirtualPanel')
+
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
+
+
+
+    def setVirtualPanel(self, msg):
+        if msg.data == "Disable":
+            self.Disable()
+        else:
+            self.Enable()
 
     def bt_FoldersToScanAddClick(self, event):
         dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE)

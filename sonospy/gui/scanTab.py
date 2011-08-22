@@ -24,18 +24,16 @@
 ###############################################################################
 # TODO:
 # - Disable other notebook tabs
-# - Add scratchpad?
-# - Cumulative time in statusbar?
 ###############################################################################
 
 import wx
 from wxPython.wx import *
 import os
-import sys
 import subprocess
 from threading import *
 import guiFunctions
 from datetime import datetime
+from wx.lib.pubsub import Publisher
 
 # Define notification event for thread completion
 EVT_RESULT_ID = wx.NewId()
@@ -207,18 +205,21 @@ class ScanPanel(wx.Panel):
         self.LogWindow.SetInsertionPoint(0)
         sizer.Add(self.LogWindow, pos=(xIndex,0), span=(1,6), flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
         xIndex += 1
-# DEBUG ------------------------------------------------------------------------
-# self.multiText.Value = "~/Network/Music/Weezer\n"
-# self.multiText.Value += "~/Network/Music/Yuck"
-# ------------------------------------------------------------------------------
 
         # Indicate we don't have a worker thread yet
         EVT_RESULT(self,self.onResult)
         self.worker = None
 
+        Publisher().subscribe(self.setScanPanel, 'setScanPanel')
 
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
+
+    def setScanPanel(self, msg):
+        if msg.data == "Disable":
+            self.Disable()
+        else:
+            self.Enable()
 
     def onResult(self, event):
         """Show Result status."""
@@ -228,20 +229,22 @@ class ScanPanel(wx.Panel):
             calcdTime = endTime - startTime
 
             self.LogWindow.AppendText("\n[ Job Complete ] (Duration: " + str(calcdTime)[:-4] +")\n\n")
-            guiFunctions.statusText(self, "Job Complete...")
+            guiFunctions.statusText(self, "[ Job Complete ] (Duration: " + str(calcdTime)[:-4] + ")")
             self.setButtons(True)
         else:
             # Process results here
+            endTime = datetime.now()
+            calcdTime = endTime - startTime
+
+            guiFunctions.statusText(self, "(Duration: " + str(calcdTime)[:-4] +")")
+
             self.LogWindow.AppendText(event.data)
 
         # In either event, the worker is done
         self.worker = None
-        guiFunctions.statusText(self, "")
+#        guiFunctions.statusText(self, "")
 
     def bt_ScanRepairClick(self, event):
-# DEBUG ------------------------------------------------------------------------
-# self.tc_MainDatabase.Value = "test.db"
-# ------------------------------------------------------------------------------
         global scanCMD
         global startTime
         
@@ -270,7 +273,7 @@ class ScanPanel(wx.Panel):
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -r"
             startTime = datetime.now()
             self.LogWindow.AppendText("[ Starting Repair ] (" + startTime.strftime("%T") + ")\n\n")
-            guiFunctions.statusText(self, "Running Repair...")
+            guiFunctions.statusText(self, "[ Repair Started ]")
 
             if not self.worker:
                 self.worker = WorkerThread(self)
@@ -352,7 +355,6 @@ class ScanPanel(wx.Panel):
         """
         Toggle for the button states.
         """
-
         if state == True:
             self.bt_FoldersToScanAdd.Enable()
             self.bt_FoldersToScanClear.Enable()
@@ -364,6 +366,9 @@ class ScanPanel(wx.Panel):
             self.bt_SaveDefaults.Enable()
 #            self.bt_INI.Enable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
+            Publisher().sendMessage(('setLaunchPanel'), "Enable")
+            Publisher().sendMessage(('setExtractPanel'), "Enable")
+            Publisher().sendMessage(('setVirtualPanel'), "Enable")
         else:
             self.bt_FoldersToScanAdd.Disable()
             self.bt_FoldersToScanClear.Disable()
@@ -374,10 +379,13 @@ class ScanPanel(wx.Panel):
             self.ck_ScanVerbose.Disable()
             self.bt_SaveDefaults.Disable()
 #            self.bt_INI.Disable()
+            Publisher().sendMessage(('setLaunchPanel'), "Disable")
+            Publisher().sendMessage(('setExtractPanel'), "Disable")
+            Publisher().sendMessage(('setVirtualPanel'), "Disable")
+
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
     def bt_ScanUpdateClick(self, event):
-
         if os.name == 'nt':
             cmdroot = 'python '
         else:
@@ -446,7 +454,7 @@ class ScanPanel(wx.Panel):
         guiFunctions.configWrite(section, "database", self.tc_MainDatabase.Value)
 
         # INI Setting
-        guiFunctions.configWrite(section, "inioverride", self.tc_INI.Value)
+#        guiFunctions.configWrite(section, "inioverride", self.tc_INI.Value)
         
         # Folder setting, comma delineate multiple folder entries
         folders = ""

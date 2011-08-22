@@ -39,6 +39,7 @@ from wxPython.wx import *
 import os
 import subprocess
 import guiFunctions
+from wx.lib.pubsub import Publisher
 
 list_checkboxID = []
 list_checkboxLabel = []
@@ -456,16 +457,23 @@ class LaunchPanel(wx.Panel):
         self.tc_DB7.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB7)
         self.tc_DB8.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB8)
 
+        Publisher().subscribe(self.setLaunchPanel, 'setLaunchPanel')
+
         panel.Refresh()
         panel.Update()
         
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
-        self.populateMe()
+        # self.populateMe()
         self.buildLaunch()
 
-        
+    def setLaunchPanel(self, msg):
+        if msg.data == "Disable":
+            self.Disable()
+        else:
+            self.Enable()
+            
     def browseDB(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
