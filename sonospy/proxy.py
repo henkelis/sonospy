@@ -1263,7 +1263,7 @@ class DummyContentDirectory(Service):
             objectfacets = objectID.split('__')
             objectTable = objectfacets[0]
             objectID = objectfacets[1]
-        elif len(objectID) == 8:
+        if len(objectID) == 8:
             # playlist id is 8 hex chars, everything else will be 10 or more
             plid = objectID
             objectIDval = -2
@@ -1332,18 +1332,29 @@ class DummyContentDirectory(Service):
 #                               and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=%s and n.dummyalbum="%s"
 #                               order by t.discnumber, n.tracknumber, t.title''' % (where, album_type, album_title)
 
+                countstatement = '''
+                                    select count(*) from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                   (select track_id from TrackNumbers where %s)
+                                    and n.albumtype=%s and n.dummyalbum="%s"
+                                 ''' % (where, album_type, album_title)
+                c.execute(countstatement)
+                totalMatches, = c.fetchone()
+
                 statement = '''
                                 select * from tracks t join tracknumbers n on t.id = n.track_id where id in
                                (select track_id from TrackNumbers where %s)
                                 and n.albumtype=%s and n.dummyalbum="%s"
-                                order by n.tracknumber, t.title
-                            ''' % (where, album_type, album_title)
+                                order by n.tracknumber, t.title limit %d, %d
+                            ''' % (where, album_type, album_title, startingIndex, requestedCount)
 
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             else:
                 # is a normal album            
-                statement = "select * from tracks where %s order by discnumber, tracknumber, title" % (where)
+                countstatement = "select count(*) from tracks where %s" % (where)
+                c.execute(countstatement)
+                totalMatches, = c.fetchone()
+                statement = "select * from tracks where %s order by discnumber, tracknumber, title limit %d, %d" % (where, startingIndex, requestedCount)
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             for row in c:
@@ -1428,6 +1439,10 @@ class DummyContentDirectory(Service):
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
 
+            countstatement = "select count(*) from tracks where id = '%s'" % (objectID)
+            c.execute(countstatement)
+            totalMatches, = c.fetchone()
+
             statement = "select * from tracks where id = '%s'" % (objectID)
             log.debug("statement: %s", statement)
             c.execute(statement)
@@ -1510,6 +1525,13 @@ class DummyContentDirectory(Service):
 
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
+
+            countstatement = '''select count(*) from tracks t join playlists p on t.id = p.track_id
+                                where p.id = '%s'
+                             ''' % plid
+            c.execute(countstatement)
+            totalMatches, = c.fetchone()
+            
             statement = '''select * from tracks t join playlists p on t.id = p.track_id
                            where p.id = '%s' order by p.track limit %d, %d
                         ''' % (plid, startingIndex, requestedCount)
@@ -1613,12 +1635,14 @@ class DummyContentDirectory(Service):
 
             ret += '</DIDL-Lite>'
             count = 7
+            totalMatches = 7
 
         elif browsetype == '':
 
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             ret += '</DIDL-Lite>'
             count = 0
+            totalMatches = 0
 
         c.close()
 
@@ -1626,7 +1650,7 @@ class DummyContentDirectory(Service):
         ret = ret.replace(self.webserverurl, self.wmpurl)
 
         log.debug("BROWSE ret: %s", ret)
-        result = {'NumberReturned': str(count), 'UpdateID': self.systemupdateid, 'Result': ret, 'TotalMatches': count}
+        result = {'NumberReturned': str(count), 'UpdateID': self.systemupdateid, 'Result': ret, 'TotalMatches': str(totalMatches)}
 
         return result
 
