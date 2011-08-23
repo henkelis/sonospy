@@ -21,6 +21,7 @@
 # Author: Mark Henkelis <mark.henkelis@tesco.net>
 
 import os, sys
+import re
 import locale
 import time
 import traceback
@@ -792,10 +793,6 @@ def process_dir(scanpath, options, database):
         errorstring = "Error creating temporary playlist table: %s" % e.args[0]
         filelog.write_error(errorstring)
 
-
-
-
-
     # now process works and virtuals - processing the generator first
     for filepath, dirs, files in itertools.chain(workvirtual_updates, os.walk(scanpath)):
 
@@ -1474,17 +1471,17 @@ def process_dir(scanpath, options, database):
                   scannumber, pl_lastscanned)
             # pre
             pld = pl + (0, 'D')
-            c.execute("""insert into workvirtuals_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pld)
+            c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pld)
             # post
             pld = clearpl(pl, lastscanned=lastscanned)
             pld += (1, 'D')
-            c.execute("""insert into workvirtuals_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pld)
+            c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pld)
             # delete record from tags
             logstring = "Existing playlist track not found: %s, %s" % (pl_plfile, pl_trackfile)
             filelog.write_log(logstring)
             logstring = "DELETE: " + str(pl)
             filelog.write_verbose_log(logstring)
-            c.execute("""delete from playlists where playlist=? and plfile=? and trackfile=? and occurs=?""", (pl_title, pl_plfile, pl_trackfile, pl_occurs))
+            c.execute("""delete from playlists where playlist=? and plfile=? and trackfile=? and occurs=?""", (pl_playlist, pl_plfile, pl_trackfile, pl_occurs))
 
     except sqlite3.Error, e:
         errorstring = "Error processing playlist track deletions: %s" % e.args[0]
@@ -1813,7 +1810,10 @@ workvirtualkeys = {
     'created=': 'wvcreated',
     'lastmodified=': 'wvlastmodified'}
 
-playlist_extensions = ['.m3u', '.m3u8']
+m3u_playlist_extensions = ['.m3u', '.m3u8']
+pls_playlist_extensions = ['.pls']
+wpl_playlist_extensions = ['.wpl']
+playlist_extensions = m3u_playlist_extensions + pls_playlist_extensions + wpl_playlist_extensions
 
 def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
     '''
@@ -1960,13 +1960,37 @@ def process_workvirtualfile_file(filespec, wvfilepath, wvtype):
         yield trackcountdata, trackdata
 
 def read_playlist(filespec, extension):
+    if extension in m3u_playlist_extensions:
+        return read_m3u_playlist(filespec)
+    if extension in pls_playlist_extensions:
+        return read_pls_playlist(filespec)
+    if extension in wpl_playlist_extensions:
+        return read_wpl_playlist(filespec)
+
+def read_m3u_playlist(filespec):
     tracks = []
-    if extension in playlist_extensions:
-        for line in codecs.open(filespec,'r','utf-8'):
-            if line == '': continue
-            if line.startswith('#'): continue
-            if line.strip() == '': continue
-            filespec = line.strip()
+    for line in codecs.open(filespec,'r','utf-8'):
+        if line == '': continue
+        if line.startswith('#'): continue
+        if line.strip() == '': continue
+        filespec = line.strip()
+        if check_workvirtual_file(filespec):
+            ff, ex = os.path.splitext(filespec.lower())
+            if ex in playlist_extensions:
+                # we don't support nested playlists, reject the playlist line
+                errorstring = "Error processing playlist: %s : nested playlists are not supported" % (filespec)
+                filelog.write_error(errorstring)
+                continue
+            tracks.append(filespec)
+    return tracks
+
+def read_pls_playlist(filespec):
+    tracks = []
+    for line in codecs.open(filespec,'r','utf-8'):
+        # Note - currently only looks for 'fileN=' lines (so ignores 'titleN=')
+        line = line.strip()
+        if re.match('file[0-9]+=', line, re.I):
+            filespec = line[line.find('=')+1:]
             if check_workvirtual_file(filespec):
                 ff, ex = os.path.splitext(filespec.lower())
                 if ex in playlist_extensions:
@@ -1975,6 +1999,28 @@ def read_playlist(filespec, extension):
                     filelog.write_error(errorstring)
                     continue
                 tracks.append(filespec)
+    return tracks
+
+def read_wpl_playlist(filespec):
+    tracks = []
+    for line in codecs.open(filespec,'r','utf-8'):
+        # Note - currently only looks for '<media src="' lines (so ignores '<title>')
+        # TODO: consider XML reader
+        line = line.strip()
+        if re.match('<media[\s]+src=["\']', line, re.I):
+            quotepos = line.find('=') + 1
+            quotechar = line[quotepos:quotepos+1]
+            quotepos2 = line.rfind(quotechar)
+            if quotepos2 > quotepos + 1:
+                filespec = line[quotepos+1:quotepos2]
+                if check_workvirtual_file(filespec):
+                    ff, ex = os.path.splitext(filespec.lower())
+                    if ex in playlist_extensions:
+                        # we don't support nested playlists, reject the playlist line
+                        errorstring = "Error processing playlist: %s : nested playlists are not supported" % (filespec)
+                        filelog.write_error(errorstring)
+                        continue
+                    tracks.append(filespec)
     return tracks
 
 def get_workvirtual_track_details(trackpath, trackfile, database):
