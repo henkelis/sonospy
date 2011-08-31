@@ -333,17 +333,17 @@ def process_dir(scanpath, options, database):
                         tags['bitrate'] = kind.info.bitrate             # bps
                         tags['mime'] = kind.mime[0]
 
-#                    elif isinstance(kind, mutagen.easymp4.EasyMP4):
-#                        if kind.tags:
-#                            tags.update(kind.tags)
-#                        # assume these attributes exist (note these will overwrite kind.tags)
-#                        tags['type'] = 'MPEG-4 audio'
-#                        tags['length'] = kind.info.length               # seconds
-#                        tags['sample_rate'] = kind.info.sample_rate     # Hz
-#                        tags['bits_per_sample'] = kind.info.bits_per_sample     # bps
-#                        tags['channels'] = kind.info.channels
-#                        tags['bitrate'] = kind.info.bitrate             # bps
-#                        tags['mime'] = kind.mime[0]
+                    elif isinstance(kind, mutagen.easymp4.EasyMP4):
+                        if kind.tags:
+                            tags.update(kind.tags)
+                        # assume these attributes exist (note these will overwrite kind.tags)
+                        tags['type'] = 'MPEG-4 audio'
+                        tags['length'] = kind.info.length               # seconds
+                        tags['sample_rate'] = kind.info.sample_rate     # Hz
+                        tags['bits_per_sample'] = kind.info.bits_per_sample     # bps
+                        tags['channels'] = kind.info.channels
+                        tags['bitrate'] = kind.info.bitrate             # bps
+                        tags['mime'] = kind.mime[0]
 
                     elif isinstance(kind, mutagen.asf.ASF):
                         picture, trackart_offset, trackart_length = kind.get_picture()
@@ -450,7 +450,6 @@ def process_dir(scanpath, options, database):
                         channels = tags['channels'] if 'channels' in tags.keys() else ''
                         samplerate = tags['sample_rate'] if 'sample_rate' in tags.keys() else ''
                         mime = tags['mime']
-                        upnpclass = 'object.item.audioItem.musicTrack'
                 
                 currenttime = time.time()
                 inserted = currenttime
@@ -523,7 +522,7 @@ def process_dir(scanpath, options, database):
                                                 o_folderart, o_trackart,  \
                                                 o_bitrate, o_samplerate,  \
                                                 o_bitspersample, o_channels, o_mime,  \
-                                                o_lastmodified, o_upnpclass, o_scannumber,  \
+                                                o_lastmodified, o_scannumber,  \
                                                 o_folderartid, o_trackartid,  \
                                                 o_inserted, o_lastscanned = crow
                                                 # create audit records
@@ -537,7 +536,7 @@ def process_dir(scanpath, options, database):
                                                         o_folderart, o_trackart, 
                                                         o_bitrate, o_samplerate, 
                                                         o_bitspersample, o_channels, o_mime, 
-                                                        o_lastmodified, o_upnpclass, scannumber,
+                                                        o_lastmodified, scannumber,
                                                         o_folderartid, o_trackartid,
                                                         o_inserted, o_lastscanned)
                                                 # check whether the duplicate we are deleting was created on this scan
@@ -555,11 +554,11 @@ def process_dir(scanpath, options, database):
                                                 if dupauditdelete:
                                                     # pre
                                                     dtags = tags + (0, 'D')
-                                                    c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
+                                                    c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
                                                     # post
                                                     dtags = cleartags(tags, lastscanned=lastscanned)
                                                     dtags += (1, 'D')
-                                                    c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
+                                                    c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
                                                 # delete record from tags
                                                 logstring = "Duplicate file replaced: %s, %s" % (o_filename, o_path)
                                                 filelog.write_log(logstring)
@@ -598,22 +597,22 @@ def process_dir(scanpath, options, database):
                                         folderart, trackart,
                                         bitrate, samplerate, 
                                         bitspersample, channels, mime, 
-                                        lastmodified, upnpclass, scannumber,
+                                        lastmodified, scannumber,
                                         folderartid, trackartid,
                                         inserted, lastscanned)
                                 logstring = "New file found: %s, %s" % (filename, path)
                                 filelog.write_log(logstring)
                                 logstring = "INSERT: " + str(tags)
                                 filelog.write_verbose_log(logstring)
-                                c.execute("""insert into tags values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", tags)
+                                c.execute("""insert into tags values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", tags)
                                 # create audit records
                                 # pre
                                 itags = cleartags(tags)
                                 itags += (0, 'I')
-                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", itags)
+                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", itags)
                                 # post
                                 tags += (1, 'I')
-                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", tags)
+                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", tags)
                             else:
                                 # track exists, get data
                                 o_id, o_id2, o_title, o_artist, o_album, \
@@ -625,7 +624,7 @@ def process_dir(scanpath, options, database):
                                 o_folderart, o_trackart,  \
                                 o_bitrate, o_samplerate, \
                                 o_bitspersample, o_channels, o_mime, \
-                                o_lastmodified, o_upnpclass, o_scannumber,  \
+                                o_lastmodified, o_scannumber,  \
                                 o_folderartid, o_trackartid,  \
                                 o_inserted, o_lastscanned = crow
 
@@ -642,11 +641,11 @@ def process_dir(scanpath, options, database):
                                         o_folderart, o_trackart, 
                                         o_bitrate, o_samplerate, 
                                         o_bitspersample, o_channels, o_mime, 
-                                        o_lastmodified, o_upnpclass, scannumber,
+                                        o_lastmodified, scannumber,
                                         o_folderartid, o_trackartid,
                                         o_inserted, o_lastscanned)
                                 tags += (0, 'U')
-                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", tags)
+                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", tags)
                                 # create new id2 in case attribs have changed
                                 tagspec = title + album + artist + track
                                 tagspec = tagspec.encode(enc, 'replace')
@@ -664,11 +663,11 @@ def process_dir(scanpath, options, database):
                                         folderart, trackart, 
                                         bitrate, samplerate, 
                                         bitspersample, channels, mime, 
-                                        lastmodified, o_upnpclass, scannumber, 
+                                        lastmodified, scannumber, 
                                         folderartid, trackartid,
                                         o_inserted, lastscanned)
                                 tags += (1, 'U')
-                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", tags)
+                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", tags)
                                 # now update the existing record
                                 tags = (tid, title, artist, album,
                                         genre, str(track), year,
@@ -728,7 +727,7 @@ def process_dir(scanpath, options, database):
             o_folderart, o_trackart,  \
             o_bitrate, o_samplerate,  \
             o_bitspersample, o_channels, o_mime,  \
-            o_lastmodified, o_upnpclass, o_scannumber,  \
+            o_lastmodified, o_scannumber,  \
             o_folderartid, o_trackartid,  \
             o_inserted, o_lastscanned = crow
             # check if we have matched a partial path
@@ -746,12 +745,12 @@ def process_dir(scanpath, options, database):
                     o_folderart, o_trackart, 
                     o_bitrate, o_samplerate, 
                     o_bitspersample, o_channels, o_mime, 
-                    o_lastmodified, o_upnpclass, scannumber,
+                    o_lastmodified, scannumber,
                     o_folderartid, o_trackartid,
                     o_inserted, o_lastscanned)
             # pre
             dtags = tags + (0, 'D')
-            c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
+            c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
             # post
             dtags = cleartags(tags, lastscanned=lastscanned)
             dtags += (1, 'D')
@@ -799,7 +798,7 @@ def process_dir(scanpath, options, database):
         if type(filepath) == 'str': filepath = filepath.decode(enc, 'replace')
         if type(dirs) == 'str': dirs = [d.decode(enc, 'replace') for d in dirs]
         if type(files) == 'str': files = [f.decode(enc, 'replace') for f in files]
-        
+
         dont_process = False
         if options.exclude:
             for ex in options.exclude:
@@ -807,6 +806,8 @@ def process_dir(scanpath, options, database):
                     dont_process = True
         if dont_process:
             continue
+        
+        print "**** FILEPATH: %s" % filepath
         
         files.sort()
 
@@ -820,6 +821,8 @@ def process_dir(scanpath, options, database):
                     errorstring = "Track changed but unable to access workvirtual file: %s" % (ffn)
                     filelog.write_error(errorstring)
                 continue
+
+            print "**** FFN: %s" % ffn
 
             try:
             
@@ -859,15 +862,52 @@ def process_dir(scanpath, options, database):
                 #     tracknumber for file in workvirtual/playlist has changed
                 # all these changes can result in a track change, which is what we track
 
+                prev_wvnumber = 0
                 for workvirtualtrack in workvirtualtracks:
 
 #                    print "----workvirtualtrack----"
 #                    print workvirtualtrack
 #                    print
 
-                    wvfile, wvfilecreated, wvfilelastmodified, plfile, plfilecreated, plfilelastmodified, trackfile, trackfilecreated, trackfilelastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvtrack, wvgenre, wvcover, wvdiscnumber, wvoccurs, wvinserted, wvcreated, wvlastmodified = workvirtualtrack
+                    wvnumber, wvfile, wvfilecreated, wvfilelastmodified, plfile, plfilecreated, plfilelastmodified, trackfile, trackfilecreated, trackfilelastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvgenre, wvcover, wvdiscnumber, wvoccurs, wvinserted, wvcreated, wvlastmodified = workvirtualtrack
+
+                    # check whether we have a new workvirtual (there can be more than one in a file)
+                    if wvnumber != prev_wvnumber:
+                        wvtrack = 0
+                        prev_wvnumber = wvnumber
 
                     # check if any details have changed for this file/playlist/track
+
+                    # find the track that this relates to
+                    tr_trackpath, tr_trackfile = os.path.split(trackfile)
+                    try:
+                        c.execute("""select * from tags where path=? and filename=?""", (tr_trackpath, tr_trackfile))
+                        crow = c.fetchone()
+                    except sqlite3.Error, e:
+                        errorstring = "Error getting tags details: %s" % e.args[0]
+                        filelog.write_error(errorstring)
+                    if not crow:
+                        # this track does not exist, reject the work/virtual record
+                        errorstring = "Error processing %s: %s : %s : %s : track does not exist in database" % (wvtype, wvfile, plfile, trackfile)
+                        filelog.write_error(errorstring)
+                        continue
+                    # get track data
+                    tr_id, tr_id2, tr_title, tr_artist, tr_album, \
+                    tr_genre, tr_track, tr_year, \
+                    tr_albumartist, tr_composer, tr_codec,  \
+                    tr_length, tr_size,  \
+                    tr_created, tr_path, tr_filename,  \
+                    tr_discnumber, tr_comment,  \
+                    tr_folderart, tr_trackart,  \
+                    tr_bitrate, tr_samplerate, \
+                    tr_bitspersample, tr_channels, tr_mime, \
+                    tr_lastmodified, tr_scannumber,  \
+                    tr_folderartid, tr_trackartid,  \
+                    tr_inserted, tr_lastscanned = crow
+
+                    wvtrack += 1
+
+#check - how does a track that doesn't match occurs get deleted - presumably as it doesn't get its scannumber updated?
 
                     wv_change = None
                     try:
@@ -917,49 +957,20 @@ def process_dir(scanpath, options, database):
 
                     else:
                         # either we have a change or it's a new workvirtual track
-                        # find the track that this relates to
-
-                        tr_trackpath, tr_trackfile = os.path.split(trackfile)
-                        try:
-                            c.execute("""select * from tags where path=? and filename=?""", (tr_trackpath, tr_trackfile))
-                            crow = c.fetchone()
-                        except sqlite3.Error, e:
-                            errorstring = "Error getting tags details: %s" % e.args[0]
-                            filelog.write_error(errorstring)
-                        if not crow:
-                            # this track does not exist, reject the work/virtual record
-                            errorstring = "Error processing %s: %s : %s : %s : track does not exist in database" % (wvtype, wvfile, plfile, trackfile)
-                            filelog.write_error(errorstring)
-                            continue
-                            
-                        else:
-
-                            # track exists, get data
-                            tr_id, tr_id2, tr_title, tr_artist, tr_album, \
-                            tr_genre, tr_track, tr_year, \
-                            tr_albumartist, tr_composer, tr_codec,  \
-                            tr_length, tr_size,  \
-                            tr_created, tr_path, tr_filename,  \
-                            tr_discnumber, tr_comment,  \
-                            tr_folderart, tr_trackart,  \
-                            tr_bitrate, tr_samplerate, \
-                            tr_bitspersample, tr_channels, tr_mime, \
-                            tr_lastmodified, tr_upnpclass, tr_scannumber,  \
-                            tr_folderartid, tr_trackartid,  \
-                            tr_inserted, tr_lastscanned = crow
-                            # set fields based on workvirtual content
-                            wvtitle = checktag(wvtitle, tr_title)
-                            wvartist = checktag(wvartist, tr_artist)
-                            wvalbumartist = checktag(wvalbumartist, tr_albumartist)
-                            wvcomposer = checktag(wvcomposer, tr_composer)
-                            wvyear = checktag(wvyear, tr_year)
-                            wvgenre = checktag(wvgenre, tr_genre)
-                            # TODO: decide how to process art
-                            wvcover = checktag(wvcover, tr_folderart)
-                            wvdiscnumber = checktag(wvdiscnumber, tr_discnumber)
-                            wvinserted = checktag(wvinserted, tr_inserted)
-                            wvcreated = checktag(wvcreated, tr_created)
-                            wvlastmodified = checktag(wvlastmodified, tr_lastmodified)
+                           
+                        # set fields based on workvirtual content
+                        wvtitle = checktag(wvtitle, tr_title)
+                        wvartist = checktag(wvartist, tr_artist)
+                        wvalbumartist = checktag(wvalbumartist, tr_albumartist)
+                        wvcomposer = checktag(wvcomposer, tr_composer)
+                        wvyear = checktag(wvyear, tr_year)
+                        wvgenre = checktag(wvgenre, tr_genre)
+                        # TODO: decide how to process art
+                        wvcover = checktag(wvcover, tr_folderart)
+                        wvdiscnumber = checktag(wvdiscnumber, tr_discnumber)
+                        wvinserted = checktag(wvinserted, tr_inserted)
+                        wvcreated = checktag(wvcreated, tr_created)
+                        wvlastmodified = checktag(wvlastmodified, tr_lastmodified)
 
                         # process the track
 
@@ -1316,7 +1327,7 @@ def process_dir(scanpath, options, database):
                             tr_folderart, tr_trackart,  \
                             tr_bitrate, tr_samplerate, \
                             tr_bitspersample, tr_channels, tr_mime, \
-                            tr_lastmodified, tr_upnpclass, tr_scannumber,  \
+                            tr_lastmodified, tr_scannumber,  \
                             tr_folderartid, tr_trackartid,  \
                             tr_inserted, tr_lastscanned = crow
 
@@ -1330,7 +1341,7 @@ def process_dir(scanpath, options, database):
                                 pl = (pltitle,
                                       plid, 
                                       plfile, trackfile, 
-                                      ploccurs, pltrack, tr_id, 
+                                      ploccurs, pltrack, tr_id, 0, 
                                       tr_inserted, tr_created, tr_lastmodified,
                                       plfilecreated, plfilelastmodified, 
                                       trackfilecreated, trackfilelastmodified, 
@@ -1339,14 +1350,14 @@ def process_dir(scanpath, options, database):
                                 filelog.write_log(logstring)
                                 logstring = "INSERT: " + str(pl)
                                 filelog.write_verbose_log(logstring)
-                                c.execute("""insert into playlists values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pl)
+                                c.execute("""insert into playlists values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pl)
                                 # pre                                
                                 ipl = clearpl(pl)
                                 ipl += (0, 'I')
-                                c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", ipl)
+                                c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", ipl)
                                 # post
                                 ipl = pl + (1, 'I')
-                                c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", ipl)
+                                c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", ipl)
                             except sqlite3.Error, e:
                                 errorstring = "Error inserting playlist track details: %s" % e.args[0]
                                 filelog.write_error(errorstring)
@@ -1399,24 +1410,24 @@ def process_dir(scanpath, options, database):
                                     pl = (pl_playlist, 
                                           pl_plid,
                                           pl_plfile, pl_trackfile, 
-                                          pl_occurs, pl_track, pl_track_id,
+                                          pl_occurs, pl_track, pl_track_id, 0,
                                           pl_inserted, pl_created, pl_lastmodified, 
                                           pl_plfilecreated, pl_plfilelastmodified, 
                                           pl_trackfilecreated, pl_trackfilelastmodified, 
                                           scannumber, pl_lastscanned)
                                     plu = pl + (0, 'U')
-                                    c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", plu)
+                                    c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", plu)
                                     # post
                                     pl = (pltitle,
                                           plid,
                                           plfile, trackfile, 
-                                          ploccurs, pltrack, pl_track_id,
+                                          ploccurs, pltrack, pl_track_id, 0,
                                           pl_inserted, pl_created, pl_lastmodified,
                                           plfilecreated, plfilelastmodified, 
                                           trackfilecreated, trackfilelastmodified, 
                                           scannumber, lastscanned)
                                     plu = pl + (1, 'U')
-                                    c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", plu)
+                                    c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", plu)
                                     # now update the existing record
                                     pl = (pltrack, pl_track_id, 
                                           pl_inserted, pl_created, pl_lastmodified,
@@ -1454,7 +1465,7 @@ def process_dir(scanpath, options, database):
         for crow in c2:
             lastscanned = time.time()
             # get data
-            pl_playlist, pl_plid, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = crow
+            pl_playlist, pl_plid, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = crow
             # check if we have matched a partial path
             if scanpath != pl_plfile:
                 if pl_plfile[len(scanpath)] != os.sep:
@@ -1464,18 +1475,19 @@ def process_dir(scanpath, options, database):
             pl = (pl_playlist,
                   pl_plid,
                   pl_plfile, pl_trackfile, 
-                  pl_occurs, pl_track, pl_track_id,
+                  pl_occurs, pl_track, pl_track_id, 
+                  pl_track_rowid,
                   pl_inserted, pl_created, pl_lastmodified, 
                   pl_plfilecreated, pl_plfilelastmodified, 
                   pl_trackfilecreated, pl_trackfilelastmodified, 
                   scannumber, pl_lastscanned)
             # pre
             pld = pl + (0, 'D')
-            c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pld)
+            c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pld)
             # post
             pld = clearpl(pl, lastscanned=lastscanned)
             pld += (1, 'D')
-            c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pld)
+            c.execute("""insert into playlists_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", pld)
             # delete record from tags
             logstring = "Existing playlist track not found: %s, %s" % (pl_plfile, pl_trackfile)
             filelog.write_log(logstring)
@@ -1496,8 +1508,23 @@ def process_dir(scanpath, options, database):
         errorstring = "Error deleting playlists_update entries: %s" % e.args[0]
         filelog.write_error(errorstring)
 
+    # update stats
+    try:
+        c.execute("""analyze""")
+    except sqlite3.Error, e:
+        errorstring = "Error updating stats: %s" % e.args[0]
+        filelog.write_error(errorstring)
 
     db2.commit()
+    db.commit()
+
+    # update stats
+    try:
+        c.execute("""analyze""")
+    except sqlite3.Error, e:
+        errorstring = "Error updating stats: %s" % e.args[0]
+        filelog.write_error(errorstring)
+
     db.commit()
 
     # complete
@@ -1591,7 +1618,7 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
                        '', '', 
                        '', '',
                        '', '', '', 
-                       '', '', '%s',
+                       '', '%s',
                        '', '', 
                        '', '%f',
                        '0', 'I' from tags""" % (scannumber, lastscanned)
@@ -1607,7 +1634,7 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
                        folderart, trackart, 
                        bitrate, samplerate, 
                        bitspersample, channels, mime, 
-                       lastmodified, upnpclass, '%s',
+                       lastmodified, '%s',
                        folderartid, trackartid, 
                        inserted, '%f', 
                        '1', 'I' from tags""" % (scannumber, lastscanned)
@@ -1669,7 +1696,7 @@ def cleartags(tags, lastscanned=''):
     folderart, trackart, \
     bitrate, samplerate, \
     bitspersample, channels, mime, \
-    lastmodified, upnpclass, scannumber, \
+    lastmodified, scannumber, \
     folderartid, trackartid, \
     inserted, o_lastscanned = tags
     tags = (id, '',
@@ -1682,7 +1709,7 @@ def cleartags(tags, lastscanned=''):
             '', '', 
             '', '',
             '', '', '', 
-            '', '', scannumber,
+            '', scannumber,
             '', '',
             '', lastscanned)
     return tags
@@ -1718,7 +1745,7 @@ def clearpl(pl, lastscanned=''):
     pltitle, \
     plid, \
     plfile, trackfile, \
-    ploccurs, pltrack, plid, \
+    ploccurs, pltrack, plid, plrowid, \
     plinserted, plcreated, pllastmodified, \
     plfilecreated, plfilelastmodified, \
     trackfilecreated, trackfilelastmodified, \
@@ -1726,7 +1753,7 @@ def clearpl(pl, lastscanned=''):
     pl = (pltitle, 
           plid,
           plfile, trackfile,
-          ploccurs, '', plid,
+          ploccurs, '', plid, plrowid,
           '', '', '',
           '', '',
           '', '', 
@@ -1831,7 +1858,7 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
     tracks = []
     trackcounts = defaultdict(int)
     success, wvfilecreated, wvfilelastmodified, wvfilefsize, filler = getfilestat(wvfilespec)
-    wvtrack = 1
+    wvcount = 0
     for line in codecs.open(wvfilespec,'r','utf-8'):
         if line == '': continue
         if line.startswith('#'): continue
@@ -1844,8 +1871,8 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
                 if value.endswith('\n'): value = value[:-1]
                 if key == 'type=' and not (value == 'work' or value == 'virtual'): value = wvtype
                 exec('%s=u"%s"' % (workvirtualkeys[key], value))
+                if key == 'title=': wvcount += 1
                 keyfound = True
-                wvtrack = 1
                 break
         if not keyfound:
             filespec = line.strip()
@@ -1857,10 +1884,9 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
                     if trackdata:
                         ftrack = trackcountdata
                         filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified = trackdata
-                        trackdata = (wvfilespec, wvfilecreated, wvfilelastmodified, filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvtrack, wvgenre, wvcover, wvdiscnumber, trackcounts[(wvtitle, ftrack)], wvinserted, wvcreated, wvlastmodified)
+                        trackdata = (wvcount, wvfilespec, wvfilecreated, wvfilelastmodified, filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvgenre, wvcover, wvdiscnumber, trackcounts[(wvtitle, ftrack)], wvinserted, wvcreated, wvlastmodified)
                         trackcounts[(wvtitle, ftrack)] += 1    
                         tracks.append(trackdata)
-                        wvtrack += 1
     return tracks
 
 def read_playlistfile(filespec, filepath):
@@ -2113,7 +2139,7 @@ def create_database(database):
                                             folderart text, trackart text,
                                             bitrate text, samplerate text, 
                                             bitspersample text, channels text, mime text,
-                                            lastmodified text, upnpclass text, 
+                                            lastmodified text,
                                             scannumber integer, folderartid text, trackartid text,
                                             inserted text, lastscanned text)
                       ''')
@@ -2135,7 +2161,7 @@ def create_database(database):
                                                    folderart text, trackart text,
                                                    bitrate text, samplerate text, 
                                                    bitspersample text, channels text, mime text,
-                                                   lastmodified text, upnpclass text,
+                                                   lastmodified text,
                                                    scannumber integer, folderartid text, trackartid text,
                                                    inserted text, lastscanned text,
                                                    updateorder integer, updatetype text)
@@ -2196,6 +2222,7 @@ def create_database(database):
                                                  id text,
                                                  plfile text, trackfile text, 
                                                  occurs text, track text, track_id text,
+                                                 track_rowid integer,
                                                  inserted text, created text, lastmodified text,
                                                  plfilecreated text, plfilelastmodified text,
                                                  trackfilecreated text, trackfilelastmodified text,
@@ -2215,6 +2242,7 @@ def create_database(database):
                                                         id text,
                                                         plfile text, trackfile text, 
                                                         occurs text, track text, track_id text,
+                                                        track_rowid integer,
                                                         inserted text, created text, lastmodified text,
                                                         plfilecreated text, plfilelastmodified text,
                                                         trackfilecreated text, trackfilelastmodified text,

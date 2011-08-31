@@ -75,12 +75,12 @@ def process_tags(args, options, tagdatabase, trackdatabase):
         db1 = sqlite3.connect(tagdatabase)
         cs1 = db1.cursor()
 
-    artist_parentid = 100000000
-    album_parentid = 300000000
-    composer_parentid = 400000000
-    genre_parentid = 500000000
-    track_parentid = 600000000
-    playlist_parentid = 700000000
+#    artist_parentid = 100000000
+#    album_parentid = 300000000
+#    composer_parentid = 400000000
+#    genre_parentid = 500000000
+#    track_parentid = 600000000
+#    playlist_parentid = 700000000
 
     # get ini settings
     config = ConfigParser.ConfigParser()
@@ -303,7 +303,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     t.folderart, t.trackart,
                                     t.bitrate, t.samplerate, 
                                     t.bitspersample, t.channels, t.mime,
-                                    w.lastmodified, t.upnpclass,
+                                    w.lastmodified,
                                     w.scannumber, t.folderartid, t.trackartid,
                                     w.inserted, w.lastscanned,
                                     w.updateorder, w.updatetype,
@@ -327,7 +327,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     t.folderart, t.trackart,
                                     t.bitrate, t.samplerate, 
                                     t.bitspersample, t.channels, t.mime,
-                                    w.lastmodified, t.upnpclass,
+                                    w.lastmodified,
                                     w.scannumber, t.folderartid, t.trackartid,
                                     w.inserted, w.lastscanned,
                                     w.updateorder, w.updatetype,
@@ -357,8 +357,8 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                     sys.stderr.flush()
                     processing_count += 1
 
-                o_id, o_id2, o_title, o_artistliststring, o_album, o_genreliststring, o_tracknumber, o_year, o_albumartistliststring, o_composerliststring, o_codec, o_length, o_size, o_created, o_path, o_filename, o_discnumber, o_commentliststring, o_folderart, o_trackart, o_bitrate, o_samplerate, o_bitspersample, o_channels, o_mime, o_lastmodified, o_upnpclass, o_scannumber, o_folderartid, o_trackartid, o_inserted, o_lastscanned, o_updateorder, o_updatetype, o_originalalbum, o_albumtypestring = row0
-                id, id2, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, scannumber, folderartid, trackartid, inserted, lastscanned, updateorder, updatetype, originalalbum, albumtypestring = row1
+                o_id, o_id2, o_title, o_artistliststring, o_album, o_genreliststring, o_tracknumber, o_year, o_albumartistliststring, o_composerliststring, o_codec, o_length, o_size, o_created, o_path, o_filename, o_discnumber, o_commentliststring, o_folderart, o_trackart, o_bitrate, o_samplerate, o_bitspersample, o_channels, o_mime, o_lastmodified, o_scannumber, o_folderartid, o_trackartid, o_inserted, o_lastscanned, o_updateorder, o_updatetype, o_originalalbum, o_albumtypestring = row0
+                id, id2, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, scannumber, folderartid, trackartid, inserted, lastscanned, updateorder, updatetype, originalalbum, albumtypestring = row1
                 o_filespec = os.path.join(o_path, o_filename)
                 filespec = os.path.join(path, filename)
 
@@ -512,10 +512,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         # new track, so insert
                         duplicate = 0   # used if a track is duplicated, for both the track and the album
                         try:
-                            tracks = (id, id2, track_parentid, duplicate, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, '', '', lastscanned)
+                            tracks = (id, id2, duplicate, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned)
                             logstring = "INSERT TRACK: %s" % str(tracks)
                             filelog.write_verbose_log(logstring)
-                            cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
+                            cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
+                            track_rowid = cs2.lastrowid
                         except sqlite3.Error, e:
                             # assume we have a duplicate
                             # Sonos doesn't like duplicate names, so append a number and keep trying
@@ -538,11 +539,12 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 else:
                                     tcount = int(tduplicate) + 1
                                 tstring = title + " (" + str(tcount) + ")"            
-                                tracks = (id, id2, track_parentid, tcount, tstring, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, '', '', lastscanned)
+                                tracks = (id, id2, tcount, tstring, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned)
                                 logstring = "INSERT TRACK: %s" % str(tracks)
                                 filelog.write_verbose_log(logstring)
                                 try:
-                                    cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
+                                    cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
+                                    track_rowid = cs2.lastrowid
                                     duplicate = tcount
                                 except sqlite3.Error, e:
                                     errorstring = "Error performing duplicate processing on track insert: %s" % e
@@ -552,11 +554,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             tcount = 2
                             while True:
                                 tstring = title + " (" + str(tcount) + ")"            
-                                tracks = (id, id2, track_parentid, tcount, tstring, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, '', '', lastscanned)
+                                tracks = (id, id2, tcount, tstring, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned)
                                 logstring = "INSERT TRACK: %s" % str(tracks)
                                 filelog.write_verbose_log(logstring)
                                 try:
-                                    cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
+                                    cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
                                     duplicate = tcount
                                     break
                                 except sqlite3.Error, e:
@@ -576,7 +578,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             if o_duplicate != 0:
                                 title = title + " (" + str(o_duplicate) + ")"            
 
-                            tracks = (id2, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastscanned, track_id)
+                            tracks = (id2, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastscanned, track_id)
                             logstring = "UPDATE TRACK: %s" % str(tracks)
                             filelog.write_verbose_log(logstring)
                             cs2.execute("""update tracks set 
@@ -589,7 +591,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                            folderart=?, trackart=?,
                                            bitrate=?, samplerate=?, 
                                            bitspersample=?, channels=?, mime=?,
-                                           lastmodified=?, upnpclass=?,
+                                           lastmodified=?,
                                            folderartid=?, trackartid=?,
                                            inserted=?, lastscanned=? 
                                            where id=?""", 
@@ -663,10 +665,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 artist_id = None
                             else:
                                 artist_id = None
-                            artists = (artist_id, str(artist_parentid), artistliststring, albumartistliststring, '', '', 'object.container.person.musicArtist')
+                            artists = (artist_id, artistliststring, albumartistliststring, '', '')
                             logstring = "INSERT ARTIST: %s" % str(artists)
                             filelog.write_verbose_log(logstring)
-                            cs2.execute('insert into artists values (?,?,?,?,?,?,?)', artists)
+                            cs2.execute('insert into artists values (?,?,?,?,?)', artists)
                             artist_id = cs2.lastrowid
 
                     except sqlite3.Error, e:
@@ -1019,10 +1021,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 tracknumbers = str(album_tracknumber)
                                 if tracknumbers.strip() == '':
                                     tracknumbers = 'n'
-                                albums = (album_id, album_parentid, album, artistliststring, year, albumartistliststring, duplicate, cover, artid, inserted, composerliststring, tracknumbers, created, lastmodified, albumtype, '', '', 'object.container.album.musicAlbum')
+                                albums = (album_id, album, artistliststring, year, albumartistliststring, duplicate, cover, artid, inserted, composerliststring, tracknumbers, created, lastmodified, albumtype, '', '')
                                 logstring = "INSERT ALBUM: %s" % str(albums)
                                 filelog.write_verbose_log(logstring)
-                                cs2.execute('insert into albums values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', albums)
+                                cs2.execute('insert into albums values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', albums)
                                 album_id = cs2.lastrowid
 
                         except sqlite3.Error, e:
@@ -1041,33 +1043,33 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             # these lookups are unique on track id so nothing else refers to them (so just delete)
                             for o_genre in o_genrelist:
                                 for o_artist in o_artistlist:
-                                    delete = (track_id, o_genre, o_artist, o_album, o_duplicate, o_albumtype)
+                                    delete = (track_rowid, o_genre, o_artist, o_album, o_duplicate, o_albumtype)
                                     logstring = "DELETE GenreArtistAlbumTrack: %s" % str(delete)
                                     filelog.write_verbose_log(logstring)
                                     cs2.execute("""delete from GenreArtistAlbumTrack where track_id=? and genre=? and artist=? and album=? and duplicate=? and albumtype=?""", delete)
                                 for o_albumartist in o_albumartistlist:
-                                    delete = (track_id, o_genre, o_albumartist, o_album, o_duplicate, o_albumtype)
+                                    delete = (track_rowid, o_genre, o_albumartist, o_album, o_duplicate, o_albumtype)
                                     logstring = "DELETE GenreAlbumartistAlbumTrack: %s" % str(delete)
                                     filelog.write_verbose_log(logstring)
                                     cs2.execute("""delete from GenreAlbumartistAlbumTrack where track_id=? and genre=? and albumartist=? and album=? and duplicate=? and albumtype=?""", delete)
                             for o_artist in o_artistlist:
-                                delete = (track_id, o_artist, o_album, o_duplicate, o_albumtype)
+                                delete = (track_rowid, o_artist, o_album, o_duplicate, o_albumtype)
                                 logstring = "DELETE ArtistAlbumTrack:" + str(delete)
                                 filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from ArtistAlbumTrack where track_id=? and artist=? and album=? and duplicate=? and albumtype=?""", delete)
                             for o_albumartist in o_albumartistlist:
-                                delete = (track_id, o_albumartist, o_album, o_duplicate, o_albumtype)
+                                delete = (track_rowid, o_albumartist, o_album, o_duplicate, o_albumtype)
                                 logstring = "DELETE AlbumartistAlbumTrack:" + str(delete)
                                 filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from AlbumartistAlbumTrack where track_id=? and albumartist=? and album=? and duplicate=? and albumtype=?""", delete)
                             for o_composer in o_composerlist:
-                                delete = (track_id, o_composer, o_album, o_duplicate, o_albumtype)
+                                delete = (track_rowid, o_composer, o_album, o_duplicate, o_albumtype)
                                 logstring = "DELETE ComposerAlbumTrack:" + str(delete)
                                 filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from ComposerAlbumTrack where track_id=? and composer=? and album=? and duplicate=? and albumtype=?""", delete)
 
                             if albumtypestring == 'work' or albumtypestring == 'virtual':
-                                delete = (track_id, o_genreliststring, o_artistliststring, o_albumartistliststring, o_originalalbum, o_album, o_composerliststring, o_duplicate, o_albumtype, album_tracknumber)
+                                delete = (track_rowid, o_genreliststring, o_artistliststring, o_albumartistliststring, o_originalalbum, o_album, o_composerliststring, o_duplicate, o_albumtype, album_tracknumber)
                                 logstring = "DELETE TrackNumbers:" + str(delete)
                                 filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from TrackNumbers where track_id=? and genre=? and artist=? and albumartist=? and album=? and dummyalbum=? and composer=? and duplicate=? and albumtype=? and tracknumber=?""", delete)
@@ -1081,7 +1083,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         try:
                             for genre in genrelist:
                                 for artist in artistlist:
-                                    check = (track_id, genre, artist, album, duplicate, albumtype)
+                                    check = (track_rowid, genre, artist, album, duplicate, albumtype)
                                     cs2.execute("""select * from GenreArtistAlbumTrack where track_id=? and genre=? and artist=? and album=? and duplicate=? and albumtype=?""", check)
                                     crow = cs2.fetchone()
                                     if not crow:
@@ -1090,7 +1092,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                         filelog.write_verbose_log(logstring)
                                         cs2.execute('insert into GenreArtistAlbumTrack values (?,?,?,?,?,?)', insert)
                                 for albumartist in albumartistlist:
-                                    check = (track_id, genre, albumartist, album, duplicate, albumtype)
+                                    check = (track_rowid, genre, albumartist, album, duplicate, albumtype)
                                     cs2.execute("""select * from GenreAlbumartistAlbumTrack where track_id=? and genre=? and albumartist=? and album=? and duplicate=? and albumtype=?""", check)
                                     crow = cs2.fetchone()
                                     if not crow:
@@ -1099,7 +1101,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                         filelog.write_verbose_log(logstring)
                                         cs2.execute('insert into GenreAlbumartistAlbumTrack values (?,?,?,?,?,?)', insert)
                             for artist in artistlist:
-                                check = (track_id, artist, album, duplicate, albumtype)
+                                check = (track_rowid, artist, album, duplicate, albumtype)
                                 cs2.execute("""select * from ArtistAlbumTrack where track_id=? and artist=? and album=? and duplicate=? and albumtype=?""", check)
                                 crow = cs2.fetchone()
                                 if not crow:
@@ -1108,7 +1110,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     filelog.write_verbose_log(logstring)
                                     cs2.execute('insert into ArtistAlbumTrack values (?,?,?,?,?)', insert)
                             for albumartist in albumartistlist:
-                                check = (track_id, albumartist, album, duplicate, albumtype)
+                                check = (track_rowid, albumartist, album, duplicate, albumtype)
                                 cs2.execute("""select * from AlbumartistAlbumTrack where track_id=? and albumartist=? and album=? and duplicate=? and albumtype=?""", check)
                                 crow = cs2.fetchone()
                                 if not crow:
@@ -1117,7 +1119,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     filelog.write_verbose_log(logstring)
                                     cs2.execute('insert into AlbumartistAlbumTrack values (?,?,?,?,?)', insert)
                             for composer in composerlist:
-                                check = (track_id, composer, album, duplicate, albumtype)
+                                check = (track_rowid, composer, album, duplicate, albumtype)
                                 cs2.execute("""select * from ComposerAlbumTrack where track_id=? and composer=? and album=? and duplicate=? and albumtype=?""", check)
                                 crow = cs2.fetchone()
                                 if not crow:
@@ -1127,7 +1129,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     cs2.execute('insert into ComposerAlbumTrack values (?,?,?,?,?)', insert)
 
                             if albumtypestring == 'work' or albumtypestring == 'virtual':
-                                check = (track_id, genreliststring, artistliststring, albumartistliststring, originalalbum, album, composerliststring, duplicate, albumtype, album_tracknumber)
+                                check = (track_rowid, genreliststring, artistliststring, albumartistliststring, originalalbum, album, composerliststring, duplicate, albumtype, album_tracknumber)
                                 cs2.execute("""select * from TrackNumbers where track_id=? and genre=? and artist=? and albumartist=? and album=? and dummyalbum=? and composer=? and duplicate=? and albumtype=? and tracknumber=?""", check)
                                 crow = cs2.fetchone()
                                 if not crow:
@@ -1320,10 +1322,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 composer_id = None
                             else:
                                 composer_id = None
-                            composers = (composer_id, str(composer_parentid), composerliststring, '', '', 'object.container.person.musicArtist')
+                            composers = (composer_id, composerliststring, '', '')
                             logstring = "INSERT COMPOSER: %s" % str(composers)
                             filelog.write_verbose_log(logstring)
-                            cs2.execute('insert into composers values (?,?,?,?,?,?)', composers)
+                            cs2.execute('insert into composers values (?,?,?,?)', composers)
                             composer_id = cs2.lastrowid
 
                     except sqlite3.Error, e:
@@ -1394,14 +1396,27 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 genre_id = None
                             else:
                                 genre_id = None
-                            genres = (genre_id, str(genre_parentid), genreliststring, '', '', 'object.container.genre.musicGenre')
+                            genres = (genre_id, genreliststring, '', '')
                             logstring = "INSERT GENRE: %s" % str(genres)
                             filelog.write_verbose_log(logstring)
-                            cs2.execute('insert into genres values (?,?,?,?,?,?)', genres)
+                            cs2.execute('insert into genres values (?,?,?,?)', genres)
                             genre_id = cs2.lastrowid
                     except sqlite3.Error, e:
                         errorstring = "Error inserting genre details: %s" % e.args[0]
                         filelog.write_error(errorstring)
+
+
+
+
+            # post process playlist records to update track_id with rowid from tracks table
+            try:
+                cs2.execute("""update playlists set track_rowid = (select rowid from tracks where tracks.id = playlists.track_id)""")
+                crow = cs2.fetchone()
+            except sqlite3.Error, e:
+                errorstring = "Error updating playlist ids: %s" % e.args[0]
+                filelog.write_error(errorstring)
+
+
 
         except KeyboardInterrupt: 
             raise
@@ -1454,6 +1469,16 @@ def process_tags(args, options, tagdatabase, trackdatabase):
             filelog.write_error(errorstring)
 
     db2.commit()
+    
+    # update stats
+    try:
+        cs2.execute("""analyze""")
+    except sqlite3.Error, e:
+        errorstring = "Error updating stats: %s" % e.args[0]
+        filelog.write_error(errorstring)
+
+    db2.commit()
+    
     cs2.close()
 
     logstring = "Tags processed"
@@ -1735,7 +1760,6 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
         if n == 0:
             c.execute('''create table tracks (id text, 
                                               id2 text,
-                                              parentID text, 
                                               duplicate integer,
                                               title text COLLATE NOCASE, 
                                               artist text COLLATE NOCASE, 
@@ -1761,7 +1785,6 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
                                               channels integer, 
                                               mime text,
                                               lastmodified real, 
-                                              upnpclass text,
                                               folderartid integer,
                                               trackartid integer,
                                               inserted real,
@@ -1796,7 +1819,6 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
         n, = c.fetchone()
         if n == 0:
             c.execute('''create table albums (id integer primary key autoincrement, 
-                                              parentID text, 
                                               album text COLLATE NOCASE, 
                                               artist text COLLATE NOCASE,
                                               year integer,
@@ -1811,8 +1833,7 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
                                               lastmodified real,
                                               albumtype integer, 
                                               lastplayed real,
-                                              playcount integer,
-                                              upnpclass text)
+                                              playcount integer)
                       ''')
             c.execute('''create unique index inxAlbums on albums (album, artist, albumartist, duplicate, albumtype)''')
             c.execute('''create unique index inxAlbumId on albums (id)''')
@@ -1835,7 +1856,7 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
 
             
             # seed autoincrement
-            c.execute('''insert into albums values (300000000,'','','','','','','','','','','','','','','','','')''')
+            c.execute('''insert into albums values (300000000,'','','','','','','','','','','','','','','')''')
             c.execute('''delete from albums where id=300000000''')
 
         # artists - one entry for each unique artist/albumartist combination from tracks list
@@ -1843,12 +1864,10 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
         n, = c.fetchone()
         if n == 0:
             c.execute('''create table artists (id integer primary key autoincrement,
-                                               parentID text, 
                                                artist text COLLATE NOCASE,
                                                albumartist text COLLATE NOCASE, 
                                                lastplayed real,
-                                               playcount integer,
-                                               upnpclass text)
+                                               playcount integer)
                       ''')
             c.execute('''create unique index inxArtists on artists (artist, albumartist)''')
             c.execute('''create unique index inxArtistId on artists (id)''')
@@ -1857,7 +1876,7 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
             c.execute('''create index inxArtistLastplayeds on artists (lastplayed)''')
             c.execute('''create index inxArtistPlaycounts on artists (playcount)''')
             # seed autoincrement
-            c.execute('''insert into artists values (100000000,'','','','','','')''')
+            c.execute('''insert into artists values (100000000,'','','','')''')
             c.execute('''delete from artists where id=100000000''')
 
         # composers - one entry for each unique composer from tracks list
@@ -1865,18 +1884,16 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
         n, = c.fetchone()
         if n == 0:
             c.execute('''create table composers (id integer primary key autoincrement,
-                                                 parentID text, 
                                                  composer text COLLATE NOCASE,
                                                  lastplayed real,
-                                                 playcount integer,
-                                                 upnpclass text)
+                                                 playcount integer)
                       ''')
             c.execute('''create unique index inxComposers on composers (composer)''')
             c.execute('''create unique index inxComposerId on composers (id)''')
             c.execute('''create index inxComposerLastplayeds on composers (lastplayed)''')
             c.execute('''create index inxComposerPlaycounts on composers (playcount)''')
             # seed autoincrement
-            c.execute('''insert into composers values (400000000,'','','','','')''')
+            c.execute('''insert into composers values (400000000,'','','')''')
             c.execute('''delete from composers where id=400000000''')
 
         # genres - one entry for each unique genre from tracks list
@@ -1884,18 +1901,16 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
         n, = c.fetchone()
         if n == 0:
             c.execute('''create table genres (id integer primary key autoincrement,
-                                              parentID text, 
                                               genre text COLLATE NOCASE,
                                               lastplayed real,
-                                              playcount integer,
-                                              upnpclass text)
+                                              playcount integer)
                       ''')
             c.execute('''create unique index inxGenres on genres (genre)''')
             c.execute('''create unique index inxGenreId on genres (id)''')
             c.execute('''create index inxGenreLastplayeds on genres (lastplayed)''')
             c.execute('''create index inxGenrePlaycounts on genres (playcount)''')
             # seed autoincrement
-            c.execute('''insert into genres values (500000000,'','','','','')''')
+            c.execute('''insert into genres values (500000000,'','','')''')
             c.execute('''delete from genres where id=500000000''')
             
         # playlists
@@ -1903,15 +1918,13 @@ INSERT INTO sorts (proxyname, controller, sort_type, sort_seq, sort_order, sort_
 #        n, = c.fetchone()
 #        if n == 0:
 #            c.execute('''create table playlists (id integer primary key autoincrement,
-#                                                 parentID text, 
 #                                                 playlist text COLLATE NOCASE,
-#                                                 path text,
-#                                                 upnpclass text)
+#                                                 path text)
 #                      ''')
 #            c.execute('''create unique index inxPlaylists on playlists (playlist)''')
 #            c.execute('''create unique index inxPlaylistId on playlists (id)''')
 #            # seed autoincrement
-#            c.execute('''insert into playlists values (700000000,'','','','')''')
+#            c.execute('''insert into playlists values (700000000,'','')''')
 #            c.execute('''delete from playlists where id=700000000''')
             
         # multi entry fields lookups - genre/artist level
@@ -2069,7 +2082,7 @@ def empty_database(database):
         c.execute('''drop table if exists artists''')
         c.execute('''drop table if exists composers''')
         c.execute('''drop table if exists genres''')
-        c.execute('''drop table if exists playlists''')
+#        c.execute('''drop table if exists playlists''')
         c.execute('''drop table if exists GenreArtist''')
         c.execute('''drop table if exists GenreAlbumartist''')
         c.execute('''drop table if exists GenreArtistAlbum''')

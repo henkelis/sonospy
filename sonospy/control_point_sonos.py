@@ -416,6 +416,17 @@ class ControlPointSonos(ControlPointAV):
             
         return service_response        
 
+    def get_audio_in(self):
+        """
+        """
+        service = self.get_ai_service()
+        service_response = service.GetAudioInputAttributes()
+
+        log.debug(service_response)
+
+        return service_response        
+
+
     #TODO: remove AVT method
 
 
