@@ -471,11 +471,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                     # for work/virtual need track id
                     try:
-                        cs2.execute("""select id, duplicate from tracks where path=? and filename=?""",
+                        cs2.execute("""select rowid, id, duplicate from tracks where path=? and filename=?""",
                                     (o_path, o_filename))
                         row = cs2.fetchone()
                         if row:
-                            track_id, o_duplicate = row
+                            track_rowid, track_id, o_duplicate = row
                             # duplicate won't exist in new data for an update, so force it
                             duplicate = o_duplicate
                     except sqlite3.Error, e:
@@ -487,11 +487,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                     # for update/delete need track id
                     if updatetype == 'D' or updatetype == 'U':
                         try:
-                            cs2.execute("""select id, duplicate from tracks where path=? and filename=?""",
+                            cs2.execute("""select rowid, id, duplicate from tracks where path=? and filename=?""",
                                         (o_path, o_filename))
                             row = cs2.fetchone()
                             if row:
-                                track_id, o_duplicate = row
+                                track_rowid, track_id, o_duplicate = row
                                 # duplicate won't exist in new data for an update, so force it
                                 duplicate = o_duplicate
                         except sqlite3.Error, e:
