@@ -754,7 +754,7 @@ def process_dir(scanpath, options, database):
             # post
             dtags = cleartags(tags, lastscanned=lastscanned)
             dtags += (1, 'D')
-            c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
+            c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
             # delete record from tags
             logstring = "Existing file not found: %s, %s" % (o_filename, o_path)
             filelog.write_log(logstring)
@@ -807,7 +807,7 @@ def process_dir(scanpath, options, database):
         if dont_process:
             continue
         
-        print "**** FILEPATH: %s" % filepath
+#        print "**** FILEPATH: %s" % filepath
         
         files.sort()
 
@@ -822,7 +822,7 @@ def process_dir(scanpath, options, database):
                     filelog.write_error(errorstring)
                 continue
 
-            print "**** FFN: %s" % ffn
+#            print "**** FFN: %s" % ffn
 
             try:
             
@@ -1371,7 +1371,7 @@ def process_dir(scanpath, options, database):
                                 c.execute("""select * from playlists where playlist=? and plfile=? and trackfile=? and occurs=?""",
                                             (pltitle, plfile, trackfile, ploccurs))
                                 row = c.fetchone()
-                                pl_playlist, pl_plid, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+                                pl_playlist, pl_plid, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
                             except sqlite3.Error, e:
                                 errorstring = "Error getting playlist details: %s" % e.args[0]
                                 filelog.write_error(errorstring)
@@ -1506,13 +1506,6 @@ def process_dir(scanpath, options, database):
         c.execute("""delete from playlists_update""")
     except sqlite3.Error, e:
         errorstring = "Error deleting playlists_update entries: %s" % e.args[0]
-        filelog.write_error(errorstring)
-
-    # update stats
-    try:
-        c.execute("""analyze""")
-    except sqlite3.Error, e:
-        errorstring = "Error updating stats: %s" % e.args[0]
         filelog.write_error(errorstring)
 
     db2.commit()
