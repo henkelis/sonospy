@@ -23,7 +23,7 @@
 # scan.py Author: Mark Henkelis <mark.henkelis@tesco.net>
 ###############################################################################
 # TODO:
-# - Disable other notebook tabs
+# - Add scheduler functionality (i.e. push command to scheduler tab)
 ###############################################################################
 
 import wx

@@ -24,6 +24,7 @@
 # TODO:
 # - Look at installers for entire sonospy project (not just GUI)
 # - Minimize to tray?
+# - Add Scheduler Tab (check for time and run scans/extracts)
 ###############################################################################
 import wx
 from wxPython.wx import *
@@ -89,7 +90,7 @@ class SonospyFrame(wx.Frame):
     #----------------------------------------------------------------------
     def __init__(self):
         """Constructor"""
-        wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(580,645))
+        wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(630,645))
         panel = wx.Panel(self)
 
 
