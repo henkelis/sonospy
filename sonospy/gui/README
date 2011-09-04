@@ -45,17 +45,18 @@ TO DO
 [GENERAL]
  - Look at installers for entire sonospy project (not just GUI)
  - Minimize to tray?
+ - Add Scheduler Tab to mimic cron-jobs (eventually for cross platform)
 
 [LAUNCH]
  - Hook up Show Duplicates per Blue?
 
 [SCAN]
- - Disable notebook tabs during scan
+ - Add scheduler functionality (i.e. push command to scheduler tab)
 
 [EXTRACT]
- - Disable notebook tabs during scan
  - Scrub SQL database for valid entries to limit user error.  Blue did this, but I am of split mind on whether or not we want to limit the user this way.  In thoery, we could do "contains" on Genre to get a extract with ROCK, CLASSIC ROCK, etc. if "ROCK" is provided.
  - Lots of error checking, I am sure, to make sure people don't enter a string when the query will expect an int.
+ - Add scheduler functionality (i.e. push command to scheduler tab)
 
 [VIRTUALS]
  - Load existing Virtual
