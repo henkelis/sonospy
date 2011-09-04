@@ -27,7 +27,7 @@ import datetime
 import ConfigParser
 import sqlite3
 
-from transcode import checktranscode
+from transcode import checktranscode, checkstream
 
 from xml.etree.ElementTree import _ElementInterface
 from xml.etree import cElementTree as ElementTree
@@ -146,7 +146,6 @@ class Proxy(object):
                     db.execute("PRAGMA cache_size = %s;" % self.db_cache_size)
                     cs = db.execute("PRAGMA cache_size;")
                     log.debug('cache_size after: %s', cs.fetchone()[0])
-                    cs.close()
                     c = db.cursor()
                 except sqlite3.Error, e:
                     error = "Unable to open database (%s)" % e.args[0]
@@ -1491,16 +1490,46 @@ class DummyContentDirectory(Service):
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
 
+            # the passed id will either be for a track or a playlist stream entry
+            # check tracks first (most likely)
+
             countstatement = "select count(*) from tracks where id = '%s'" % (objectID)
             c.execute(countstatement)
             totalMatches, = c.fetchone()
+            if totalMatches == 1:
+                btype = 'TRACK'
+                statement = "select * from tracks where id = '%s'" % (objectID)
+                log.debug("statement: %s", statement)
+                c.execute(statement)
+            else:
+                # didn't find track, check for playlist entry
+                btype = 'PLAYLIST'
+                countstatement = "select count(*) from playlists where track_id = '%s'" % (objectID)
+                c.execute(countstatement)
+                totalMatches, = c.fetchone()
+                statement = "select * from playlists where track_id = '%s'" % (objectID)
+                log.debug("statement: %s", statement)
+                c.execute(statement)
 
-            statement = "select * from tracks where id = '%s'" % (objectID)
-            log.debug("statement: %s", statement)
-            c.execute(statement)
             for row in c:   # will only be one row
-#                log.debug("row: %s", row)
-                id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
+                log.debug("row: %s", row)
+                if btype == 'TRACK':
+                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
+                else:                    
+                    playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+                    log.debug(pl_trackfile)
+                    mime = 'audio/wav'
+                    filename = pl_trackfile
+                    path = ''
+                    length = 0
+                    title = pl_trackfile
+                    artist = ''
+                    albumartist = ''
+                    album = ''
+                    id = pl_track_id
+                    tracknumber = pl_track
+                    folderart = trackart = folderartid = trackartid = None
+
                 mime = fixMime(mime)
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
@@ -1514,7 +1543,10 @@ class DummyContentDirectory(Service):
                 protocol = getProtocol(mime)
                 contenttype = mime
                 filetype = getFileType(filename)
-                
+
+                log.debug(filetype)
+
+                '''                
                 transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
                 if transcode:
                     dummyfile = self.dbname + '.' + id + '.' + newtype
@@ -1525,6 +1557,30 @@ class DummyContentDirectory(Service):
                     log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wspath, contenttype, newtype))
                     dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wspath, newtype, contenttype, cover=cover)
                     self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+                '''
+
+                stream, newtype = checkstream(filename, filetype)
+                if stream:
+                    transcode = False
+                else:
+                    transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+                if transcode:
+                    dummyfile = self.dbname + '.' + id + '.' + newtype
+                elif stream:
+                    dummyfile = self.dbname + '.' + id + '.' + newtype
+                else:
+                    dummyfile = self.dbname + '.' + id + '.' + filetype
+                log.debug(dummyfile)
+                res = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+                if transcode:
+                    log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wspath, contenttype, newtype))
+                    dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wspath, newtype, contenttype, cover=cover)
+                    self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+                elif stream:
+                    log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wsfile, contenttype, newtype))
+                    dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wsfile, newtype, contenttype, cover=cover, stream=True)
+                    self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+
                 else:
                     log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s' % (dummyfile, wsfile, wspath, contenttype))
                     dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
@@ -1578,20 +1634,35 @@ class DummyContentDirectory(Service):
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
 
-            countstatement = '''select count(*) from tracks t join playlists p on t.rowid = p.track_rowid
+            # playlists can contain stream entries that are not in tracks, so select with outer join
+
+            countstatement = '''select count(*) from playlists p left outer join tracks t on t.rowid = p.track_rowid
                                 where p.id = '%s'
                              ''' % plid
             c.execute(countstatement)
             totalMatches, = c.fetchone()
             
-            statement = '''select * from tracks t join playlists p on t.rowid = p.track_rowid
+            statement = '''select t.*, p.* from playlists p left outer join tracks t on t.rowid = p.track_rowid
                            where p.id = '%s' order by p.track limit %d, %d
                         ''' % (plid, startingIndex, requestedCount)
             log.debug("statement: %s", statement)
             c.execute(statement)
             for row in c:
-#                log.debug("row: %s", row)
-                id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+                log.debug("row: %s", row)
+                id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+
+                if not id:
+                    # playlist entry with no matching track - assume stream
+                    mime = 'audio/wav'
+                    filename = pl_trackfile
+                    path = ''
+                    length = 0
+                    title = pl_trackfile
+                    artist = ''
+                    albumartist = ''
+                    album = ''
+                    id = pl_track_id
+
                 mime = fixMime(mime)
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
@@ -1605,17 +1676,30 @@ class DummyContentDirectory(Service):
                 protocol = getProtocol(mime)
                 contenttype = mime
                 filetype = getFileType(filename)
-                
-                transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+
+                stream, newtype = checkstream(filename, filetype)
+                if stream:
+                    transcode = False
+                else:
+                    transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
                 if transcode:
+                    dummyfile = self.dbname + '.' + id + '.' + newtype
+                elif stream:
                     dummyfile = self.dbname + '.' + id + '.' + newtype
                 else:
                     dummyfile = self.dbname + '.' + id + '.' + filetype
+                log.debug(dummyfile)
                 res = self.proxyaddress + '/WMPNSSv3/' + dummyfile
                 if transcode:
                     log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wspath, contenttype, newtype))
                     dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wspath, newtype, contenttype, cover=cover)
                     self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+                elif stream:
+                    log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wsfile, contenttype, newtype))
+                    dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wsfile, newtype, contenttype, cover=cover, stream=True)
+                    self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+
+                
                 else:
                     log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s' % (dummyfile, wsfile, wspath, contenttype))
                     dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
@@ -1646,7 +1730,7 @@ class DummyContentDirectory(Service):
                 artist = escape(artist)
                 albumartist = escape(albumartist)
                 album = escape(album)
-                tracknumber = self.convert_tracknumber(tracknumber)
+#                tracknumber = self.convert_tracknumber(tracknumber)
 
                 count += 1
                 ret += '<item id="%s" parentID="%s" restricted="true">' % (id, self.track_parentid)
@@ -3075,7 +3159,7 @@ class DummyContentDirectory(Service):
             c.execute(statement)
             for row in c:
 #                log.debug("row: %s", row)
-                playlist, plid, plfile, trackfile, occurs, track, track_id, inserted, created, lastmodified, plfilecreated, plfilelastmodified, trackfilecreated, trackfilelastmodified, scannumber, lastscanned = row
+                playlist, plid, plfile, trackfile, occurs, track, track_id, track_rowid, inserted, created, lastmodified, plfilecreated, plfilelastmodified, trackfilecreated, trackfilelastmodified, scannumber, lastscanned = row
                 id = plid
                 parentid = '13'
                 if playlist == '': playlist = '[unknown playlist]'

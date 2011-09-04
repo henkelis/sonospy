@@ -907,8 +907,6 @@ def process_dir(scanpath, options, database):
 
                     wvtrack += 1
 
-#check - how does a track that doesn't match occurs get deleted - presumably as it doesn't get its scannumber updated?
-
                     wv_change = None
                     try:
                         # when searching for a track find one that matches the occurrence we have
@@ -1310,10 +1308,20 @@ def process_dir(scanpath, options, database):
                             errorstring = "Error getting tags details: %s" % e.args[0]
                             filelog.write_error(errorstring)
                         if not crow:
-                            # this track does not exist, reject the work/virtual record
-                            errorstring = "Error processing playlist: %s : %s : track does not exist in database" % (plfile, trackfile)
-                            filelog.write_error(errorstring)
-                            continue
+                            # this track does not exist
+                            # check whether it's a stream uri
+                            if is_stream(trackfile):
+                                # for stream, create md5 of stream name instead of track spec
+                                filespec = trackfile.encode(enc, 'replace')
+                                mf = hashlib.md5()
+                                mf.update(filespec)
+                                tr_id = mf.hexdigest()
+                                tr_inserted = tr_created = tr_lastmodified = None
+                            else:
+                                # reject the work/virtual record
+                                errorstring = "Error processing playlist: %s : %s : track does not exist in database" % (plfile, trackfile)
+                                filelog.write_error(errorstring)
+                                continue
                             
                         else:
 
@@ -1381,9 +1389,10 @@ def process_dir(scanpath, options, database):
                             #   propagated into tracks
 
                             if int(pl_track) == pltrack and \
-                               pl_inserted == plinserted and \
-                               pl_created == plcreated and \
-                               pl_lastmodified == pllastmodified:
+                               pl_plfilecreated == plfilecreated and \
+                               pl_plfilelastmodified == plfilelastmodified and \
+                               pl_trackfilecreated == trackfilecreated and \
+                               pl_trackfilelastmodified == trackfilelastmodified:
 
                                 try:
                                     pl = (plfilecreated, plfilelastmodified, 
@@ -1950,12 +1959,15 @@ def process_workvirtualfile_file(filespec, wvfilepath, wvtype):
         pltracks = read_playlist(filespec, ex)
         for pltrack in pltracks:
             pltrack = checkpath(pltrack, wvfilepath)
-            success, trackcreated, tracklastmodified, trackfsize, filler = getfilestat(pltrack)
-            if not success:
-                # this playlist track does not exist, reject the playlist line
-                errorstring = "Error processing %s: %s : playlist track does not exist" % (wvtype, pltrack)
-                filelog.write_error(errorstring)
-                continue
+            if is_stream(pltrack) and wvtype == 'playlist':
+                trackcreated = tracklastmodified = None
+            else:    
+                success, trackcreated, tracklastmodified, trackfsize, filler = getfilestat(pltrack)
+                if not success:
+                    # this playlist track does not exist, reject the playlist line
+                    errorstring = "Error processing %s: %s : playlist track does not exist" % (wvtype, pltrack)
+                    filelog.write_error(errorstring)
+                    continue
             trackcountdata = pltrack
             trackdata = (filespec, plcreated, pllastmodified, pltrack, trackcreated, tracklastmodified)
             yield trackcountdata, trackdata
@@ -2073,6 +2085,12 @@ def checkpath(pathspec, wvfilepath):
     if not os.path.isabs(pathspec):
         pathspec = os.path.abspath(os.path.join(wvfilepath, pathspec))
     return pathspec
+
+def is_stream(filespec):
+    for p in paths:
+        if filespec.startswith(p):
+            return True
+    return False
 
 def checktag(wvtag, tag):
     if not wvtag:

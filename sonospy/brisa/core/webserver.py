@@ -744,7 +744,7 @@ class TranscodedFileSonos(object):
     """ Object that matches with a file and makes it available on the server.
     """
 
-    def __init__(self, dummyname, name, path, transcodetype, content_type=None, disposition=None, cover=None):
+    def __init__(self, dummyname, name, path, transcodetype, content_type=None, disposition=None, cover=None, stream=False):
         """ Constructor for the StaticFile class.
 
         @param name: file name visible on the webserver
@@ -770,6 +770,7 @@ class TranscodedFileSonos(object):
         self.transcodetype = transcodetype
         self._content_type = content_type
         self._disposition = disposition
+        self.stream = stream
 
         if not self._content_type:
             self._guess_content_type()
@@ -827,14 +828,15 @@ class TranscodedFileSonos(object):
             albumart = True
             self._guess_content_type(path)
 
-        if not os.path.exists(path):
-            log.warning('Received request on missing file: %s' % path)
-            return simple_response(500, r.start_response, 'File not available.')
+        if not self.stream:
+            if not os.path.exists(path):
+                log.warning('Received request on missing file: %s' % path)
+                return simple_response(500, r.start_response, 'File not available.')
 
-        try:
-            st = os.stat(path)
-        except OSError:
-            return simple_response(404, r.start_response)
+            try:
+                st = os.stat(path)
+            except OSError:
+                return simple_response(404, r.start_response)
 
         if albumart:
             r.body = open(path, 'rb')
@@ -844,7 +846,10 @@ class TranscodedFileSonos(object):
             content_length = 0
 
         h = r.headers
-        h['Last-modified'] = rfc822.formatdate(st.st_mtime)
+        if not self.stream:
+            h['Last-modified'] = rfc822.formatdate(st.st_mtime)
+        else:
+            h['Last-modified'] = rfc822.formatdate(1315069234.64206)
         h['Content-type'] = self._content_type
 
         if self._disposition:
@@ -860,7 +865,7 @@ class TranscodedFileSonos(object):
 #        h['Server'] = 'Microsoft-HTTPAPI/1.0'
 
         if 'range' not in req.headers:
-        
+
             h['Content-length'] = str(content_length)
             
         else:
@@ -1142,6 +1147,7 @@ class SonosResource(Resource):
         """
         log.debug("SonosResource add_transcoded_file file: %s" % file)
         log.debug("SonosResource add_transcoded_file name: %s" % file.name)
+        log.debug("SonosResource add_transcoded_file dummyname: %s" % file.dummyname)
         
         if not isinstance(file, TranscodedFileSonos):
             raise ValueError('file must be a TranscodedFileSonos instance.')
@@ -1469,6 +1475,10 @@ class WebServer(Resource):
             log.critical('Could not select an adapter. Check the supported '\
                          'adapters and install one of them on your system.')
             raise SystemExit
+
+
+#        print "###### %s" % self.host
+
 
         if not self.host and not self.port:
             self._generate_random_address()
