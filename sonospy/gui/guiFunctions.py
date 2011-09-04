@@ -33,9 +33,12 @@ from wx.lib.pubsub import Publisher
 
 import ConfigParser
 
-def configMe(heading, term, integer=False, bool=False, parse=False):
+def configMe(heading, term, integer=False, bool=False, parse=False, file=False):
     config = ConfigParser.SafeConfigParser()
-    config.read("GUIpref.ini")
+    if file == False:
+        config.read("GUIpref.ini")
+    else:
+        config.read(file)
 
     if config.has_option(heading, term) == True:
         if integer == True:

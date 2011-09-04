@@ -170,7 +170,7 @@ class VirtualsPanel(wx.Panel):
     # 10 created=
         xIndex += 1
     # 11 lastmodified=
-        xIndex += 1
+    #    xIndex += 1
 
     # --------------------------------------------------------------------------
     # [11] Folders and Tracks    -----------------------------------------------
@@ -207,15 +207,8 @@ class VirtualsPanel(wx.Panel):
         self.bt_FoldersToScanClear = wx.Button(panel, label="Clear")
         help_FoldersToScanClear = "Clear the Tracks and Folders listed."
         self.bt_FoldersToScanClear.SetToolTip(wx.ToolTip(help_FoldersToScanClear))
-        sizer.Add(self.bt_FoldersToScanClear, pos=(xIndex,2), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.bt_FoldersToScanClear, pos=(xIndex,3), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
         self.bt_FoldersToScanClear.Bind(wx.EVT_BUTTON, self.bt_FoldersToScanClearClick, self.bt_FoldersToScanClear)
-
-        # SAVE VIRTUAL
-        self.bt_SaveVirtual = wx.Button(panel, label="Save as File")
-        help_SaveVirtual = "Save current settings .sp file."
-        self.bt_SaveVirtual.SetToolTip(wx.ToolTip(help_SaveVirtual))
-        self.bt_SaveVirtual.Bind(wx.EVT_BUTTON, self.bt_SavePlaylistClick, self.bt_SaveVirtual)
-        sizer.Add(self.bt_SaveVirtual, pos=(xIndex,3), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
         # SAVE AS DEFAULTS
         self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
@@ -223,6 +216,22 @@ class VirtualsPanel(wx.Panel):
         self.bt_SaveDefaults.SetToolTip(wx.ToolTip(help_SaveDefaults))
         self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
         sizer.Add(self.bt_SaveDefaults, pos=(xIndex,4), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+
+        xIndex += 1
+        # SAVE VIRTUAL
+        self.bt_SaveVirtual = wx.Button(panel, label="Save Virtual")
+        help_SaveVirtual = "Save current settings .sp file."
+        self.bt_SaveVirtual.SetToolTip(wx.ToolTip(help_SaveVirtual))
+        self.bt_SaveVirtual.Bind(wx.EVT_BUTTON, self.bt_SavePlaylistClick, self.bt_SaveVirtual)
+        sizer.Add(self.bt_SaveVirtual, pos=(xIndex,0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
+
+        # LOAD VIRTUAL
+        self.bt_LoadVirtual = wx.Button(panel, label="Load Virtual")
+        help_LoadVirtual = "Load existing .sp file."
+        self.bt_LoadVirtual.SetToolTip(wx.ToolTip(help_LoadVirtual))
+        self.bt_LoadVirtual.Bind(wx.EVT_BUTTON, self.bt_LoadVirtualClick, self.bt_LoadVirtual)
+        sizer.Add(self.bt_LoadVirtual, pos=(xIndex,4), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+
 
         Publisher().subscribe(self.setVirtualPanel, 'setVirtualPanel')
 
@@ -283,10 +292,41 @@ class VirtualsPanel(wx.Panel):
         dialog = wx.FileDialog(self, message='Choose a file', defaultDir=guiFunctions.configMe("general", "default_sp_path"), wildcard="Playlist Files (*.sp)|*.sp", style=wx.SAVE|wx.OVERWRITE_PROMPT)
         if dialog.ShowModal() == wx.ID_OK:
             savefile = dialog.GetFilename()
-            saveMe = open(savefile, 'w')
+            basename, extension = os.path.splitext(savefile)
+            if extension == "":
+                extension = ".sp"
+            savefile = basename + extension
+            savedir = dialog.GetDirectory()
+            saveMe=open(os.path.join(savedir, savefile),'w')
+            print os.path.join(savedir, savefile)
             saveMe.write(dataToSave)
             saveMe.close()
             guiFunctions.statusText(self, "SP: " + savefile + " saved...")
+
+    def bt_LoadVirtualClick(self, event):
+        filters = guiFunctions.configMe("general", "playlist_extensions")
+        defDir = guiFunctions.configMe("general", "default_sp_path")
+        wildcards = "Virtual/Work Playlists (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
+
+        # back up to the folder below our current one.  save cwd in variable
+        owd = os.getcwd()
+        os.chdir(os.pardir)
+
+        dialog = wx.FileDialog ( None, message = 'Select Virtual/Works Playlist File...', defaultDir=defDir, wildcard = wildcards, style = wxOPEN)
+
+        
+        # Open Dialog Box and get Selection
+        if dialog.ShowModal() == wxID_OK:
+            selected = dialog.GetFilenames()
+            for selection in selected:
+                # All the hard work goes here...
+                file = open(selection)
+                print file.read()
+                guiFunctions.statusText(self, "Playlist: " + selection + " selected...")
+        dialog.Destroy()
+
+        # set back to original working directory
+        os.chdir(owd)
 
     def bt_SaveDefaultsClick(self, event):
         section = "virtuals"
