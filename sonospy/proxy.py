@@ -146,6 +146,7 @@ class Proxy(object):
                     db.execute("PRAGMA cache_size = %s;" % self.db_cache_size)
                     cs = db.execute("PRAGMA cache_size;")
                     log.debug('cache_size after: %s', cs.fetchone()[0])
+                    cs.close()
                     c = db.cursor()
                 except sqlite3.Error, e:
                     error = "Unable to open database (%s)" % e.args[0]
