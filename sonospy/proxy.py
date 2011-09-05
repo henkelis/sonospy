@@ -27,7 +27,7 @@ import datetime
 import ConfigParser
 import sqlite3
 
-from transcode import checktranscode
+from transcode import checktranscode, checkstream
 
 from xml.etree.ElementTree import _ElementInterface
 from xml.etree import cElementTree as ElementTree
@@ -106,6 +106,33 @@ class Proxy(object):
         else:
             self.destaddress = mediaserver.address
 
+        # get db cache size
+        self.db_cache_size = 2000
+        try:        
+            db_cache_size_option = self.config.get('INI', 'db_cache_size')
+            try:
+                cache = int(db_cache_size_option)
+                if cache > self.db_cache_size:
+                    self.db_cache_size = cache
+            except ValueError:
+                pass
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+
+        # get connection persistence
+        self.db_persist_connection = False
+        try:        
+            db_persist_connection_option = self.config.get('INI', 'db_persist_connection')
+            if db_persist_connection_option:
+                if db_persist_connection_option.lower() == 'y':
+                    self.db_persist_connection = True
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+
         # check database
         error = None
         if self.dbspec != None:
@@ -113,7 +140,12 @@ class Proxy(object):
                 error = "Unable to access database file"
             else:
                 try:
-                    db = sqlite3.connect(self.dbspec)
+                    db = sqlite3.connect(self.dbspec, check_same_thread = False)
+                    cs = db.execute("PRAGMA cache_size;")
+                    log.debug('cache_size before: %s', cs.fetchone()[0])
+                    db.execute("PRAGMA cache_size = %s;" % self.db_cache_size)
+                    cs = db.execute("PRAGMA cache_size;")
+                    log.debug('cache_size after: %s', cs.fetchone()[0])
                     c = db.cursor()
                 except sqlite3.Error, e:
                     error = "Unable to open database (%s)" % e.args[0]
@@ -127,6 +159,13 @@ class Proxy(object):
                         error = "Unable to read track table (%s)" % e.args[0]
         if error:
             raise ValueError(error)
+        if self.db_persist_connection:
+            self.db = db
+        else:
+            self.db = None
+            db.close()
+        log.debug(self.db)
+
 
     def _add_root_device(self):
         """ Creates the root device object which will represent the device
@@ -257,7 +296,11 @@ class Proxy(object):
         # if it isn't, then it will only work if the database specified is where the proxy database is
         # TODO: work out whether we want to store the database path somewhere
         try:
-            db = sqlite3.connect(os.path.join(self.dbpath, dbname))
+            if self.db_persist_connection:
+                db = self.db
+            else:
+                db = sqlite3.connect(os.path.join(self.dbpath, dbname))
+            log.debug(self.db)
             c = db.cursor()
         except sqlite3.Error, e:
             log.debug("error opening database: %s %s %s", self.dbpath, dbname, e.args[0])
@@ -267,7 +310,7 @@ class Proxy(object):
         log.debug("statement: %s", statement)
         c.execute(statement)
 
-        id, id2, parentID, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = c.fetchone()
+        id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = c.fetchone()
         log.debug("id: %s", id)
         mime = fixMime(mime)
         cover, artid = self.cdservice.choosecover(folderart, trackart, folderartid, trackartid)
@@ -318,6 +361,8 @@ class Proxy(object):
             self.wmpcontroller2.add_static_file(dummycoverstaticfile)
 
         c.close()
+        if not self.db_persist_connection:
+            db.close()
 
 
 class ProxyServerController(webserver.SonosResource):
@@ -952,7 +997,7 @@ class DummyContentDirectory(Service):
     album_class = 'object.container.album.musicAlbum'
     composer_class = 'object.container.person.musicArtist'
     genre_class = 'object.container.person.musicArtist'
-    track_class = 'object.container.person.musicArtist'
+    track_class = 'object.item.audioItem.musicTrack'
     playlist_class = 'object.container.playlistContainer'
 
 
@@ -965,8 +1010,6 @@ class DummyContentDirectory(Service):
         dbpath, self.dbname = os.path.split(dbspec)
         self.wmpudn = wmpudn
 
-#        self.prime_cache()
-        
         # get path replacement strings
         try:        
             self.pathreplace = self.proxy.config.get('INI', 'network_path_translation')
@@ -1002,6 +1045,10 @@ class DummyContentDirectory(Service):
             self.use_albumartist = False
         except ConfigParser.NoOptionError:
             self.use_albumartist = False
+
+
+        self.prime_cache()
+        
 
         # get album identification setting
         self.album_distinct_artist = 'album'        # default
@@ -1252,7 +1299,11 @@ class DummyContentDirectory(Service):
         browseFlag = kwargs['BrowseFlag']
         log.debug("objectID: %s" % objectID)
 
-        db = sqlite3.connect(self.dbspec)
+        if self.proxy.db_persist_connection:
+            db = self.proxy.db
+        else:
+            db = sqlite3.connect(self.dbspec)
+        log.debug(db)
         c = db.cursor()
 
         startingIndex = int(kwargs['StartingIndex'])
@@ -1329,11 +1380,11 @@ class DummyContentDirectory(Service):
                 # is a work or a virtual album
 #                statement = '''select * from tracks t, tracknumbers n where id in
 #                               (select track_id from TrackNumbers where %s)
-#                               and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=%s and n.dummyalbum="%s"
+#                               and t.rowid = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=%s and n.dummyalbum="%s"
 #                               order by t.discnumber, n.tracknumber, t.title''' % (where, album_type, album_title)
 
                 countstatement = '''
-                                    select count(*) from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                    select count(*) from tracks t join tracknumbers n on t.rowid = n.track_id where id in
                                    (select track_id from TrackNumbers where %s)
                                     and n.albumtype=%s and n.dummyalbum="%s"
                                  ''' % (where, album_type, album_title)
@@ -1341,7 +1392,7 @@ class DummyContentDirectory(Service):
                 totalMatches, = c.fetchone()
 
                 statement = '''
-                                select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                select * from tracks t join tracknumbers n on t.rowid = n.track_id where id in
                                (select track_id from TrackNumbers where %s)
                                 and n.albumtype=%s and n.dummyalbum="%s"
                                 order by n.tracknumber, t.title limit %d, %d
@@ -1360,9 +1411,9 @@ class DummyContentDirectory(Service):
             for row in c:
 #                log.debug("row: %s", row)
                 if album_type != 10:
-                    id, id2, parentID, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10 = row
+                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10 = row
                 else:
-                    id, id2, parentID, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
+                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
                 mime = fixMime(mime)
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
@@ -1420,14 +1471,14 @@ class DummyContentDirectory(Service):
                 tracknumber = self.convert_tracknumber(tracknumber)
 
                 count += 1
-                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, parentID)
+                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, self.track_parentid)
                 ret += '<dc:title>%s</dc:title>' % (title)
                 ret += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (albumartist)
                 ret += '<upnp:artist role="Performer">%s</upnp:artist>' % (artist)
                 ret += '<upnp:album>%s</upnp:album>' % (album)
                 if tracknumber != 0:
                     ret += '<upnp:originalTrackNumber>%s</upnp:originalTrackNumber>' % (tracknumber)
-                ret += '<upnp:class>%s</upnp:class>' % (upnpclass)
+                ret += '<upnp:class>%s</upnp:class>' % (self.track_class)
                 ret += '<res duration="%s" protocolInfo="%s">%s</res>' % (duration, protocol, res)
 #                if cover != '' and not cover.startswith('EMBEDDED_'):
 #                    ret += '<upnp:albumArtURI>%s</upnp:albumArtURI>' % (coverres)
@@ -1439,16 +1490,46 @@ class DummyContentDirectory(Service):
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
 
+            # the passed id will either be for a track or a playlist stream entry
+            # check tracks first (most likely)
+
             countstatement = "select count(*) from tracks where id = '%s'" % (objectID)
             c.execute(countstatement)
             totalMatches, = c.fetchone()
+            if totalMatches == 1:
+                btype = 'TRACK'
+                statement = "select * from tracks where id = '%s'" % (objectID)
+                log.debug("statement: %s", statement)
+                c.execute(statement)
+            else:
+                # didn't find track, check for playlist entry
+                btype = 'PLAYLIST'
+                countstatement = "select count(*) from playlists where track_id = '%s'" % (objectID)
+                c.execute(countstatement)
+                totalMatches, = c.fetchone()
+                statement = "select * from playlists where track_id = '%s'" % (objectID)
+                log.debug("statement: %s", statement)
+                c.execute(statement)
 
-            statement = "select * from tracks where id = '%s'" % (objectID)
-            log.debug("statement: %s", statement)
-            c.execute(statement)
             for row in c:   # will only be one row
-#                log.debug("row: %s", row)
-                id, id2, parentID, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
+                log.debug("row: %s", row)
+                if btype == 'TRACK':
+                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
+                else:                    
+                    playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+                    log.debug(pl_trackfile)
+                    mime = 'audio/wav'
+                    filename = pl_trackfile
+                    path = ''
+                    length = 0
+                    title = pl_trackfile
+                    artist = ''
+                    albumartist = ''
+                    album = ''
+                    id = pl_track_id
+                    tracknumber = pl_track
+                    folderart = trackart = folderartid = trackartid = None
+
                 mime = fixMime(mime)
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
@@ -1462,7 +1543,10 @@ class DummyContentDirectory(Service):
                 protocol = getProtocol(mime)
                 contenttype = mime
                 filetype = getFileType(filename)
-                
+
+                log.debug(filetype)
+
+                '''                
                 transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
                 if transcode:
                     dummyfile = self.dbname + '.' + id + '.' + newtype
@@ -1473,6 +1557,30 @@ class DummyContentDirectory(Service):
                     log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wspath, contenttype, newtype))
                     dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wspath, newtype, contenttype, cover=cover)
                     self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+                '''
+
+                stream, newtype = checkstream(filename, filetype)
+                if stream:
+                    transcode = False
+                else:
+                    transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+                if transcode:
+                    dummyfile = self.dbname + '.' + id + '.' + newtype
+                elif stream:
+                    dummyfile = self.dbname + '.' + id + '.' + newtype
+                else:
+                    dummyfile = self.dbname + '.' + id + '.' + filetype
+                log.debug(dummyfile)
+                res = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+                if transcode:
+                    log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wspath, contenttype, newtype))
+                    dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wspath, newtype, contenttype, cover=cover)
+                    self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+                elif stream:
+                    log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wsfile, contenttype, newtype))
+                    dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wsfile, newtype, contenttype, cover=cover, stream=True)
+                    self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+
                 else:
                     log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s' % (dummyfile, wsfile, wspath, contenttype))
                     dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
@@ -1506,14 +1614,14 @@ class DummyContentDirectory(Service):
                 tracknumber = self.convert_tracknumber(tracknumber)
 
                 count += 1
-                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, parentID)
+                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, self.track_parentid)
                 ret += '<dc:title>%s</dc:title>' % (title)
                 ret += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (albumartist)
                 ret += '<upnp:artist role="Performer">%s</upnp:artist>' % (artist)
                 ret += '<upnp:album>%s</upnp:album>' % (album)
                 if tracknumber != 0:
                     ret += '<upnp:originalTrackNumber>%s</upnp:originalTrackNumber>' % (tracknumber)
-                ret += '<upnp:class>%s</upnp:class>' % (upnpclass)
+                ret += '<upnp:class>%s</upnp:class>' % (self.track_class)
                 ret += '<res duration="%s" protocolInfo="%s">%s</res>' % (duration, protocol, res)
 #####                ret += '<desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">%s</desc>' % (self.wmpudn)
 #                if cover != '' and not cover.startswith('EMBEDDED_'):
@@ -1526,20 +1634,35 @@ class DummyContentDirectory(Service):
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
 
-            countstatement = '''select count(*) from tracks t join playlists p on t.id = p.track_id
+            # playlists can contain stream entries that are not in tracks, so select with outer join
+
+            countstatement = '''select count(*) from playlists p left outer join tracks t on t.rowid = p.track_rowid
                                 where p.id = '%s'
                              ''' % plid
             c.execute(countstatement)
             totalMatches, = c.fetchone()
             
-            statement = '''select * from tracks t join playlists p on t.id = p.track_id
+            statement = '''select t.*, p.* from playlists p left outer join tracks t on t.rowid = p.track_rowid
                            where p.id = '%s' order by p.track limit %d, %d
                         ''' % (plid, startingIndex, requestedCount)
             log.debug("statement: %s", statement)
             c.execute(statement)
             for row in c:
-#                log.debug("row: %s", row)
-                id, id2, parentID, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+                log.debug("row: %s", row)
+                id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+
+                if not id:
+                    # playlist entry with no matching track - assume stream
+                    mime = 'audio/wav'
+                    filename = pl_trackfile
+                    path = ''
+                    length = 0
+                    title = pl_trackfile
+                    artist = ''
+                    albumartist = ''
+                    album = ''
+                    id = pl_track_id
+
                 mime = fixMime(mime)
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
@@ -1553,17 +1676,30 @@ class DummyContentDirectory(Service):
                 protocol = getProtocol(mime)
                 contenttype = mime
                 filetype = getFileType(filename)
-                
-                transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+
+                stream, newtype = checkstream(filename, filetype)
+                if stream:
+                    transcode = False
+                else:
+                    transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
                 if transcode:
+                    dummyfile = self.dbname + '.' + id + '.' + newtype
+                elif stream:
                     dummyfile = self.dbname + '.' + id + '.' + newtype
                 else:
                     dummyfile = self.dbname + '.' + id + '.' + filetype
+                log.debug(dummyfile)
                 res = self.proxyaddress + '/WMPNSSv3/' + dummyfile
                 if transcode:
                     log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wspath, contenttype, newtype))
                     dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wspath, newtype, contenttype, cover=cover)
                     self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+                elif stream:
+                    log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wsfile, contenttype, newtype))
+                    dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wsfile, newtype, contenttype, cover=cover, stream=True)
+                    self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+
+                
                 else:
                     log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s' % (dummyfile, wsfile, wspath, contenttype))
                     dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
@@ -1594,17 +1730,17 @@ class DummyContentDirectory(Service):
                 artist = escape(artist)
                 albumartist = escape(albumartist)
                 album = escape(album)
-                tracknumber = self.convert_tracknumber(tracknumber)
+#                tracknumber = self.convert_tracknumber(tracknumber)
 
                 count += 1
-                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, parentID)
+                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, self.track_parentid)
                 ret += '<dc:title>%s</dc:title>' % (title)
                 ret += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (albumartist)
                 ret += '<upnp:artist role="Performer">%s</upnp:artist>' % (artist)
                 ret += '<upnp:album>%s</upnp:album>' % (album)
                 if tracknumber != 0:
                     ret += '<upnp:originalTrackNumber>%s</upnp:originalTrackNumber>' % (pl_track)
-                ret += '<upnp:class>%s</upnp:class>' % (upnpclass)
+                ret += '<upnp:class>%s</upnp:class>' % (self.track_class)
                 ret += '<res duration="%s" protocolInfo="%s">%s</res>' % (duration, protocol, res)
 #####                ret += '<desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">%s</desc>' % (self.wmpudn)
 #                if cover != '' and not cover.startswith('EMBEDDED_'):
@@ -1645,6 +1781,8 @@ class DummyContentDirectory(Service):
             totalMatches = 0
 
         c.close()
+        if not self.proxy.db_persist_connection:
+            db.close()
 
         # fix WMP urls if necessary
         ret = ret.replace(self.webserverurl, self.wmpurl)
@@ -1684,7 +1822,15 @@ class DummyContentDirectory(Service):
             searchcontainer = searchtype
             if searchcontainer == 'Contributing Artist': searchcontainer = 'Artist'
 
-        db = sqlite3.connect(self.dbspec)
+        if self.proxy.db_persist_connection:
+            db = self.proxy.db
+        else:
+            db = sqlite3.connect(self.dbspec)
+        log.debug(db)
+
+#        cs = db.execute("PRAGMA cache_size;")
+#        log.debug('cache_size now: %s', cs.fetchone()[0])
+
         c = db.cursor()
 
         startingIndex = int(kwargs['StartingIndex'])
@@ -2178,7 +2324,7 @@ class DummyContentDirectory(Service):
                     for row in c:
 #                        log.debug("row: %s", row)
 
-                        id, parentID, album, artist, year, albumartist, duplicate, cover, artid, inserted, composer, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount, upnpclass = row
+                        id, album, artist, year, albumartist, duplicate, cover, artid, inserted, composer, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount = row
                         id = str(id)
                         playcount = str(playcount)
 
@@ -2228,11 +2374,11 @@ class DummyContentDirectory(Service):
                         id = id_pre + str(id)
 
                         count += 1
-                        res += '<container id="%s" parentID="%s" restricted="true">' % (id, parentid)
+                        res += '<container id="%s" parentID="%s" restricted="true">' % (id, self.track_parentid)
                         res += '<dc:title>%s</dc:title>' % (album)
                         res += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (albumartist)
                         res += '<upnp:artist role="Performer">%s</upnp:artist>' % (artist)
-                        res += '<upnp:class>%s</upnp:class>' % (upnpclass)
+                        res += '<upnp:class>%s</upnp:class>' % (self.album_class)
                         res += '<upnp:album>%s</upnp:album>' % (album)
                         if cover != '':
                             res += '<upnp:albumArtURI>%s</upnp:albumArtURI>' % (coverres)
@@ -2472,7 +2618,7 @@ class DummyContentDirectory(Service):
                             log.debug('tracks for composer')
                             composer = criteria[1][1:]
                             countstatement = "select count(*) from ComposerAlbumTrack where composer=? %s" % (self.album_and_duplicate)
-                            statement = "select * from tracks where id in (select track_id from ComposerAlbumTrack where composer=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                            statement = "select * from tracks where rowid in (select track_id from ComposerAlbumTrack where composer=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                             composer_options = self.removepresuf(composer, 'COMPOSER', controllername)
                             for composer in composer_options:
                                 if composer == '[unknown composer]': composer = ''
@@ -2490,11 +2636,11 @@ class DummyContentDirectory(Service):
                             artist = criteria[1][1:]
                             if self.use_albumartist:
                                 countstatement = "select count(*) from AlbumartistAlbumTrack where albumartist=? %s" % (self.album_and_duplicate)
-                                statement = "select * from tracks where id in (select track_id from AlbumartistAlbumTrack where albumartist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                statement = "select * from tracks where rowid in (select track_id from AlbumartistAlbumTrack where albumartist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                                 artist_options = self.removepresuf(artist, 'ALBUMARTIST', controllername)
                             else:
                                 countstatement = "select count(*) from ArtistAlbumTrack where artist=? %s" % (self.album_and_duplicate)
-                                statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                statement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack where artist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                                 artist_options = self.removepresuf(artist, 'ARTIST', controllername)
                             for artist in artist_options:
                                 if artist == '[unknown artist]': artist = ''
@@ -2512,7 +2658,7 @@ class DummyContentDirectory(Service):
                             log.debug('tracks for contributing artist')
                             artist = criteria[1][1:]
                             countstatement = "select count(*) from ArtistAlbumTrack where artist=? %s" % (self.album_and_duplicate)
-                            statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                            statement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack where artist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                             artist_options = self.removepresuf(artist, 'CONTRIBUTINGARTIST', controllername)
                             for artist in artist_options:
                                 if artist == '[unknown artist]': artist = ''
@@ -2530,10 +2676,10 @@ class DummyContentDirectory(Service):
                             genre = criteria[1][1:]
                             if self.use_albumartist:
                                 countstatement = "select count(*) from GenreAlbumartistAlbumTrack where genre=? %s" % (self.album_and_duplicate)
-                                statement = "select * from tracks where id in (select track_id from GenreAlbumartistAlbumTrack where genre=? %s) order by albumartist, album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                statement = "select * from tracks where rowid in (select track_id from GenreAlbumartistAlbumTrack where genre=? %s) order by albumartist, album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                             else:                
                                 countstatement = "select count(*) from GenreArtistAlbumTrack where genre=? %s" % (self.album_and_duplicate)
-                                statement = "select * from tracks where id in (select track_id from GenreArtistAlbumTrack where genre=? %s) order by artist, album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                statement = "select * from tracks where rowid in (select track_id from GenreArtistAlbumTrack where genre=? %s) order by artist, album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                             genre_options = self.removepresuf(genre, 'GENRE', controllername)
                             for genre in genre_options:
                                 if genre == '[unknown genre]': genre = ''
@@ -2577,7 +2723,7 @@ class DummyContentDirectory(Service):
                                     
                             countstatement = "select count(*) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s" % (duplicate_number)
                             countstatement2 = "select count(*) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
-                            statement = "select * from tracks where id in (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                            statement = "select * from tracks where rowid in (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
 #                            statement3 = '''select * from tracks t, tracknumbers n where id in 
 #                                           (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s)
@@ -2585,7 +2731,7 @@ class DummyContentDirectory(Service):
 #                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
 
                             statement3 = '''
-                                            select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                            select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
                                             (select track_id from tracknumbers where track_id in 
                                                 (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s and albumtype=?)
                                             and albumtype=?)
@@ -2632,7 +2778,7 @@ class DummyContentDirectory(Service):
                                     
                                 countstatement = "select count(*) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s" % (duplicate_number)
                                 countstatement2 = "select count(*) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
-                                statement = "select * from tracks where id in (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                                statement = "select * from tracks where rowid in (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                                 statement2 = "select distinct(albumtype) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
 #                                statement3 = '''select * from tracks t, tracknumbers n where id in 
 #                                               (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s)
@@ -2640,7 +2786,7 @@ class DummyContentDirectory(Service):
 #                                               order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
 
                                 statement3 = '''
-                                                select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                                select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
                                                 (select track_id from tracknumbers where track_id in 
                                                     (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s and albumtype=?)
                                                 and albumtype=?)
@@ -2655,7 +2801,7 @@ class DummyContentDirectory(Service):
                                     
                                 countstatement = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s" % (duplicate_number)
                                 countstatement2 = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
-                                statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                                statement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                                 statement2 = "select distinct(albumtype) from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
 #                                statement3 = '''select * from tracks t, tracknumbers n where id in 
 #                                               (select track_id from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s)
@@ -2663,7 +2809,7 @@ class DummyContentDirectory(Service):
 #                                               order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
 
                                 statement3 = '''
-                                                select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                                select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
                                                 (select track_id from tracknumbers where track_id in 
                                                     (select track_id from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s and albumtype=?)
                                                 and albumtype=?)
@@ -2699,7 +2845,7 @@ class DummyContentDirectory(Service):
                                     
                             countstatement = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s" % (duplicate_number)
                             countstatement2 = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
-                            statement = "select * from tracks where id in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                            statement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
 #                            statement3 = '''select * from tracks t, tracknumbers n where id in 
 #                                           (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s)
@@ -2707,7 +2853,7 @@ class DummyContentDirectory(Service):
 #                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
 
                             statement3 = '''
-                                            select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                            select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
                                             (select track_id from tracknumbers where track_id in 
                                                 (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?)
                                             and albumtype=?)
@@ -2742,10 +2888,10 @@ class DummyContentDirectory(Service):
                                     
                             if self.use_albumartist:
                                 countstatement = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? %s" % (self.album_and_duplicate)
-                                statement = "select * from tracks where id in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? %s) order by discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                statement = "select * from tracks where rowid in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? %s) order by discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                             else:                
                                 countstatement = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? %s" % (self.album_and_duplicate)
-                                statement = "select * from tracks where id in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? %s) order by discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
+                                statement = "select * from tracks where rowid in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? %s) order by discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                     else:
                         # len = 4
                         # tracks for genre/artist/album
@@ -2794,7 +2940,7 @@ class DummyContentDirectory(Service):
                         
                             countstatement = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s" % (duplicate_number)
                             countstatement2 = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s and albumtype=?" % (duplicate_number)
-                            statement = "select * from tracks where id in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                            statement = "select * from tracks where rowid in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
 #                            statement3 = '''select * from tracks t, tracknumbers n where id in 
 #                                           (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s)
@@ -2802,7 +2948,7 @@ class DummyContentDirectory(Service):
 #                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
 
                             statement3 = '''
-                                            select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                            select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
                                             (select track_id from tracknumbers where track_id in 
                                                 (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s and albumtype=?)
                                             and albumtype=?)
@@ -2817,7 +2963,7 @@ class DummyContentDirectory(Service):
                         
                             countstatement = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s" % (duplicate_number)
                             countstatement2 = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s and albumtype=?" % (duplicate_number)
-                            statement = "select * from tracks where id in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+                            statement = "select * from tracks where rowid in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = "select distinct(albumtype) from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
 #                            statement3 = '''select * from tracks t, tracknumbers n where id in 
 #                                           (select track_id from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s)
@@ -2825,7 +2971,7 @@ class DummyContentDirectory(Service):
 #                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
 
                             statement3 = '''
-                                            select * from tracks t join tracknumbers n on t.id = n.track_id where id in
+                                            select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
                                             (select track_id from tracknumbers where track_id in 
                                                 (select track_id from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s and albumtype=?)
                                             and albumtype=?)
@@ -2925,9 +3071,9 @@ class DummyContentDirectory(Service):
             for row in c:
                 log.debug("row: %s", row)
                 if albumtype != 10:
-                    id, id2, parentID, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10 = row
+                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10 = row
                 else:
-                    id, id2, parentID, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, upnpclass, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
+                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
                 mime = fixMime(mime)
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
@@ -2982,14 +3128,14 @@ class DummyContentDirectory(Service):
                 tracknumber = self.convert_tracknumber(tracknumber)
                 count += 1
                 
-                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, parentID)
+                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, self.track_parentid)
                 ret += '<dc:title>%s</dc:title>' % (title)
                 ret += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (albumartist)
                 ret += '<upnp:artist role="Performer">%s</upnp:artist>' % (artist)
                 ret += '<upnp:album>%s</upnp:album>' % (album)
                 if tracknumber != 0:
                     ret += '<upnp:originalTrackNumber>%s</upnp:originalTrackNumber>' % (tracknumber)
-                ret += '<upnp:class>%s</upnp:class>' % (upnpclass)
+                ret += '<upnp:class>%s</upnp:class>' % (self.track_class)
                 ret += '<res duration="%s" protocolInfo="%s">%s</res>' % (duration, protocol, res)
 ####                ret += '<desc id="cdudn" nameSpace="urn:schemas-rinconnetworks-com:metadata-1-0/">%s</desc>' % (self.wmpudn)
 #                if cover != '' and not cover.startswith('EMBEDDED_'):
@@ -3013,7 +3159,7 @@ class DummyContentDirectory(Service):
             c.execute(statement)
             for row in c:
 #                log.debug("row: %s", row)
-                playlist, plid, plfile, trackfile, occurs, track, track_id, inserted, created, lastmodified, plfilecreated, plfilelastmodified, trackfilecreated, trackfilelastmodified, scannumber, lastscanned = row
+                playlist, plid, plfile, trackfile, occurs, track, track_id, track_rowid, inserted, created, lastmodified, plfilecreated, plfilelastmodified, trackfilecreated, trackfilelastmodified, scannumber, lastscanned = row
                 id = plid
                 parentid = '13'
                 if playlist == '': playlist = '[unknown playlist]'
@@ -3033,6 +3179,8 @@ class DummyContentDirectory(Service):
             totalMatches = 0
             
         c.close()
+        if not self.proxy.db_persist_connection:
+            db.close()
 
         # fix WMP urls if necessary
         res = res.replace(self.webserverurl, self.wmpurl)
@@ -3325,13 +3473,32 @@ class DummyContentDirectory(Service):
             return artistlist[-1]        
 
     def prime_cache(self):
-        db = sqlite3.connect(self.dbspec)
+        log.debug("prime start: %.3f" % time.time())
+
+        if self.proxy.db_persist_connection:
+            db = self.proxy.db
+        else:
+            db = sqlite3.connect(self.dbspec)
+        log.debug(db)
         c = db.cursor()
         try:
             c.execute("""select * from albums""")
+            for row in c:
+                r = row
+            if self.use_albumartist:
+                c.execute("""select * from AlbumartistAlbum""")
+                for row in c:
+                    r = row
+            else:
+                c.execute("""select * from ArtistAlbum""")
+                for row in c:
+                    r = row
         except sqlite3.Error, e:
             print "Error priming cache:", e.args[0]
         c.close()
+        if not self.proxy.db_persist_connection:
+            db.close()
+        log.debug("prime end: %.3f" % time.time())
 
     def checkkeys(self, proxy, proxykey, controller, controllerkey):
 
@@ -3352,7 +3519,13 @@ class DummyContentDirectory(Service):
         if not self.use_sorts:
             return [(None, None, None, 10, 'dummy', None)]
         order_out = []
-        db = sqlite3.connect(self.dbspec)
+
+        if self.proxy.db_persist_connection:
+            db = self.proxy.db
+        else:
+            db = sqlite3.connect(self.dbspec)
+        log.debug(db)
+
         db.create_function("checkkeys", 4, self.checkkeys)
         c = db.cursor()
         try:
@@ -3403,6 +3576,8 @@ class DummyContentDirectory(Service):
         except sqlite3.Error, e:
             print "Error getting sort info:", e.args[0]
         c.close()
+        if not self.proxy.db_persist_connection:
+            db.close()
         if order_out == []:
             return [(None, None, None, 10, 'dummy', None)]
         log.debug(order_out)
@@ -3465,7 +3640,11 @@ class DummyContentDirectory(Service):
 
     def get_containerupdateid(self):
         # get containerupdateid from db, eventing systemupdateid if necessary
-        db = sqlite3.connect(self.dbspec)
+        if self.proxy.db_persist_connection:
+            db = self.proxy.db
+        else:
+            db = sqlite3.connect(self.dbspec)
+        log.debug(db)
         c = db.cursor()
         statement = "select lastscanid from params where key = '1'"
         log.debug("statement: %s", statement)
@@ -3477,7 +3656,9 @@ class DummyContentDirectory(Service):
             self.systemupdateid += 1
             self._state_variables['SystemUpdateID'].update(self.systemupdateid)
             log.debug("SystemUpdateID value: %s" % self._state_variables['SystemUpdateID'].get_value())
-
+        c.close()
+        if not self.proxy.db_persist_connection:
+            db.close()
 
     # this method not used at present
     def inc_playlistupdateid(self):

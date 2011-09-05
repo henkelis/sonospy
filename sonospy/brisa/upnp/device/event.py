@@ -251,9 +251,9 @@ class EventController(webserver.CustomResource):
         response attributes and methods.
         """
 
-        print "EventController.render_unsubscribe"
-        print "request: " + str(request)
-        print "compressed_headers: " + str(compressed_headers)
+#        print "EventController.render_unsubscribe"
+#        print "request: " + str(request)
+#        print "compressed_headers: " + str(compressed_headers)
         
         log.debug('Receiving unsubscribe request')
         request_status, subs = self._validate_unsubscribe_request(request,

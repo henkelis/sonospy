@@ -2817,6 +2817,17 @@ Music/Rating                101     object.container
                     self.msrootids[mediaserver['UDN']] = mediaserver['Name']
 
 #            print "~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+        # if current server is a zone player, append any line in
+        current_server = self.control_point.get_current_server()
+        if current_server.udn in self.known_zone_players:
+            linein_result = self.control_point.get_audio_in()
+            log.debug("get_audio_in result: %s", linein_result)
+            li_title = linein_result['CurrentName']
+            li_id = "AI:"
+            li_type = "LineIn_ROOT"
+            self.update_rootdata(li_title, li_id, li_type)
+
        
 
     def browse_media_server(self, id, root=None, searchstring='', searchoperator='', setkey=''):
@@ -4133,6 +4144,11 @@ Music/Rating                101     object.container
         log.debug("#### searchoperators: %s", searchoperators)
         log.debug("#### setparent: %s", setparent)
         log.debug("#### extras: %s", extras)
+        
+        # TODO: consider converting colon separated strings to something else
+        title = title.replace(':','&colon;')
+        # TODO: fix this properly
+        title = title.replace('\n',' ')
         
         ref = self.gdataparent[setparent] + '_' + str(self.gdata_lastindex[setparent]+1)
         

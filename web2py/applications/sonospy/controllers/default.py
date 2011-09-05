@@ -695,7 +695,8 @@ def getdata():
         type = entry[1]
         menu = entry[2]
         text = entry[3]
-        
+        # TODO: fix this properly
+        ctext = text.replace('&amp;colon;', ':')
 #        s_id = entry[4]
 #        s_type = entry[5]
         
@@ -707,7 +708,7 @@ def getdata():
             newbreak = False
         
             # check whether we need to separate
-            thisletter = text[:1].upper()
+            thisletter = ctext[:1].upper()
 
             if thisletter.isalpha():
                 if thisletter != currentletter:
@@ -817,9 +818,9 @@ def getdata():
                 elif ex.startswith('art='):
                     extraart = ex[4:]
             if type == 'C':     # this works at the moment because the only container with extras is album
-                insertalbum(id, text, extracreator, extraart, item)
+                insertalbum(id, ctext, extracreator, extraart, item)
                 
-        out += '<li tree="closed"' + play + search + '><span type="' + type + '"><a id=' + atarget + ' menu="' + menu + '" type="' + type + '" sid="' + sid + '">' + icon + text + extras + '</a></span><span id="s' + target + '"></span><span id="' + target + '"></span>' + multipletargets + '</li>'
+        out += '<li tree="closed"' + play + search + '><span type="' + type + '"><a id=' + atarget + ' menu="' + menu + '" type="' + type + '" sid="' + sid + '">' + icon + ctext + extras + '</a></span><span id="s' + target + '"></span><span id="' + target + '"></span>' + multipletargets + '</li>'
 
         foldercount += 1
 
