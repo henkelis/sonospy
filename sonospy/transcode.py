@@ -1,11 +1,26 @@
 
 import subprocess
 import os
+import codecs
 from brisa.core import log
 
 transcodetable_extension = {'mp2': 'mp3', 'pc': 'wav'}
 transcodetable_resolution = {'flac': ((48000, 16, 2, 'flac'),(48000, 16, 6, 'flac'))} # tuple = samplerate, bitspersample, channels, fileextension
 
+alsa_device_file = 'alsa.device'
+alsa_device_script = os.path.join(os.getcwd(), 'getalsa.sh')
+alsa_device = ''
+
+def setalsadevice():
+    global alsa_device
+    if not os.access(alsa_device_file, os.R_OK):
+        subprocess.Popen(alsa_device_script).wait()
+    try:
+        f = codecs.open(alsa_device_file, encoding='utf-8')
+        alsa_device = f.readline().strip()
+    except:
+        pass
+        
 def checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec):
 
     transcode = False
@@ -78,7 +93,7 @@ def transcode(inputfile, transcodetype):
         
         p1 = subprocess.Popen([
                 "parec",
-                "--device=alsa_output.pci-0000_00_1b.0.analog-stereo.monitor",
+                "--device=%s" % alsa_device,
                 "--format=s16le",
                 "--rate=44100",
                 "--channels=2"],

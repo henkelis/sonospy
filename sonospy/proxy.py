@@ -27,7 +27,7 @@ import datetime
 import ConfigParser
 import sqlite3
 
-from transcode import checktranscode, checkstream
+from transcode import checktranscode, checkstream, setalsadevice
 
 from xml.etree.ElementTree import _ElementInterface
 from xml.etree import cElementTree as ElementTree
@@ -166,7 +166,7 @@ class Proxy(object):
             self.db = None
             db.close()
         log.debug(self.db)
-
+        setalsadevice()
 
     def _add_root_device(self):
         """ Creates the root device object which will represent the device
