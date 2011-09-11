@@ -1098,16 +1098,113 @@ class DummyContentDirectory(Service):
             self.album_where_duplicate = ' where duplicate = 0'
             self.album_and_duplicate = ' and duplicate = 0'
 
-        # get sorts setting
-        self.use_sorts = False
+        # get virtual display settings
+        self.display_virtuals_in_album_index = True
         try:        
-            ini_use_sorts = self.proxy.config.get('INI', 'use_sorts')
-            if ini_use_sorts.lower() == 'y':
-                self.use_sorts = True
+            ini_display_virtuals_in_album_index = self.proxy.config.get('virtuals', 'display_virtuals_in_album_index')
+            if ini_display_virtuals_in_album_index[:1].lower() == 'n':
+                self.display_virtuals_in_album_index = False
         except ConfigParser.NoSectionError:
-            self.use_sorts = False
+            pass
         except ConfigParser.NoOptionError:
-            self.use_sorts = False
+            pass
+        self.display_virtuals_in_artist_index = True
+        try:        
+            ini_display_virtuals_in_artist_index = self.proxy.config.get('virtuals', 'display_virtuals_in_artist_index')
+            if ini_display_virtuals_in_artist_index[:1].lower() == 'n':
+                self.display_virtuals_in_artist_index = False
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+        self.display_virtuals_in_contributingartist_index = True
+        try:        
+            ini_display_virtuals_in_contributingartist_index = self.proxy.config.get('virtuals', 'display_virtuals_in_contributingartist_index')
+            if ini_display_virtuals_in_contributingartist_index[:1].lower() == 'n':
+                self.display_virtuals_in_contributingartist_index = False
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+        self.display_virtuals_in_composer_index = True
+        try:        
+            ini_display_virtuals_in_composer_index = self.proxy.config.get('virtuals', 'display_virtuals_in_composer_index')
+            if ini_display_virtuals_in_composer_index[:1].lower() == 'n':
+                self.display_virtuals_in_composer_index = False
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+
+        # get work display settings
+        self.display_works_in_album_index = True
+        try:        
+            ini_display_works_in_album_index = self.proxy.config.get('works', 'display_works_in_album_index')
+            if ini_display_works_in_album_index[:1].lower() == 'n':
+                self.display_works_in_album_index = False
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+        self.display_works_in_artist_index = True
+        try:        
+            ini_display_works_in_artist_index = self.proxy.config.get('works', 'display_works_in_artist_index')
+            if ini_display_works_in_artist_index[:1].lower() == 'n':
+                self.display_works_in_artist_index = False
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+        self.display_works_in_contributingartist_index = True
+        try:        
+            ini_display_works_in_contributingartist_index = self.proxy.config.get('works', 'display_works_in_contributingartist_index')
+            if ini_display_works_in_contributingartist_index[:1].lower() == 'n':
+                self.display_works_in_contributingartist_index = False
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+        self.display_works_in_composer_index = True
+        try:        
+            ini_display_works_in_composer_index = self.proxy.config.get('works', 'display_works_in_composer_index')
+            if ini_display_works_in_composer_index[:1].lower() == 'n':
+                self.display_works_in_composer_index = False
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+
+        # get albumtypes
+        self.album_albumtypes = self.get_possible_albumtypes('ALBUM')
+        self.artist_album_albumtypes = self.get_possible_albumtypes('ARTIST_ALBUM')
+        self.albumartist_album_albumtypes = self.get_possible_albumtypes('ALBUMARTIST_ALBUM')
+        self.contributingartist_album_albumtypes = self.get_possible_albumtypes('CONTRIBUTINGARTIST_ALBUM')
+        self.composer_album_albumtypes = self.get_possible_albumtypes('COMPOSER_ALBUM')
+        self.album_albumtype_where = self.get_albumtype_where(self.album_albumtypes)
+        self.artist_album_albumtype_where = self.get_albumtype_where(self.artist_album_albumtypes)
+        self.albumartist_album_albumtype_where = self.get_albumtype_where(self.albumartist_album_albumtypes)
+        self.contributingartist_album_albumtype_where = self.get_albumtype_where(self.contributingartist_album_albumtypes)
+        self.composer_album_albumtype_where = self.get_albumtype_where(self.composer_album_albumtypes)
+
+        # get sorts setting
+        ini_alternative_index_sorting = 'N'
+        try:        
+            ini_alternative_index_sorting = self.proxy.config.get('sort index', 'alternative_index_sorting')
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+        if ini_alternative_index_sorting == 'N':
+            ais = 'N'
+        else:
+            ais = ini_alternative_index_sorting[:1].upper()
+            if ais == 'S' or ais == 'Y':
+                ais = 'S'
+            elif ais == 'A':
+                pass
+            else:
+                ais = 'N'
+        self.alternative_index_sorting = ais
 
         # get separator settings
         self.show_chunk_separator = False
@@ -1141,7 +1238,7 @@ class DummyContentDirectory(Service):
             self.show_chunk_header_empty = False
 
         # override headers if sorts is off
-        if not self.use_sorts:
+        if self.alternative_index_sorting == 'N':
             self.show_chunk_separator = False
             self.show_chunk_separator_single = False
             self.show_chunk_header_empty = False
@@ -1857,8 +1954,14 @@ class DummyContentDirectory(Service):
                         artisttype = 'albumartist'
                         if searchcontainer:
                             searchwhere = 'where albumartist like "%%%s%%"' % searchstring
-                        countstatement = "select count(distinct albumartist) from AlbumartistAlbum %s" % searchwhere
-                        statement = "select albumartist, lastplayed, playcount from AlbumartistAlbum %s group by albumartist order by orderby limit ?, ?" % searchwhere
+                            
+                        if searchwhere == '':
+                            albumwhere = 'where %s' % self.albumartist_album_albumtype_where
+                        else:
+                            albumwhere = ' and %s' % self.albumartist_album_albumtype_where
+                            
+                        countstatement = "select count(distinct albumartist) from AlbumartistAlbum %s%s" % (searchwhere, albumwhere)
+                        statement = "select albumartist, lastplayed, playcount from AlbumartistAlbum %s%s group by albumartist order by orderby limit ?, ?" % (searchwhere, albumwhere)
                         orderbylist = self.get_orderby('ALBUMARTIST', controllername)
                         for orderbyentry in orderbylist:
                             orderby, prefix, suffix, albumtype, table, header = orderbyentry
@@ -1870,8 +1973,14 @@ class DummyContentDirectory(Service):
                         artisttype = 'artist'
                         if searchcontainer:
                             searchwhere = 'where artist like "%%%s%%"' % searchstring
-                        countstatement = "select count(distinct artist) from ArtistAlbum %s" % searchwhere
-                        statement = "select artist, lastplayed, playcount from ArtistAlbum %s group by artist order by orderby limit ?, ?" % searchwhere
+
+                        if searchwhere == '':
+                            albumwhere = 'where %s' % self.artist_album_albumtype_where
+                        else:
+                            albumwhere = ' and %s' % self.artist_album_albumtype_where
+
+                        countstatement = "select count(distinct artist) from ArtistAlbum %s%s" % (searchwhere, albumwhere)
+                        statement = "select artist, lastplayed, playcount from ArtistAlbum %s%s group by artist order by orderby limit ?, ?" % (searchwhere, albumwhere)
                         orderbylist = self.get_orderby('ARTIST', controllername)
                         for orderbyentry in orderbylist:                                        
                             orderby, prefix, suffix, albumtype, table, header = orderbyentry
@@ -1883,8 +1992,14 @@ class DummyContentDirectory(Service):
                     artisttype = 'contributingartist'
                     if searchcontainer:
                         searchwhere = 'where artist like "%%%s%%"' % searchstring
-                    countstatement = "select count(distinct artist) from ArtistAlbum %s" % searchwhere
-                    statement = "select artist, lastplayed, playcount from ArtistAlbum %s group by artist order by orderby limit ?, ?" % searchwhere
+
+                    if searchwhere == '':
+                        albumwhere = 'where %s' % self.contributingartist_album_albumtype_where
+                    else:
+                        albumwhere = ' and %s' % self.contributingartist_album_albumtype_where
+
+                    countstatement = "select count(distinct artist) from ArtistAlbum %s%s" % (searchwhere, albumwhere)
+                    statement = "select artist, lastplayed, playcount from ArtistAlbum %s%s group by artist order by orderby limit ?, ?" % (searchwhere, albumwhere)
                     orderbylist = self.get_orderby('CONTRIBUTINGARTIST', controllername)
                     for orderbyentry in orderbylist:                                        
                         orderby, prefix, suffix, albumtype, table, header = orderbyentry
@@ -1906,8 +2021,9 @@ class DummyContentDirectory(Service):
                         genres.append(genre)
                         if self.use_albumartist:
                             artisttype = 'albumartist'
-                            countstatement = "select count(distinct albumartist) from GenreAlbumartistAlbum where genre=?"
-                            statement = "select albumartist, lastplayed, playcount from GenreAlbumartistAlbum where genre=? group by albumartist order by orderby limit ?, ?"
+                            albumwhere = 'and %s' % self.albumartist_album_albumtype_where
+                            countstatement = "select count(distinct albumartist) from GenreAlbumartistAlbum where genre=? %s" % albumwhere
+                            statement = "select albumartist, lastplayed, playcount from GenreAlbumartistAlbum where genre=? %s group by albumartist order by orderby limit ?, ?" % albumwhere
                             orderbylist = self.get_orderby('GENRE_ALBUMARTIST', controllername)
                             for orderbyentry in orderbylist:                                        
                                 orderby, prefix, suffix, albumtype, table, header = orderbyentry
@@ -1917,8 +2033,9 @@ class DummyContentDirectory(Service):
                             id_pre = 'GENRE_ALBUMARTIST__'
                         else:                
                             artisttype = 'artist'
-                            countstatement = "select count(distinct artist) from GenreArtistAlbum where genre=?"
-                            statement = "select artist, lastplayed, playcount from GenreArtistAlbum where genre=? group by artist order by orderby limit ?, ?"
+                            albumwhere = 'and %s' % self.artist_album_albumtype_where
+                            countstatement = "select count(distinct artist) from GenreArtistAlbum where genre=? %s" % albumwhere
+                            statement = "select artist, lastplayed, playcount from GenreArtistAlbum where genre=? %s group by artist order by orderby limit ?, ?" % albumwhere
                             orderbylist = self.get_orderby('GENRE_ARTIST', controllername)
                             for orderbyentry in orderbylist:                                        
                                 orderby, prefix, suffix, albumtype, table, header = orderbyentry
@@ -2044,7 +2161,9 @@ class DummyContentDirectory(Service):
         
             if searchCriteria == 'upnp:class = "object.container.album.musicAlbum" and @refID exists false' or \
                searchcontainer == 'Album':
+
                 # Albums
+
                 log.debug('albums')
                 searchtype = 'ALBUM'
 
@@ -2054,9 +2173,6 @@ class DummyContentDirectory(Service):
                         albumwhere = 'where album like "%%%s%%"' % searchstring
                     else:
                         albumwhere += ' and album like "%%%s%%"' % searchstring
-
-                # default albumtype to albums only
-                at = 'albumtype=10'
 
                 genres.append('dummy')     # dummy for albums
                 fields.append('dummy')     # dummy for albums
@@ -2078,13 +2194,11 @@ class DummyContentDirectory(Service):
                 for orderbyentry in orderbylist:
                     orderby, prefix, suffix, albumtype, table, header = orderbyentry
                     if not orderby or orderby == '':
-                        orderby = 'album, albumartist'
-                    if table != 'dummy':
-                        # albumtype will be a list of albumtypes
-                        if len(albumtype) == 1:
-                            at = 'albumtype = %s' % albumtype[0]
+                        if self.use_albumartist:
+                            orderby = 'album, albumartist'
                         else:
-                            at = 'albumtype in (%s)' % ','.join(['%s' % n for n in albumtype])
+                            orderby = 'album, artist'
+                    at = self.get_albumtype_where(albumtype)
                     if albumwhere == '':
                         albumwhere = 'where %s' % at
                     else:
@@ -2109,11 +2223,14 @@ class DummyContentDirectory(Service):
                     searchtype = 'FIELD_ALBUM'
                     genres.append('dummy')     # dummy for composer/artist/contributingartist
                     if criteria[1].endswith('microsoft:authorComposer '):
+
                         # Albums for Composer
+
                         log.debug('albums for composer')
                         composer = criteria[2][1:]
-                        countstatement = "select count(distinct %s) from ComposerAlbum where composer=? and albumtype=? %s" % (distinct_composer, self.album_and_duplicate)
-                        statement = "select * from albums where id in (select album_id from ComposerAlbum where composer=? and albumtype=? %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_composer)
+                        
+                        countstatement = "select count(distinct %s) from ComposerAlbum where composer=? and albumtypewhere %s" % (distinct_composer, self.album_and_duplicate)
+                        statement = "select * from albums where id in (select album_id from ComposerAlbum where composer=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_composer)
                         composer_options = self.removepresuf(composer, 'COMPOSER', controllername)
                         for composer in composer_options:
                             if composer == '[unknown composer]': composer = ''
@@ -2132,12 +2249,12 @@ class DummyContentDirectory(Service):
                         log.debug('albums for artist (microsoft:artistAlbumArtist)')
                         artist = criteria[2][1:]
                         if self.use_albumartist:
-                            countstatement = "select count(distinct %s) from AlbumartistAlbum where albumartist=? and albumtype=? %s" % (distinct_albumartist, self.album_and_duplicate)
-                            statement = "select * from albums where id in (select album_id from AlbumartistAlbum where albumartist=? and albumtype=? %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_albumartist)
+                            countstatement = "select count(distinct %s) from AlbumartistAlbum where albumartist=? and albumtypewhere %s" % (distinct_albumartist, self.album_and_duplicate)
+                            statement = "select * from albums where id in (select album_id from AlbumartistAlbum where albumartist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_albumartist)
                             artist_options = self.removepresuf(artist, 'ALBUMARTIST', controllername)
                         else:
-                            countstatement = "select count(distinct %s) from ArtistAlbum where artist=? and albumtype=? %s" % (distinct_artist, self.album_and_duplicate)
-                            statement = "select * from albums where id in (select album_id from ArtistAlbum where artist=? and albumtype=? %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
+                            countstatement = "select count(distinct %s) from ArtistAlbum where artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
+                            statement = "select * from albums where id in (select album_id from ArtistAlbum where artist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
                             artist_options = self.removepresuf(artist, 'ARTIST', controllername)
                         for artist in artist_options:
                             if artist == '[unknown artist]': artist = ''
@@ -2165,8 +2282,8 @@ class DummyContentDirectory(Service):
                         # Albums for contributing artist
                         log.debug('albums for artist (microsoft:artistPerformer)')
                         artist = criteria[2][1:]
-                        countstatement = "select count(distinct %s) from ArtistAlbum where artist=? and albumtype=? %s" % (distinct_artist, self.album_and_duplicate)
-                        statement = "select * from albums where id in (select album_id from ArtistAlbum where artist=? and albumtype=? %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
+                        countstatement = "select count(distinct %s) from ArtistAlbum where artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
+                        statement = "select * from albums where id in (select album_id from ArtistAlbum where artist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
                         artist_options = self.removepresuf(artist, 'CONTRIBUTINGARTIST', controllername)
                         for artist in artist_options:
                             if artist == '[unknown artist]': artist = ''
@@ -2189,11 +2306,11 @@ class DummyContentDirectory(Service):
                         log.debug('albums for genre and artist')
                         genre = criteria[2][1:-33]
                         if self.use_albumartist:
-                            countstatement = "select count(distinct %s) from GenreAlbumartistAlbum where genre=? and albumartist=? and albumtype=? %s" % (distinct_albumartist, self.album_and_duplicate)
-                            statement = "select * from albums where id in (select album_id from GenreAlbumartistAlbum where genre=? and albumartist=? and albumtype=? %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_albumartist)
+                            countstatement = "select count(distinct %s) from GenreAlbumartistAlbum where genre=? and albumartist=? and albumtypewhere %s" % (distinct_albumartist, self.album_and_duplicate)
+                            statement = "select * from albums where id in (select album_id from GenreAlbumartistAlbum where genre=? and albumartist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_albumartist)
                         else:
-                            countstatement = "select count(distinct %s) from GenreArtistAlbum where genre=? and artist=? and albumtype=? %s" % (distinct_artist, self.album_and_duplicate)
-                            statement = "select * from albums where id in (select album_id from GenreArtistAlbum where genre=? and artist=? and albumtype=? %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
+                            countstatement = "select count(distinct %s) from GenreArtistAlbum where genre=? and artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
+                            statement = "select * from albums where id in (select album_id from GenreArtistAlbum where genre=? and artist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
                         genre_options = self.removepresuf(genre, 'GENRE', controllername)
                         for genre in genre_options:
                             if genre == '[unknown genre]': genre = ''
@@ -2255,13 +2372,13 @@ class DummyContentDirectory(Service):
                             if searchtype == 'ALBUM':
                                 c.execute(countstatement)
                             elif searchtype == 'FIELD_ALBUM':
-                                log.debug(countstatement)
-                                log.debug(field)
-                                log.debug(albumtype)
-
-                                c.execute(countstatement, (field, albumtype))
+                                albumtypewhere = self.get_albumtype_where(albumtype)
+                                countstatement = countstatement.replace('albumtypewhere', albumtypewhere)
+                                c.execute(countstatement, (field, ))
                             elif searchtype == 'GENRE_FIELD_ALBUM':
-                                c.execute(countstatement, (genre, field, albumtype))
+                                albumtypewhere = self.get_albumtype_where(albumtype)
+                                countstatement = countstatement.replace('albumtypewhere', albumtypewhere)
+                                c.execute(countstatement, (genre, field))
                             tableMatches, = c.fetchone()
                             tableMatches = int(tableMatches)
                             matches[table] = tableMatches
@@ -2313,14 +2430,16 @@ class DummyContentDirectory(Service):
                         res += '</container>'
 
                     orderstatement = statement.replace('order by orderby', 'order by ' + orderby)
+                    albumtypewhere = self.get_albumtype_where(albumtype)
+                    orderstatement = orderstatement.replace('albumtypewhere', albumtypewhere)
                     log.debug(orderstatement)
 
                     if searchtype == 'ALBUM':
                         c.execute(orderstatement, (start, length))
                     elif searchtype == 'FIELD_ALBUM':
-                        c.execute(orderstatement, (found_field, albumtype, start, length))
+                        c.execute(orderstatement, (found_field, start, length))
                     elif searchtype == 'GENRE_FIELD_ALBUM':
-                        c.execute(orderstatement, (found_genre, found_field, albumtype, start, length))
+                        c.execute(orderstatement, (found_genre, found_field, start, length))
 
                     for row in c:
 #                        log.debug("row: %s", row)
@@ -2398,8 +2517,13 @@ class DummyContentDirectory(Service):
             if searchcontainer:
                 searchwhere = 'where composer like "%%%s%%"' % searchstring
 
-            countstatement = "select count(distinct composer) from ComposerAlbum %s" % searchwhere
-            statement = "select composer, lastplayed, playcount from ComposerAlbum %s group by composer order by orderby limit ?, ?" % searchwhere
+            if searchwhere == '':
+                albumwhere = 'where %s' % self.composer_album_albumtype_where
+            else:
+                albumwhere = ' and %s' % self.composer_album_albumtype_where
+                
+            countstatement = "select count(distinct composer) from ComposerAlbum %s%s" % (searchwhere, albumwhere)
+            statement = "select composer, lastplayed, playcount from ComposerAlbum %s%s group by composer order by orderby limit ?, ?" % (searchwhere, albumwhere)
 
             orderbylist = self.get_orderby('COMPOSER', controllername)
             for orderbyentry in orderbylist:
@@ -2484,8 +2608,22 @@ class DummyContentDirectory(Service):
 
             state_pre_suf = []
 
-            countstatement = "select count(distinct genre) from GenreArtist"
-            statement = "select genre, lastplayed, playcount from GenreArtist group by genre order by orderby limit ?, ?"
+            if self.use_albumartist:
+                albumwhere = 'where %s' % self.albumartist_album_albumtype_where
+                countstatement = "select count(distinct genre) from GenreAlbumartistAlbum %s" % albumwhere
+
+                statement = """select genre, lastplayed, playcount from genres where genre in
+                               (select distinct genre from GenreAlbumartistAlbum %s)
+                               order by orderby limit ?, ?"""  % albumwhere
+
+            else:
+
+                albumwhere = 'where %s' % self.artist_album_albumtype_where
+                countstatement = "select count(distinct genre) from GenreArtistAlbum %s" % albumwhere
+
+                statement = """select genre, lastplayed, playcount from genres where genre in
+                               (select distinct genre from GenreArtistAlbum %s)
+                               order by orderby limit ?, ?"""  % albumwhere
 
             orderbylist = self.get_orderby('GENRE', controllername)
             for orderbyentry in orderbylist:
@@ -3517,72 +3655,84 @@ class DummyContentDirectory(Service):
 
     def get_orderby(self, sorttype, controller):
         # TODO: only load this on start and updateid change
-        if not self.use_sorts:
-            return [(None, None, None, 10, 'dummy', None)]
-        order_out = []
 
-        if self.proxy.db_persist_connection:
-            db = self.proxy.db
+        dummysorttype = sorttype
+        if sorttype == 'ALBUMARTIST_ALBUM':
+            dummysorttype = 'ARTIST_ALBUM'
+        elif sorttype == 'ALBUMARTIST':
+            dummysorttype = 'ARTIST'
+        elif sorttype == 'GENRE_ALBUMARTIST':
+            dummysorttype = 'GENRE_ARTIST'
+
+        if self.alternative_index_sorting == 'N':
+            if dummysorttype.startswith('GENRE_'): dummysorttype = dummysorttype[7:]
+            at = self.get_possible_albumtypes(dummysorttype)
+            return [(None, None, None, at, 'dummy', None)]
+        elif self.alternative_index_sorting == 'S':
+            if dummysorttype.startswith('GENRE_'): dummysorttype = dummysorttype[7:]
+            at = self.get_possible_albumtypes(dummysorttype)
+            return [(None, None, None, at, 'dummy', None)]
         else:
-            db = sqlite3.connect(self.dbspec)
-        log.debug(db)
+            # must be 'A(dvanced)'
+            order_out = []
 
-        db.create_function("checkkeys", 4, self.checkkeys)
-        c = db.cursor()
-        try:
-            dummysorttype = sorttype
-            if sorttype == 'ALBUMARTIST_ALBUM':
-                dummysorttype = 'ARTIST_ALBUM'
-            elif sorttype == 'ALBUMARTIST':
-                dummysorttype = 'ARTIST'
-            elif sorttype == 'GENRE_ALBUMARTIST':
-                dummysorttype = 'GENRE_ARTIST'
-            statement = """select sort_order, sort_prefix, sort_suffix, album_type, header_name from sorts where checkkeys(proxyname, "%s", controller, "%s") and sort_type="%s" and active is not null and active!="" order by sort_seq""" % (self.proxy.proxyname, controller, dummysorttype)
-            log.debug(statement)
-            c.execute(statement)
-            for row in c:
-                log.debug(row)
-                so, sp, ss, albumtypestring, hn = row
-                if self.use_albumartist:
-                    if so: so = re.sub('(?<!album)artist', 'albumartist', so)
-                    if sp: sp = re.sub('(?<!album)artist', 'albumartist', sp)
-                    if ss: ss = re.sub('(?<!album)artist', 'albumartist', ss)
-                else:
-                    if so: so = so.replace('albumartist', 'artist')
-                    if sp: sp = sp.replace('albumartist', 'artist')
-                    if ss: ss = ss.replace('albumartist', 'artist')
-                # special case for album
-                if sorttype == 'ALBUM':
-                    if not albumtypestring:
-                        albumtypestrings = ['album']
+            if self.proxy.db_persist_connection:
+                db = self.proxy.db
+            else:
+                db = sqlite3.connect(self.dbspec)
+            log.debug(db)
+
+            db.create_function("checkkeys", 4, self.checkkeys)
+            c = db.cursor()
+            try:
+                statement = """select sort_order, sort_prefix, sort_suffix, album_type, header_name from sorts where checkkeys(proxyname, "%s", controller, "%s") and sort_type="%s" and active is not null and active!="" order by sort_seq""" % (self.proxy.proxyname, controller, dummysorttype)
+                log.debug(statement)
+                c.execute(statement)
+                for row in c:
+                    log.debug(row)
+                    so, sp, ss, albumtypestring, hn = row
+                    if self.use_albumartist:
+                        if so: so = re.sub('(?<!album)artist', 'albumartist', so)
+                        if sp: sp = re.sub('(?<!album)artist', 'albumartist', sp)
+                        if ss: ss = re.sub('(?<!album)artist', 'albumartist', ss)
                     else:
-                        if self.use_albumartist:
-                            albumtypestring = re.sub('(?<!album)artist_virtual', 'albumartist_virtual', albumtypestring)
+                        if so: so = so.replace('albumartist', 'artist')
+                        if sp: sp = sp.replace('albumartist', 'artist')
+                        if ss: ss = ss.replace('albumartist', 'artist')
+                    # special case for album
+                    if sorttype == 'ALBUM':
+                        if not albumtypestring:
+                            albumtypestrings = ['album']
                         else:
-                            albumtypestring = albumtypestring.replace('albumartist_virtual', 'artist_virtual')
-                        albumtypestrings = albumtypestring.split(',')
-                        albumtypestrings = [k.strip() for k in albumtypestrings]
-                        albumtypestrings = [k for k in albumtypestrings if k != '']
-                        if not 'album' in albumtypestrings:
-                            albumtypestrings.insert(0, 'album')
-                        log.debug(albumtypestrings)
-                    ats = []
-                    for at in albumtypestrings:
-                        albumtypenum, table = self.translate_albumtype(at, sorttype)
-                        ats.append(albumtypenum)
-                    albumtypenum = ats
-                else:
-                    albumtypenum, table = self.translate_albumtype(albumtypestring, sorttype)
-                order_out.append((so, sp, ss, albumtypenum, table, hn))
-        except sqlite3.Error, e:
-            print "Error getting sort info:", e.args[0]
-        c.close()
-        if not self.proxy.db_persist_connection:
-            db.close()
-        if order_out == []:
-            return [(None, None, None, 10, 'dummy', None)]
-        log.debug(order_out)
-        return order_out
+                            if self.use_albumartist:
+                                albumtypestring = re.sub('(?<!album)artist_virtual', 'albumartist_virtual', albumtypestring)
+                            else:
+                                albumtypestring = albumtypestring.replace('albumartist_virtual', 'artist_virtual')
+                            albumtypestrings = albumtypestring.split(',')
+                            albumtypestrings = [k.strip() for k in albumtypestrings]
+                            albumtypestrings = [k for k in albumtypestrings if k != '']
+                            if not 'album' in albumtypestrings:
+                                albumtypestrings.insert(0, 'album')
+                            log.debug(albumtypestrings)
+                        ats = []
+                        for at in albumtypestrings:
+                            albumtypenum, table = self.translate_albumtype(at, sorttype)
+                            ats.append(albumtypenum)
+                        albumtypenum = ats
+                    else:
+                        albumtypenum, table = self.translate_albumtype(albumtypestring, sorttype)
+                    order_out.append((so, sp, ss, albumtypenum, table, hn))
+            except sqlite3.Error, e:
+                print "Error getting sort info:", e.args[0]
+            c.close()
+            if not self.proxy.db_persist_connection:
+                db.close()
+            if order_out == []:
+                if dummysorttype.startswith('GENRE_'): dummysorttype = dummysorttype[7:]
+                at = self.get_possible_albumtypes(dummysorttype)
+                return [(None, None, None, at, 'dummy', None)]
+            log.debug(order_out)
+            return order_out
 
     def translate_albumtype(self, albumtype, table):
         if not albumtype or albumtype == '':
@@ -3590,16 +3740,18 @@ class DummyContentDirectory(Service):
         elif albumtype == 'album':
             return '10', albumtype
         elif albumtype == 'virtual':
-            if table == 'COMPOSER_ALBUM':
-                return '25', albumtype
+            if table == 'ALBUM':
+                return '21', albumtype
             elif table == 'ARTIST_ALBUM':
-                return '26', albumtype
+                return '22', albumtype
             elif table == 'ALBUMARTIST_ALBUM':
-                return '27', albumtype
+                return '23', albumtype
             elif table == 'CONTRIBUTINGARTIST_ALBUM':
-                return '28', albumtype
+                return '24', albumtype
+            elif table == 'COMPOSER_ALBUM':
+                return '25', albumtype
         elif albumtype == 'work':
-            if table == 'COMPOSER_ALBUM':
+            if table == 'ALBUM':
                 return '31', albumtype
             elif table == 'ARTIST_ALBUM':
                 return '32', albumtype
@@ -3607,37 +3759,55 @@ class DummyContentDirectory(Service):
                 return '33', albumtype
             elif table == 'CONTRIBUTINGARTIST_ALBUM':
                 return '34', albumtype
+            elif table == 'COMPOSER_ALBUM':
+                return '35', albumtype
 
+        # TODO: check whether we still need these
+        elif albumtype == 'artist_virtual':
+            return '22', albumtype
+        elif albumtype == 'albumartist_virtual':
+            return '23', albumtype
+        elif albumtype == 'contributingartist_virtual':
+            return '24', albumtype
         elif albumtype == 'composer_virtual':
             return '25', albumtype
-        elif albumtype == 'artist_virtual':
-            return '26', albumtype
-        elif albumtype == 'albumartist_virtual':
-            return '27', albumtype
-        elif albumtype == 'contributingartist_virtual':
-            return '28', albumtype
 
-        elif albumtype == 'composer_work':
-            return '31', albumtype
         elif albumtype == 'artist_work':
             return '32', albumtype
         elif albumtype == 'albumartist_work':
             return '33', albumtype
         elif albumtype == 'contributingartist_work':
             return '34', albumtype
+        elif albumtype == 'composer_work':
+            return '35', albumtype
 
         else:
             return '10', 'album'
 
     def get_possible_albumtypes(self, table):
-        if table == 'COMPOSER_ALBUM':
-            return [25, 31]
+        at = [10]
+        if table == 'ALBUM':
+            if self.display_virtuals_in_album_index: at.append(21)
+            if self.display_works_in_album_index: at.append(31)
         elif table == 'ARTIST_ALBUM':
-            return [26, 32]
+            if self.display_virtuals_in_artist_index: at.append(22)
+            if self.display_works_in_artist_index: at.append(32)
         elif table == 'ALBUMARTIST_ALBUM':
-            return [27, 33]
+            if self.display_virtuals_in_artist_index: at.append(23)
+            if self.display_works_in_artist_index: at.append(33)
         elif table == 'CONTRIBUTINGARTIST_ALBUM':
-            return [28, 34]
+            if self.display_virtuals_in_contributingartist_index: at.append(24)
+            if self.display_works_in_contributingartist_index: at.append(34)
+        elif table == 'COMPOSER_ALBUM':
+            if self.display_virtuals_in_composer_index: at.append(25)
+            if self.display_works_in_composer_index: at.append(35)
+        return at
+
+    def get_albumtype_where(self, albumtypes):
+        if len(albumtypes) == 1:
+            return 'albumtype=%s' % albumtypes[0]
+        else:
+            return 'albumtype in (%s)' % ','.join(str(t) for t in albumtypes)
 
     def get_containerupdateid(self):
         # get containerupdateid from db, eventing systemupdateid if necessary

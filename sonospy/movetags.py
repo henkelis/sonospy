@@ -165,12 +165,13 @@ def process_tags(args, options, tagdatabase, trackdatabase):
         pass
     
     # names
+    album_work_name_structure = '"%s - %s - %s" % (composer, work, artist)'
     composer_album_work_name_structure = '"%s - %s - %s" % (genre, work, artist)'
     artist_album_work_name_structure = '"%s - %s - %s" % (composer, genre, work)'
     contributingartist_album_work_name_structure = '"%s - %s - %s" % (composer, genre, work)'
     work_name_structures = []
     try:        
-        work_name_structures = config.items('work_name_structures')
+        work_name_structures = config.items('work name format')
     except ConfigParser.NoSectionError:
         pass
     except ConfigParser.NoOptionError:
@@ -182,36 +183,40 @@ def process_tags(args, options, tagdatabase, trackdatabase):
             lookup_name_dict[k] = v
         else:
             work_name_dict[k] = v
+    album_work = work_name_dict.get('ALBUM', album_work_name_structure)
     composer_album_work = work_name_dict.get('COMPOSER_ALBUM', composer_album_work_name_structure)
     artist_album_work = work_name_dict.get('ARTIST_ALBUM', artist_album_work_name_structure)
     albumartist_album_work = artist_album_work
     contributingartist_album_work = work_name_dict.get('CONTRIBUTINGARTIST_ALBUM', contributingartist_album_work_name_structure)
 
+    album_virtual_name_structure = '"%s" % (virtual)'
     composer_album_virtual_name_structure = '"%s" % (virtual)'
     artist_album_virtual_name_structure = '"%s" % (virtual)'
     contributingartist_album_virtual_name_structure = '"%s" % (virtual)'
     virtual_name_structures = []
     try:        
-        virtual_name_structures = config.items('virtual_name_structures')
+        virtual_name_structures = config.items('virtual name format')
     except ConfigParser.NoSectionError:
         pass
     except ConfigParser.NoOptionError:
         pass
+    lookup_name_dict = {}
     virtual_name_dict = {}
     for k,v in virtual_name_structures:
         if k[0] == '_':
             lookup_name_dict[k] = v
         else:
             virtual_name_dict[k] = v
+    album_virtual = virtual_name_dict.get('ALBUM', album_virtual_name_structure)
     composer_album_virtual = virtual_name_dict.get('COMPOSER_ALBUM', composer_album_virtual_name_structure)
     artist_album_virtual = virtual_name_dict.get('ARTIST_ALBUM', artist_album_virtual_name_structure)
     albumartist_album_virtual = artist_album_virtual
     contributingartist_album_virtual = virtual_name_dict.get('CONTRIBUTINGARTIST_ALBUM', contributingartist_album_virtual_name_structure)
 
     # convert user defined fields and create old and new structures
-    workstructurelist = [('composer_album_work', composer_album_work), ('artist_album_work', artist_album_work), ('albumartist_album_work', albumartist_album_work), ('contributingartist_album_work', contributingartist_album_work)]
+    workstructurelist = [('album_work', album_work), ('composer_album_work', composer_album_work), ('artist_album_work', artist_album_work), ('albumartist_album_work', albumartist_album_work), ('contributingartist_album_work', contributingartist_album_work)]
     old_structures_work, new_structures_work = convertstructure(workstructurelist, lookup_name_dict)
-    virtualstructurelist = [('composer_album_virtual', composer_album_virtual), ('artist_album_virtual', artist_album_virtual), ('albumartist_album_virtual', albumartist_album_virtual), ('contributingartist_album_virtual', contributingartist_album_virtual)]
+    virtualstructurelist = [('album_virtual', album_virtual), ('composer_album_virtual', composer_album_virtual), ('artist_album_virtual', artist_album_virtual), ('albumartist_album_virtual', albumartist_album_virtual), ('contributingartist_album_virtual', contributingartist_album_virtual)]
     old_structures_virtual, new_structures_virtual = convertstructure(virtualstructurelist, lookup_name_dict)
 
     # get outstanding scan details
@@ -272,7 +277,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                 orderby_tu = 'updatetype, rowid'
                 orderby_wv = 'w.updatetype, w.rowid'
 
-            # we need to process tags_updates followed by workvirtuals updates
+            # we need to process tags_updates followed by workvirtuals_updates
             # 1) for tags we just select from tags_updates
             # 2) to get the full data for workvirtuals inserts/updates we join with tags (not tags_updates as it
             #    doesn't contain all the records we need (remember tags is the after image too))
@@ -1607,7 +1612,17 @@ def translatealbumtype(albumtype):
         return 3
 
 def translatestructuretype(structuretype):
-    if structuretype == 'composer_album_work':
+    if structuretype == 'album_virtual':
+        return 1
+    elif structuretype == 'artist_album_virtual':
+        return 2
+    elif structuretype == 'albumartist_album_virtual':
+        return 3
+    elif structuretype == 'contributingartist_album_virtual':
+        return 4
+    elif structuretype == 'composer_album_virtual':
+        return 5
+    elif structuretype == 'album_work':
         return 1
     elif structuretype == 'artist_album_work':
         return 2
@@ -1615,14 +1630,8 @@ def translatestructuretype(structuretype):
         return 3
     elif structuretype == 'contributingartist_album_work':
         return 4
-    elif structuretype == 'composer_album_virtual':
+    elif structuretype == 'composer_album_work':
         return 5
-    elif structuretype == 'artist_album_virtual':
-        return 6
-    elif structuretype == 'albumartist_album_virtual':
-        return 7
-    elif structuretype == 'contributingartist_album_virtual':
-        return 8
 
 def convertstructure(structurelist, lookup_name_dict):
     old_structures = []

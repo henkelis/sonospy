@@ -960,6 +960,7 @@ def process_dir(scanpath, options, database):
                         wvtitle = checktag(wvtitle, tr_title)
                         wvartist = checktag(wvartist, tr_artist)
                         wvalbumartist = checktag(wvalbumartist, tr_albumartist)
+                        if not wvalbumartist: wvalbumartist = wvartist
                         wvcomposer = checktag(wvcomposer, tr_composer)
                         wvyear = checktag(wvyear, tr_year)
                         wvgenre = checktag(wvgenre, tr_genre)
@@ -1861,6 +1862,7 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
     trackcounts = defaultdict(int)
     success, wvfilecreated, wvfilelastmodified, wvfilefsize, filler = getfilestat(wvfilespec)
     wvcount = 0
+    newkeyset = True
     for line in codecs.open(wvfilespec,'r','utf-8'):
         if line == '': continue
         if line.startswith('#'): continue
@@ -1868,6 +1870,9 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
         keyfound = False
         for key in workvirtualkeys:
             if line.lower().startswith(key):
+                if newkeyset:
+                    wvtitle = wvartist = wvalbumartist = wvcomposer = wvyear = wvgenre = wvcover = wvdiscnumber = wvinserted = wvcreated = wvlastmodified = None
+                    newkeyset = False                    
                 value = line[len(key):]
                 value = value.replace('"', '\\"')
                 if value.endswith('\n'): value = value[:-1]
@@ -1877,6 +1882,7 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
                 keyfound = True
                 break
         if not keyfound:
+            newkeyset = True
             filespec = line.strip()
             filespec = checkpath(filespec, wvfilepath)
             for filespec in generate_workvirtualfile_record(filespec, database):
