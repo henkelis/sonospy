@@ -22,7 +22,8 @@
 # virtualsTab.py Author: John Chowanec <chowanec@gmail.com>
 ###############################################################################
 # TODO:
-#   -How to handle multiple SPs in one File? Do I bother?
+# -How to handle multiple SPs in one File? Do I bother?
+# -Implement an ignoreChar list to manage lines to ignore based on line[0]
 ###############################################################################
 
 import wx
@@ -326,8 +327,9 @@ class VirtualsPanel(wx.Panel):
                 
             for line in lines:
                 if tracksStart == True:
-                    if line != "\n":
-                        self.tc_FilesFolders.AppendText(line)
+                    if line != "\n"
+                        if line[0] != "#":
+                            self.tc_FilesFolders.AppendText(line)
                 if "type=" in line:
                     if "virtual" in line.lower():
                         self.combo_typeOptions.Select(1)
