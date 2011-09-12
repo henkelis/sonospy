@@ -43,6 +43,7 @@ import scanTab
 import extractTab
 import launchTab
 import virtualsTab
+import scheduleTab
 # import nowPlayingTab
 
 # set our working directory for the rest of the functions to work right.
@@ -61,7 +62,7 @@ class SonospyNotebook(wx.Notebook):
         self.AddPage(scanTab.ScanPanel(self), "Scan")
         self.AddPage(extractTab.ExtractPanel(self), "Extract")
         self.AddPage(virtualsTab.VirtualsPanel(self), "Virtuals")
-
+#        self.AddPage(scheduleTab.SchedulePanel(self), "Batch")
 
         # Now Playing is SUPER EXPERIMENTAL, WILL PROBABLY BREAK!
 #        self.AddPage(nowPlayingTab.NowPlayingPanel(self), "Now Playing")
