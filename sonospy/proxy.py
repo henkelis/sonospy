@@ -1482,7 +1482,7 @@ class DummyContentDirectory(Service):
 #                               order by t.discnumber, n.tracknumber, t.title''' % (where, album_type, album_title)
 
                 countstatement = '''
-                                    select count(*) from tracks t join tracknumbers n on t.rowid = n.track_id where id in
+                                    select count(*) from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
                                    (select track_id from TrackNumbers where %s)
                                     and n.albumtype=%s and n.dummyalbum="%s"
                                  ''' % (where, album_type, album_title)
@@ -1490,7 +1490,7 @@ class DummyContentDirectory(Service):
                 totalMatches, = c.fetchone()
 
                 statement = '''
-                                select * from tracks t join tracknumbers n on t.rowid = n.track_id where id in
+                                select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
                                (select track_id from TrackNumbers where %s)
                                 and n.albumtype=%s and n.dummyalbum="%s"
                                 order by n.tracknumber, t.title limit %d, %d

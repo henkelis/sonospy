@@ -1857,6 +1857,7 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
         wvtype = 'work'
     elif exttype == 'virtual':
         wvtype = 'virtual'
+    default_wvtype = wvtype
     wvtitle = wvartist = wvalbumartist = wvcomposer = wvyear = wvgenre = wvcover = wvdiscnumber = wvinserted = wvcreated = wvlastmodified = None
     tracks = []
     trackcounts = defaultdict(int)
@@ -1872,6 +1873,7 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
             if line.lower().startswith(key):
                 if newkeyset:
                     wvtitle = wvartist = wvalbumartist = wvcomposer = wvyear = wvgenre = wvcover = wvdiscnumber = wvinserted = wvcreated = wvlastmodified = None
+                    wvtype = default_wvtype
                     newkeyset = False                    
                 value = line[len(key):]
                 value = value.replace('"', '\\"')
