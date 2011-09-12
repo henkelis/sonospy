@@ -30,7 +30,6 @@
 #        cur.execute('SELECT DISTINCT genre FROM tags')
 #        for row in cur:
 #            a.append(row)
-# - Organize side by side to save some space
 # - Add scheduler functionality (i.e. push command to scheduler tab)
 ###############################################################################
 
