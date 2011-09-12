@@ -327,7 +327,7 @@ class VirtualsPanel(wx.Panel):
                 
             for line in lines:
                 if tracksStart == True:
-                    if line != "\n"
+                    if line != "\n":
                         if line[0] != "#":
                             self.tc_FilesFolders.AppendText(line)
                 if "type=" in line:
