@@ -3721,6 +3721,7 @@ class DummyContentDirectory(Service):
                         albumtypenum = ats
                     else:
                         albumtypenum, table = self.translate_albumtype(albumtypestring, sorttype)
+                        albumtypenum = [albumtypenum]
                     order_out.append((so, sp, ss, albumtypenum, table, hn))
             except sqlite3.Error, e:
                 print "Error getting sort info:", e.args[0]
