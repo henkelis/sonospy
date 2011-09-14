@@ -27,16 +27,11 @@ You can run this by ./sonsopyGUI.py (linux) or python sonospyGUI.py (linux/windo
 [EXTRACT TAB]
  - Last <X> Albums is experimental, it gets the job done, but it's not perfect.
 
-[VIRTUALS]
- - You can only create virtuals here, I am not, yet, loading them in.
-
 ----------------------------------------------------------------------------
 KNOWN ISSUES
 ----------------------------------------------------------------------------
- - I don't think launch is working under Windows for some reason.  But in order to test it properly, I have to: a) install python b) install wxPython c) configure my windows firewall d) probably reboot... I never thought I'd be that elitist linux user, but man, I just got a cold bucket of water as to why I don't like Windows. :P
-
- - No functionality for loading virtuals yet.  Not sure how I am going to be able to handle multiple virtual definitions within a single .SP file.
-
+ - Launch does not currently work under Windows.
+ - Loading virtuals only works with one "set".  If you store more than one virtual/work in an .SP file, it won't work.  Best to use the SP files created with the GUI until I find a solution here in terms of GUI layout.
  - Sometimes it will report a bash error on a scan/extract to not finding scan.py -- it seems to resolve itself if you don't spam buttons super quick.  I am manually os.chdir(os.pardir) to get out of the gui folder down to where Mark's modules are.  Not sure how else to do it, but I'm still way too green to have even written this GUI, so I am sure there is a better way.
 
 ----------------------------------------------------------------------------
@@ -57,6 +52,3 @@ TO DO
  - Scrub SQL database for valid entries to limit user error.  Blue did this, but I am of split mind on whether or not we want to limit the user this way.  In thoery, we could do "contains" on Genre to get a extract with ROCK, CLASSIC ROCK, etc. if "ROCK" is provided.
  - Lots of error checking, I am sure, to make sure people don't enter a string when the query will expect an int.
  - Add scheduler functionality (i.e. push command to scheduler tab)
-
-[VIRTUALS]
- - Load existing Virtual

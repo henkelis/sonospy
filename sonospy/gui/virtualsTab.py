@@ -22,8 +22,8 @@
 # virtualsTab.py Author: John Chowanec <chowanec@gmail.com>
 ###############################################################################
 # TODO:
-# - Load in an SP file
-#   How to handle multiple SPs in one File?
+# -How to handle multiple SPs in one File? Do I bother?
+# -Implement an ignoreChar list to manage lines to ignore based on line[0]
 ###############################################################################
 
 import wx
@@ -317,12 +317,63 @@ class VirtualsPanel(wx.Panel):
         
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wxID_OK:
-            selected = dialog.GetFilenames()
+            selected = dialog.GetPaths()
             for selection in selected:
                 # All the hard work goes here...
-                file = open(selection)
-                print file.read()
+                file = open(selection, 'r')
+                lines = file.readlines()
                 guiFunctions.statusText(self, "Playlist: " + selection + " selected...")
+                tracksStart = False
+                
+            for line in lines:
+                if tracksStart == True:
+                    if line != "\n":
+                        if line[0] != "#":
+                            self.tc_FilesFolders.AppendText(line)
+                if "type=" in line:
+                    if "virtual" in line.lower():
+                        self.combo_typeOptions.Select(1)
+                    else:
+                        self.combo_typeOptions.Select(0)
+                if "title=" in line:
+                    newLine = line.replace("title=","")
+                    newLine = newLine.replace("\n","")
+                    self.tc_Title.Value = newLine
+                if "artist=" in line:
+                    newLine = line.replace("artist=","")
+                    newLine = newLine.replace("\n","")
+                    self.tc_Artist.Value = newLine
+                if "albumartist=" in line:
+                    newLine = line.replace("albumartist=","")
+                    newLine = newLine.replace("\n","")
+                    self.tc_AlbumArtist.Value = newLine
+                if "composer=" in line:
+                    newLine = line.replace("composer=","")
+                    newLine = newLine.replace("\n","")
+                    self.tc_Composer.Value = newLine
+                if "year=" in line:
+                    newLine = line.replace("year=","")
+                    newLine = newLine.replace("\n","")
+                    self.tc_Year.Value = newLine
+                if "genre=" in line:
+                    newLine = line.replace("genre=","")
+                    newLine = newLine.replace("\n","")
+                    self.tc_Genre.Value = newLine
+                if "cover=" in line:
+                    newLine = line.replace("cover=","")
+                    newLine = newLine.replace("\n","")
+                    self.tc_Cover.Value = newLine
+                if "discnumber=" in line:
+                    newLine = line.replace("discnumber=","")
+                    newLine = newLine.replace("\n","")
+                    self.tc_DiscNumber.Value = newLine
+                if "inserted=" in line:
+                    pass
+                if "created=" in line:
+                    pass
+                if "lastmodified" in line:
+                    tracksStart = True
+                    pass
         dialog.Destroy()
 
         # set back to original working directory

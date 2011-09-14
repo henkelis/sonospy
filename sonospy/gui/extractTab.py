@@ -30,7 +30,6 @@
 #        cur.execute('SELECT DISTINCT genre FROM tags')
 #        for row in cur:
 #            a.append(row)
-# - Organize side by side to save some space
 # - Add scheduler functionality (i.e. push command to scheduler tab)
 ###############################################################################
 
@@ -371,9 +370,10 @@ class ExtractPanel(wx.Panel):
 
         # ADD TO SCHEDULER TAB
         self.bt_AddSched = wx.Button(panel, label="+ Schedule")
-        help_AddSched = "Add current settings to Schedule tab."
-        self.bt_AddSched.SetToolTip(wx.ToolTip(help_SaveDefaults))
+        help_AddSched = "NOT IMPLEMENTED YET.  Add current settings to Schedule tab."
+        self.bt_AddSched.SetToolTip(wx.ToolTip(help_AddSched))
         self.bt_AddSched.Bind(wx.EVT_BUTTON, self.bt_AddSchedClick, self.bt_AddSched)
+        self.bt_AddSched.Disable()
 
         sizer.Add(self.bt_Extract, pos=(sizerIndexX,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_SaveLog, pos=(sizerIndexX,1), flag=wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, border=10)
@@ -489,7 +489,7 @@ class ExtractPanel(wx.Panel):
             self.ck_ExtractVerbose.Enable()
             self.ck_OverwriteExisting.Enable()
             self.bt_SaveDefaults.Enable()
-            self.bt_AddSched.Enable()
+#            self.bt_AddSched.Enable()
             Publisher().sendMessage(('setLaunchPanel'), "Enable")
             Publisher().sendMessage(('setScanPanel'), "Enable")
             Publisher().sendMessage(('setVirtualPanel'), "Enable")
