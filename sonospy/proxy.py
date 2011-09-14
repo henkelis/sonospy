@@ -26,6 +26,7 @@ import time
 import datetime
 import ConfigParser
 import sqlite3
+import codecs
 
 from transcode import checktranscode, checkstream, setalsadevice
 
@@ -1206,6 +1207,9 @@ class DummyContentDirectory(Service):
                 ais = 'N'
         self.alternative_index_sorting = ais
 
+        self.simple_sorts = self.get_simple_sorts()
+        log.debug(self.simple_sorts)
+
         # get separator settings
         self.show_chunk_separator = False
         try:        
@@ -1340,8 +1344,6 @@ class DummyContentDirectory(Service):
 #        self.inc_playlistupdateid()
 #        from brisa.core.threaded_call import run_async_function
 #        run_async_function(self.inc_playlistupdateid, (), 10)
-
-
 
 
     def get_delim(self, delimname, default, special, when=None):
@@ -2616,6 +2618,7 @@ class DummyContentDirectory(Service):
                                (select distinct genre from GenreAlbumartistAlbum %s)
                                order by orderby limit ?, ?"""  % albumwhere
 
+                orderbylist = self.get_orderby('GENRE_AA', controllername)
             else:
 
                 albumwhere = 'where %s' % self.artist_album_albumtype_where
@@ -2625,7 +2628,7 @@ class DummyContentDirectory(Service):
                                (select distinct genre from GenreArtistAlbum %s)
                                order by orderby limit ?, ?"""  % albumwhere
 
-            orderbylist = self.get_orderby('GENRE', controllername)
+                orderbylist = self.get_orderby('GENRE_A', controllername)
             for orderbyentry in orderbylist:
                 orderby, prefix, suffix, albumtype, table, header = orderbyentry
                 if not orderby or orderby == '':
@@ -3653,26 +3656,109 @@ class DummyContentDirectory(Service):
 
         return proxyfound and controllerfound
 
-    def get_orderby(self, sorttype, controller):
-        # TODO: only load this on start and updateid change
+    simple_keys = [
+        'proxyname=',
+        'controller=',
+        'sort_order=',
+        'entry_prefix=',
+        'entry_suffix=',
+        'active=',
+        ]
 
-        dummysorttype = sorttype
-        if sorttype == 'ALBUMARTIST_ALBUM':
-            dummysorttype = 'ARTIST_ALBUM'
-        elif sorttype == 'ALBUMARTIST':
-            dummysorttype = 'ARTIST'
-        elif sorttype == 'GENRE_ALBUMARTIST':
-            dummysorttype = 'GENRE_ARTIST'
+    simple_key_dict = {
+        'proxyname': 'all',
+        'controller': 'all',
+        'sort_order': '',
+        'entry_prefix': '',
+        'entry_suffix': '',
+        'active': 'y',
+        }
+
+    indexes = [
+        'ARTISTS',
+        'ARTIST_ALBUMS',
+        'CONTRIBUTINGARTISTS',
+        'CONTRIBUTINGARTIST_ALBUMS',
+        'ALBUMS',
+        'COMPOSERS',
+        'COMPOSER_ALBUMS',
+        'GENRES',
+        'GENRE_ARTISTS',
+        'GENRE_ARTIST_ALBUMS',
+        'TRACKS',
+        'PLAYLISTS',
+        ]
+        
+    def get_simple_sorts(self):
+        simple_sorts = []
+        simple_keys = self.simple_key_dict.copy()
+        processing_index = False
+        for line in codecs.open('pycpoint.ini','r','utf-8'):
+            line == line.strip().lower()
+            if line.endswith('\n'): line = line[:-1]
+            if line.startswith('[') and line.endswith(' sort index]'):
+#                log.debug(line)
+                if processing_index:
+                    if simple_keys != self.simple_key_dict:
+                        simple_sorts.append((index[:-1], simple_keys))
+                        simple_keys = self.simple_key_dict.copy()
+                index = line[1:-12].strip()
+#                log.debug(index)
+                if index in self.indexes:
+                    processing_index = True
+                else:
+                    processing_index = False
+                continue
+            if processing_index:
+                for key in self.simple_keys:
+                    if line.startswith(key):
+                        value = line[len(key):].strip()
+#                        log.debug("%s - %s" % (key, value))
+                        simple_keys[key[:-1]] = value
+        if processing_index:
+            if simple_keys != self.simple_key_dict:
+                simple_sorts.append((index[:-1], simple_keys))
+        return simple_sorts
+
+    def get_orderby(self, sorttype, controller):
 
         if self.alternative_index_sorting == 'N':
-            if dummysorttype.startswith('GENRE_'): dummysorttype = dummysorttype[7:]
-            at = self.get_possible_albumtypes(dummysorttype)
+        
+            at = self.get_possible_albumtypes(sorttype)
             return [(None, None, None, at, 'dummy', None)]
+            
         elif self.alternative_index_sorting == 'S':
-            if dummysorttype.startswith('GENRE_'): dummysorttype = dummysorttype[7:]
-            at = self.get_possible_albumtypes(dummysorttype)
-            return [(None, None, None, at, 'dummy', None)]
+        
+            proxyfound = False
+            controllerfound = False
+            bothfound = False
+            foundvalues = None
+            for (index, values) in self.simple_sorts:
+                log.debug(index)
+                log.debug(values)
+                if sorttype == index and values['active'] == 'y':
+                    # precedence is proxy and controller/proxy/controller/neither
+                    if values['proxyname'] == self.proxy.proxyname and values['controller'] == controller and not bothfound:
+                        bothfound = True
+                        foundvalues = values
+                    elif values['proxyname'] == self.proxy.proxyname and values['controller'] == 'all' and not bothfound and not proxyfound:
+                        proxyfound = True
+                        foundvalues = values
+                    elif values['proxyname'] == 'all' and values['controller'] == controller and not bothfound and not proxyfound and not controllerfound:
+                        controllerfound = True
+                        foundvalues = values
+                    else:
+                        foundvalues = values
+            at = self.get_possible_albumtypes(sorttype)
+            log.debug(at)
+            if not foundvalues:
+                return [(None, None, None, at, 'dummy', None)]
+            else:
+                return [(foundvalues['sort_order'], foundvalues['entry_prefix'], foundvalues['entry_suffix'], at, 'dummy', None)]
+
         else:
+        
+            # TODO: only load this on start and updateid change
             # must be 'A(dvanced)'
             order_out = []
 
@@ -3721,6 +3807,7 @@ class DummyContentDirectory(Service):
                         albumtypenum = ats
                     else:
                         albumtypenum, table = self.translate_albumtype(albumtypestring, sorttype)
+                        albumtypenum = [albumtypenum]
                     order_out.append((so, sp, ss, albumtypenum, table, hn))
             except sqlite3.Error, e:
                 print "Error getting sort info:", e.args[0]
@@ -3742,24 +3829,24 @@ class DummyContentDirectory(Service):
         elif albumtype == 'virtual':
             if table == 'ALBUM':
                 return '21', albumtype
-            elif table == 'ARTIST_ALBUM':
+            elif table == 'ARTIST_ALBUM' or table == 'ARTIST' or table == 'GENRE_ARTIST_ALBUM' or table == 'GENRE_ARTIST' or table == 'GENRE_A':
                 return '22', albumtype
-            elif table == 'ALBUMARTIST_ALBUM':
+            elif table == 'ALBUMARTIST_ALBUM' or table == 'ALBUMARTIST' or table == 'GENRE_ALBUMARTIST_ALBUM' or table == 'GENRE_ALBUMARTIST' or table == 'GENRE_AA':
                 return '23', albumtype
-            elif table == 'CONTRIBUTINGARTIST_ALBUM':
+            elif table == 'CONTRIBUTINGARTIST_ALBUM' or table == 'CONTRIBUTINGARTIST':
                 return '24', albumtype
-            elif table == 'COMPOSER_ALBUM':
+            elif table == 'COMPOSER_ALBUM' or table == 'COMPOSER':
                 return '25', albumtype
         elif albumtype == 'work':
             if table == 'ALBUM':
                 return '31', albumtype
-            elif table == 'ARTIST_ALBUM':
+            elif table == 'ARTIST_ALBUM' or table == 'ARTIST' or table == 'GENRE_ARTIST_ALBUM' or table == 'GENRE_ARTIST' or table == 'GENRE_A':
                 return '32', albumtype
-            elif table == 'ALBUMARTIST_ALBUM':
+            elif table == 'ALBUMARTIST_ALBUM' or table == 'ALBUMARTIST' or table == 'GENRE_ALBUMARTIST_ALBUM' or table == 'GENRE_ALBUMARTIST' or table == 'GENRE_AA':
                 return '33', albumtype
-            elif table == 'CONTRIBUTINGARTIST_ALBUM':
+            elif table == 'CONTRIBUTINGARTIST_ALBUM' or table == 'CONTRIBUTINGARTIST':
                 return '34', albumtype
-            elif table == 'COMPOSER_ALBUM':
+            elif table == 'COMPOSER_ALBUM' or table == 'COMPOSER':
                 return '35', albumtype
 
         # TODO: check whether we still need these
@@ -3789,16 +3876,16 @@ class DummyContentDirectory(Service):
         if table == 'ALBUM':
             if self.display_virtuals_in_album_index: at.append(21)
             if self.display_works_in_album_index: at.append(31)
-        elif table == 'ARTIST_ALBUM':
+        elif table == 'ARTIST_ALBUM' or table == 'ARTIST' or table == 'GENRE_ARTIST_ALBUM' or table == 'GENRE_ARTIST' or table == 'GENRE_A':
             if self.display_virtuals_in_artist_index: at.append(22)
             if self.display_works_in_artist_index: at.append(32)
-        elif table == 'ALBUMARTIST_ALBUM':
+        elif table == 'ALBUMARTIST_ALBUM' or table == 'ALBUMARTIST' or table == 'GENRE_ALBUMARTIST_ALBUM' or table == 'GENRE_ALBUMARTIST' or table == 'GENRE_AA':
             if self.display_virtuals_in_artist_index: at.append(23)
             if self.display_works_in_artist_index: at.append(33)
-        elif table == 'CONTRIBUTINGARTIST_ALBUM':
+        elif table == 'CONTRIBUTINGARTIST_ALBUM' or table == 'CONTRIBUTINGARTIST':
             if self.display_virtuals_in_contributingartist_index: at.append(24)
             if self.display_works_in_contributingartist_index: at.append(34)
-        elif table == 'COMPOSER_ALBUM':
+        elif table == 'COMPOSER_ALBUM' or table == 'COMPOSER':
             if self.display_virtuals_in_composer_index: at.append(25)
             if self.display_works_in_composer_index: at.append(35)
         return at
