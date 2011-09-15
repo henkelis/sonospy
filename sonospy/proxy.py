@@ -3729,6 +3729,13 @@ class DummyContentDirectory(Service):
             
         elif self.alternative_index_sorting == 'S':
         
+            changedsorttype = sorttype
+            if sorttype == 'ALBUMARTIST': changedsorttype = 'ARTIST'
+            elif sorttype == 'ALBUMARTIST_ALBUM': changedsorttype = 'ARTIST_ALBUM'
+            elif sorttype == 'GENRE_ALBUMARTIST_ALBUM': changedsorttype = 'GENRE_ARTIST_ALBUM'
+            elif sorttype == 'GENRE_ALBUMARTIST': changedsorttype = 'GENRE_ARTIST'
+            elif sorttype == 'GENRE_AA': changedsorttype = 'GENRE_A'
+        
             proxyfound = False
             controllerfound = False
             bothfound = False
@@ -3736,7 +3743,7 @@ class DummyContentDirectory(Service):
             for (index, values) in self.simple_sorts:
                 log.debug(index)
                 log.debug(values)
-                if sorttype == index and values['active'] == 'y':
+                if changedsorttype == index and values['active'] == 'y':
                     # precedence is proxy and controller/proxy/controller/neither
                     if values['proxyname'] == self.proxy.proxyname and values['controller'] == controller and not bothfound:
                         bothfound = True
@@ -3747,7 +3754,7 @@ class DummyContentDirectory(Service):
                     elif values['proxyname'] == 'all' and values['controller'] == controller and not bothfound and not proxyfound and not controllerfound:
                         controllerfound = True
                         foundvalues = values
-                    else:
+                    elif not bothfound and not proxyfound and not controllerfound and not foundvalues:
                         foundvalues = values
             at = self.get_possible_albumtypes(sorttype)
             log.debug(at)
