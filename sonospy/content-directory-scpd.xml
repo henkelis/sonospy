@@ -57,6 +57,13 @@
                 <argument><name>Id</name><direction>out</direction><relatedStateVariable>SystemUpdateID</relatedStateVariable></argument>
             </argumentList>
         </action>
+        <action>
+            <name>ReloadIni</name>
+            <argumentList>
+                <argument><name>Invalidate</name><direction>in</direction><relatedStateVariable>Invalidate</relatedStateVariable></argument>
+                <argument><name>Result</name><direction>out</direction><relatedStateVariable>Result</relatedStateVariable></argument>
+            </argumentList>
+        </action>
     </actionList>
     <serviceStateTable>
         <stateVariable sendEvents="no">
@@ -81,5 +88,7 @@
         <stateVariable sendEvents="no"><name>SearchCapabilities</name><dataType>string</dataType></stateVariable>
         <stateVariable sendEvents="yes"><name>SystemUpdateID</name><dataType>ui4</dataType></stateVariable>
         <stateVariable sendEvents="yes"><name>ContainerUpdateIDs</name><dataType>ui4</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>Invalidate</name><dataType>string</dataType></stateVariable>
+        <stateVariable sendEvents="no"><name>Result</name><dataType>string</dataType></stateVariable>
     </serviceStateTable>
 </scpd>

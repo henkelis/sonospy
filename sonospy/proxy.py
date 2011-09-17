@@ -27,6 +27,7 @@ import datetime
 import ConfigParser
 import sqlite3
 import codecs
+import operator
 
 from transcode import checktranscode, checkstream, setalsadevice
 
@@ -1012,6 +1013,24 @@ class DummyContentDirectory(Service):
         dbpath, self.dbname = os.path.split(dbspec)
         self.wmpudn = wmpudn
 
+        self.load_ini()
+        
+        self.prime_cache()
+        
+        Service.__init__(self, self.service_name, self.service_type, url_base='', scpd_xml_filepath=self.scpd_xml_path)
+
+        self.containerupdateid = 0
+        self.systemupdateid = 0
+        self.playlistupdateid = 0
+        self.update_loop = LoopingCall(self.get_containerupdateid)
+        self.update_loop.start(60.0, now=True)
+#        self.inc_playlistupdateid()
+#        from brisa.core.threaded_call import run_async_function
+#        run_async_function(self.inc_playlistupdateid, (), 10)
+
+
+    def load_ini(self):
+    
         # get path replacement strings
         try:        
             self.pathreplace = self.proxy.config.get('INI', 'network_path_translation')
@@ -1047,10 +1066,6 @@ class DummyContentDirectory(Service):
             self.use_albumartist = False
         except ConfigParser.NoOptionError:
             self.use_albumartist = False
-
-
-        self.prime_cache()
-        
 
         # get album identification setting
         self.album_distinct_artist = 'album'        # default
@@ -1206,14 +1221,16 @@ class DummyContentDirectory(Service):
             else:
                 ais = 'N'
         self.alternative_index_sorting = ais
-
+        log.debug(self.alternative_index_sorting)
         self.simple_sorts = self.get_simple_sorts()
         log.debug(self.simple_sorts)
+        self.advanced_sorts = self.get_advanced_sorts()
+        log.debug(self.advanced_sorts)
 
         # get separator settings
         self.show_chunk_separator = False
         try:        
-            ini_show_chunk_header = self.proxy.config.get('INI', 'show_chunk_header')
+            ini_show_chunk_header = self.proxy.config.get('index section headers', 'show_section_header')
             if ini_show_chunk_header.lower() == 'y':
                 self.show_chunk_separator = True
         except ConfigParser.NoSectionError:
@@ -1223,7 +1240,7 @@ class DummyContentDirectory(Service):
 
         self.show_chunk_separator_single = False
         try:        
-            ini_show_chunk_header_single = self.proxy.config.get('INI', 'show_chunk_header_on_single')
+            ini_show_chunk_header_single = self.proxy.config.get('index section headers', 'show_section_header_on_single')
             if ini_show_chunk_header_single.lower() == 'y':
                 self.show_chunk_separator_single = True
         except ConfigParser.NoSectionError:
@@ -1233,7 +1250,7 @@ class DummyContentDirectory(Service):
 
         self.show_chunk_header_empty = False
         try:        
-            ini_show_chunk_header_empty = self.proxy.config.get('INI', 'show_chunk_header_when_empty')
+            ini_show_chunk_header_empty = self.proxy.config.get('index section headers', 'show_section_header_when_empty')
             if ini_show_chunk_header_empty.lower() == 'y':
                 self.show_chunk_header_empty = True
         except ConfigParser.NoSectionError:
@@ -1247,9 +1264,17 @@ class DummyContentDirectory(Service):
             self.show_chunk_separator_single = False
             self.show_chunk_header_empty = False
 
-        self.chunk_separator_delimiter = '-----'
+        self.chunk_separator_prefix = '-----'
         try:        
-            self.chunk_separator_delimiter = self.proxy.config.get('INI', 'chunk_header_delimiter')
+            self.chunk_separator_prefix = self.proxy.config.get('index section headers', 'section_header_prefix')
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+
+        self.chunk_separator_suffix = '-----'
+        try:        
+            self.chunk_separator_suffix = self.proxy.config.get('index section headers', 'section_header_suffix')
         except ConfigParser.NoSectionError:
             pass
         except ConfigParser.NoOptionError:
@@ -1259,27 +1284,24 @@ class DummyContentDirectory(Service):
         self.suffix_sep = u'\u007f'
 
         # get chunk metadata characters
-        prefix_start, self.chunk_metadata_delimiter_prefix_start = self.get_delim('chunk_metadata_delimiter_prefix_start', '[', self.prefix_sep)
+        prefix_start, self.chunk_metadata_delimiter_prefix_start = self.get_delim('entry_prefix_start_separator', '[', self.prefix_sep)
+        prefix_end, self.chunk_metadata_delimiter_prefix_end = self.get_delim('entry_prefix_end_separator', ']', self.prefix_sep, 'after')
 
-#        prefix_end, self.chunk_metadata_delimiter_prefix_end = self.get_delim('chunk_metadata_delimiter_prefix_end', ']')
-        prefix_end, self.chunk_metadata_delimiter_prefix_end = self.get_delim('chunk_metadata_delimiter_prefix_end', ']', self.prefix_sep, 'after')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u0092')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u200B\u034F\u0082\u0083\u0091\u0092\u2007\u2060\uFEFF\uFE00')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u2029\u2028\u202f\u2061\u2062\u2063\uE000\uE001')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'1 \uF7002 \uF7013 \uF85D4 \uF85C5 \uF8D76 \u000a7 \u000d')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'1 \u000d')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u007f')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u0f0c')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u007f \u232b \u0080 \u000a \u000d \u001b \u009f')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[')
 
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('chunk_metadata_delimiter_suffix_start', '[', 'before', u'\u0092')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('chunk_metadata_delimiter_suffix_start', '[', 'before', u'\u200B\u034F\u0082\u0083\u0091\u0092\u2007\u2060\uFEFF\uFE00')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('chunk_metadata_delimiter_suffix_start', '[', 'before', u'\u2029\u2028\u202f\u2061\u2062\u2063\uE000\uE001')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('chunk_metadata_delimiter_suffix_start', '[', 'before', u'1 \uF7002 \uF7013 \uF85D4 \uF85C5 \uF8D76 \u000a7 \u000d')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('chunk_metadata_delimiter_suffix_start', '[', 'before', u'1 \u000d')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('chunk_metadata_delimiter_suffix_start', '[', 'before', u'\u007f')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('chunk_metadata_delimiter_suffix_start', '[', 'before', u'\u0f0c')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('chunk_metadata_delimiter_suffix_start', '[', 'before', u'\u007f \u232b \u0080 \u000a \u000d \u001b \u009f')
+        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_suffix_start_separator', '[', self.suffix_sep, 'before')
+        suffix_end, self.chunk_metadata_delimiter_suffix_end = self.get_delim('entry_suffix_end_separator', ']', self.suffix_sep)
 
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('chunk_metadata_delimiter_suffix_start', '[')
-        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('chunk_metadata_delimiter_suffix_start', '[', self.suffix_sep, 'before')
-
-        suffix_end, self.chunk_metadata_delimiter_suffix_end = self.get_delim('chunk_metadata_delimiter_suffix_end', ']', self.suffix_sep)
-
-        missing, self.chunk_metadata_empty = self.get_delim('chunk_metadata_empty', '_', self.prefix_sep)
-        dateformat, self.chunk_metadata_date_format = self.get_delim('chunk_metadata_date_format', '%d/%m/%Y', self.prefix_sep)
+        missing, self.chunk_metadata_empty = self.get_delim('entry_extras_empty', '_', self.prefix_sep)
+        dateformat, self.chunk_metadata_date_format = self.get_delim('entry_extras_date_format', '%d/%m/%Y', self.prefix_sep)
 
         self.searchre_pre = '%s[^%s]*%s' % (prefix_start, prefix_end, prefix_end)
         if not suffix_end:
@@ -1334,22 +1356,10 @@ class DummyContentDirectory(Service):
         except ConfigParser.NoOptionError:
             pass
 
-        Service.__init__(self, self.service_name, self.service_type, url_base='', scpd_xml_filepath=self.scpd_xml_path)
-
-        self.containerupdateid = 0
-        self.systemupdateid = 0
-        self.playlistupdateid = 0
-        self.update_loop = LoopingCall(self.get_containerupdateid)
-        self.update_loop.start(60.0, now=True)
-#        self.inc_playlistupdateid()
-#        from brisa.core.threaded_call import run_async_function
-#        run_async_function(self.inc_playlistupdateid, (), 10)
-
-
     def get_delim(self, delimname, default, special, when=None):
         delim = default
         try:        
-            delim = self.proxy.config.get('INI', delimname)
+            delim = self.proxy.config.get('index entry extras', delimname)
         except ConfigParser.NoSectionError:
             pass
         except ConfigParser.NoOptionError:
@@ -1367,6 +1377,37 @@ class DummyContentDirectory(Service):
                     delim = '%s%s' % (delim, special)
         delim2 = re.escape(delim)    
         return delim2, delim
+
+    def soap_ReloadIni(self, *args, **kwargs):
+#        for key in kwargs:
+#            print "another keyword arg: %s: %s" % (key, kwargs[key])
+
+        log.debug("PROXY_RELOADINI: %s", kwargs)
+
+        invalidate = kwargs.get('Invalidate', '')
+        log.debug('Invalidate: %s' % invalidate)
+
+        import ConfigParser
+        import StringIO
+        import codecs
+        config = ConfigParser.ConfigParser()
+        config.optionxform = str
+        ini = ''
+        f = codecs.open('pycpoint.ini', encoding=enc)
+        for line in f:
+            ini += line
+        config.readfp(StringIO.StringIO(ini))
+        self.proxy.config = config
+
+        self.load_ini()
+
+        ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
+        ret += '1'
+        ret += '</DIDL-Lite>'
+
+        result = {'Result': ret}
+
+        return result
 
     def soap_Browse(self, *args, **kwargs):
 #        for key in kwargs:
@@ -2067,9 +2108,7 @@ class DummyContentDirectory(Service):
                         if searchtype == 'ARTIST':
                             c.execute(countstatement)
                         elif searchtype == 'GENRE_ARTIST':
-                            log.debug('before')
                             c.execute(countstatement, (genre, ))
-                            log.debug('after')
                         tableMatches, = c.fetchone()
                         tableMatches = int(tableMatches)
                         matches[table] = tableMatches
@@ -2107,7 +2146,7 @@ class DummyContentDirectory(Service):
                         count += 1
                         if not header or header == '':
                             header = "%s %s" % ('ordered by', orderby)
-                        separator = '%s %s %s' % (self.chunk_separator_delimiter, header, self.chunk_separator_delimiter)
+                        separator = '%s %s %s' % (self.chunk_separator_prefix, header, self.chunk_separator_suffix)
                         res += '<container id="%s" parentID="%s" restricted="true">' % (id_pre, self.artist_parentid)
                         res += '<dc:title>%s</dc:title>' % (separator)
                         res += '<upnp:class>%s</upnp:class>' % (self.artist_class)
@@ -2375,12 +2414,13 @@ class DummyContentDirectory(Service):
                                 c.execute(countstatement)
                             elif searchtype == 'FIELD_ALBUM':
                                 albumtypewhere = self.get_albumtype_where(albumtype)
-                                countstatement = countstatement.replace('albumtypewhere', albumtypewhere)
-                                c.execute(countstatement, (field, ))
+                                loopcountstatement = countstatement.replace('albumtypewhere', albumtypewhere)
+                                log.debug(loopcountstatement)
+                                c.execute(loopcountstatement, (field, ))
                             elif searchtype == 'GENRE_FIELD_ALBUM':
                                 albumtypewhere = self.get_albumtype_where(albumtype)
-                                countstatement = countstatement.replace('albumtypewhere', albumtypewhere)
-                                c.execute(countstatement, (genre, field))
+                                loopcountstatement = countstatement.replace('albumtypewhere', albumtypewhere)
+                                c.execute(loopcountstatement, (genre, field))
                             tableMatches, = c.fetchone()
                             tableMatches = int(tableMatches)
                             matches[table] = tableMatches
@@ -2425,7 +2465,7 @@ class DummyContentDirectory(Service):
                         count += 1
                         if not header or header == '':
                             header = "%s %s" % ('ordered by', orderby)
-                        separator = '%s %s %s' % (self.chunk_separator_delimiter, header, self.chunk_separator_delimiter)
+                        separator = '%s %s %s' % (self.chunk_separator_prefix, header, self.chunk_separator_suffix)
                         res += '<container id="%s" parentID="%s" restricted="true">' % (id_pre, parentid)
                         res += '<dc:title>%s</dc:title>' % (separator)
                         res += '<upnp:class>%s</upnp:class>' % (self.album_class)
@@ -2568,7 +2608,7 @@ class DummyContentDirectory(Service):
                         count += 1
                         if not header or header == '':
                             header = "%s %s" % ('ordered by', orderby)
-                        separator = '%s %s %s' % (self.chunk_separator_delimiter, header, self.chunk_separator_delimiter)
+                        separator = '%s %s %s' % (self.chunk_separator_prefix, header, self.chunk_separator_suffix)
                         res += '<container id="%s" parentID="%s" restricted="true">' % (id_pre, parentid)
                         res += '<dc:title>%s</dc:title>' % (separator)
                         res += '<upnp:class>%s</upnp:class>' % (self.composer_class)
@@ -2665,7 +2705,7 @@ class DummyContentDirectory(Service):
                         count += 1
                         if not header or header == '':
                             header = "%s %s" % ('ordered by', orderby)
-                        separator = '%s %s %s' % (self.chunk_separator_delimiter, header, self.chunk_separator_delimiter)
+                        separator = '%s %s %s' % (self.chunk_separator_prefix, header, self.chunk_separator_suffix)
                         res += '<container id="%s" parentID="%s" restricted="true">' % (id_pre, parentid)
                         res += '<dc:title>%s</dc:title>' % (separator)
                         res += '<upnp:class>%s</upnp:class>' % (self.genre_class)
@@ -3642,6 +3682,7 @@ class DummyContentDirectory(Service):
             db.close()
         log.debug("prime end: %.3f" % time.time())
 
+    '''
     def checkkeys(self, proxy, proxykey, controller, controllerkey):
 
         proxykeys = proxy.lower().split(',')
@@ -3655,6 +3696,7 @@ class DummyContentDirectory(Service):
         controllerfound = controllerkey.lower() in controllerkeys or 'all' in controllerkeys
 
         return proxyfound and controllerfound
+    '''
 
     simple_keys = [
         'proxyname=',
@@ -3665,6 +3707,12 @@ class DummyContentDirectory(Service):
         'active=',
         ]
 
+    advanced_keys = simple_keys + [
+        'section_sequence=',
+        'section_albumtype=',
+        'section_name=',
+        ]
+        
     simple_key_dict = {
         'proxyname': 'all',
         'controller': 'all',
@@ -3673,6 +3721,13 @@ class DummyContentDirectory(Service):
         'entry_suffix': '',
         'active': 'y',
         }
+
+    advanced_key_dict = simple_key_dict.copy()
+    advanced_key_dict.update({
+        'section_sequence': 1,
+        'section_albumtype': 'all',
+        'section_name': '',
+        })
 
     indexes = [
         'ARTISTS',
@@ -3720,6 +3775,65 @@ class DummyContentDirectory(Service):
                 simple_sorts.append((index[:-1], simple_keys))
         return simple_sorts
 
+    def get_advanced_sorts(self):
+        advanced_sorts = []
+        advanced_keys = self.advanced_key_dict.copy()
+        processing_index = False
+        for line in codecs.open('pycpoint.ini','r','utf-8'):
+            line == line.strip().lower()
+            if line.endswith('\n'): line = line[:-1]
+            if line.startswith('[') and (line.endswith(' sort index]') or line.endswith(' sort index section]')):
+#                log.debug(line)
+                if processing_index:
+                    if advanced_keys != self.advanced_key_dict:
+                        advanced_sorts.append((index[:-1], advanced_keys, processing_index))
+                        advanced_keys = self.advanced_key_dict.copy()
+                index = line[1:].split(' ')[0].strip()
+#                log.debug(index)
+                if line.endswith(' sort index]'): blocktype = 'index'
+                else: blocktype = 'section'
+                if index in self.indexes:
+                    processing_index = blocktype
+                else:
+                    processing_index = None
+                continue
+            if processing_index:
+                for key in self.advanced_keys:
+                    if line.startswith(key):
+                        value = line[len(key):].strip()
+                        # convert any numbers to int
+                        if type(advanced_keys[key[:-1]]) == int:
+                            try: 
+                                value = int(value)
+                            except: 
+                                pass
+                        # adjust virtual and work to album if specified for sort_order
+                        if key == 'sort_order=':
+                            if value == 'work' or value == 'virtual':
+                                value = 'album'
+                        advanced_keys[key[:-1]] = value
+        if processing_index:
+            if advanced_keys != self.advanced_key_dict:
+                advanced_sorts.append((index[:-1], advanced_keys, processing_index))
+
+        # remove any entries that have section entries as they are overridden
+        # (make sure they are for the same controller and proxy
+
+        # get indexes that have sections
+        sectionindexes = {}
+        for (index, keys, blocktype) in advanced_sorts:
+            if blocktype == 'section':
+                sectionindexes[index] = keys
+        # filter entry list
+        filtered_sorts = []
+        for (index, keys, blocktype) in advanced_sorts:
+            if index in sectionindexes and not blocktype == 'section':
+                if keys['proxyname'] == sectionindexes[index]['proxyname'] and keys['controller'] == sectionindexes[index]['controller']:
+                    continue
+            filtered_sorts.append((index, keys))
+                
+        return filtered_sorts
+
     def get_orderby(self, sorttype, controller):
 
         if self.alternative_index_sorting == 'N':
@@ -3741,10 +3855,10 @@ class DummyContentDirectory(Service):
             bothfound = False
             foundvalues = None
             for (index, values) in self.simple_sorts:
-                log.debug(index)
-                log.debug(values)
+#                log.debug(index)
+#                log.debug(values)
                 if changedsorttype == index and values['active'] == 'y':
-                    # precedence is proxy and controller/proxy/controller/neither
+                    # precedence is proxy-and-controller/proxy/controller/neither
                     if values['proxyname'] == self.proxy.proxyname and values['controller'] == controller and not bothfound:
                         bothfound = True
                         foundvalues = values
@@ -3763,70 +3877,57 @@ class DummyContentDirectory(Service):
             else:
                 return [(foundvalues['sort_order'], foundvalues['entry_prefix'], foundvalues['entry_suffix'], at, 'dummy', None)]
 
-        else:
+        else:   # must be 'A(dvanced)'
+
+            changedsorttype = sorttype
+            if sorttype == 'ALBUMARTIST': changedsorttype = 'ARTIST'
+            elif sorttype == 'ALBUMARTIST_ALBUM': changedsorttype = 'ARTIST_ALBUM'
+            elif sorttype == 'GENRE_ALBUMARTIST_ALBUM': changedsorttype = 'GENRE_ARTIST_ALBUM'
+            elif sorttype == 'GENRE_ALBUMARTIST': changedsorttype = 'GENRE_ARTIST'
+            elif sorttype == 'GENRE_AA': changedsorttype = 'GENRE_A'
         
-            # TODO: only load this on start and updateid change
-            # must be 'A(dvanced)'
-            order_out = []
-
-            if self.proxy.db_persist_connection:
-                db = self.proxy.db
-            else:
-                db = sqlite3.connect(self.dbspec)
-            log.debug(db)
-
-            db.create_function("checkkeys", 4, self.checkkeys)
-            c = db.cursor()
-            try:
-                statement = """select sort_order, sort_prefix, sort_suffix, album_type, header_name from sorts where checkkeys(proxyname, "%s", controller, "%s") and sort_type="%s" and active is not null and active!="" order by sort_seq""" % (self.proxy.proxyname, controller, dummysorttype)
-                log.debug(statement)
-                c.execute(statement)
-                for row in c:
-                    log.debug(row)
-                    so, sp, ss, albumtypestring, hn = row
-                    if self.use_albumartist:
-                        if so: so = re.sub('(?<!album)artist', 'albumartist', so)
-                        if sp: sp = re.sub('(?<!album)artist', 'albumartist', sp)
-                        if ss: ss = re.sub('(?<!album)artist', 'albumartist', ss)
+            bothvalues = []
+            proxyvalues = []
+            controllervalues = []
+            neithervalues = []
+            for (index, values) in self.advanced_sorts:
+#                log.debug(index)
+#                log.debug(values)
+                if changedsorttype == index and values['active'] == 'y':
+                    # precedence is proxy-and-controller/proxy/controller/neither
+                    if values['proxyname'] == self.proxy.proxyname and values['controller'] == controller:
+                        bothfound = True
+                        bothvalues.append(values)
+                    elif values['proxyname'] == self.proxy.proxyname and values['controller'] == 'all':
+                        proxyfound = True
+                        proxyvalues.append(values)
+                    elif values['proxyname'] == 'all' and values['controller'] == controller:
+                        controllerfound = True
+                        controllervalues.append(values)
                     else:
-                        if so: so = so.replace('albumartist', 'artist')
-                        if sp: sp = sp.replace('albumartist', 'artist')
-                        if ss: ss = ss.replace('albumartist', 'artist')
-                    # special case for album
-                    if sorttype == 'ALBUM':
-                        if not albumtypestring:
-                            albumtypestrings = ['album']
-                        else:
-                            if self.use_albumartist:
-                                albumtypestring = re.sub('(?<!album)artist_virtual', 'albumartist_virtual', albumtypestring)
-                            else:
-                                albumtypestring = albumtypestring.replace('albumartist_virtual', 'artist_virtual')
-                            albumtypestrings = albumtypestring.split(',')
-                            albumtypestrings = [k.strip() for k in albumtypestrings]
-                            albumtypestrings = [k for k in albumtypestrings if k != '']
-                            if not 'album' in albumtypestrings:
-                                albumtypestrings.insert(0, 'album')
-                            log.debug(albumtypestrings)
-                        ats = []
-                        for at in albumtypestrings:
-                            albumtypenum, table = self.translate_albumtype(at, sorttype)
-                            ats.append(albumtypenum)
-                        albumtypenum = ats
-                    else:
-                        albumtypenum, table = self.translate_albumtype(albumtypestring, sorttype)
-                        albumtypenum = [albumtypenum]
-                    order_out.append((so, sp, ss, albumtypenum, table, hn))
-            except sqlite3.Error, e:
-                print "Error getting sort info:", e.args[0]
-            c.close()
-            if not self.proxy.db_persist_connection:
-                db.close()
-            if order_out == []:
-                if dummysorttype.startswith('GENRE_'): dummysorttype = dummysorttype[7:]
-                at = self.get_possible_albumtypes(dummysorttype)
+                        neithervalues.append(values)
+            log.debug(bothvalues)
+            log.debug(proxyvalues)
+            log.debug(controllervalues)
+            log.debug(neithervalues)
+            if bothvalues: return self.get_orderby_values(sorttype, bothvalues)
+            elif proxyvalues: return self.get_orderby_values(sorttype, proxyvalues)
+            elif controllervalues: return self.get_orderby_values(sorttype, controllervalues)
+            elif neithervalues: return self.get_orderby_values(sorttype, neithervalues)
+            else: 
+                at = self.get_possible_albumtypes(sorttype)
+                log.debug(at)
                 return [(None, None, None, at, 'dummy', None)]
-            log.debug(order_out)
-            return order_out
+
+    def get_orderby_values(self, sorttype, values):
+        values.sort(key=operator.itemgetter('section_sequence'))
+        orderbyvalues = []
+        for valueset in values:
+            at = self.get_possible_albumtypes(sorttype, filteralbum=valueset['section_albumtype'])
+            log.debug(at)
+            log.debug(valueset)
+            orderbyvalues.append((valueset['sort_order'], valueset['entry_prefix'], valueset['entry_suffix'], at, valueset['section_albumtype'], valueset['section_name']))
+        return orderbyvalues
 
     def translate_albumtype(self, albumtype, table):
         if not albumtype or albumtype == '':
@@ -3878,23 +3979,36 @@ class DummyContentDirectory(Service):
         else:
             return '10', 'album'
 
-    def get_possible_albumtypes(self, table):
-        at = [10]
+    def get_possible_albumtypes(self, table, filteralbum=None):
+        if not filteralbum:
+            album = virtual = work = True
+        else:
+            if 'all' in filteralbum:
+                album = virtual = work = True
+            else:
+                album = virtual = work = False
+                if 'album' in filteralbum: album = True
+                if 'virtual' in filteralbum: virtual = True
+                if 'work' in filteralbum: work = True
+        if album:
+            at = [10]
+        else:
+            at = []
         if table == 'ALBUM':
-            if self.display_virtuals_in_album_index: at.append(21)
-            if self.display_works_in_album_index: at.append(31)
+            if self.display_virtuals_in_album_index and virtual: at.append(21)
+            if self.display_works_in_album_index and work: at.append(31)
         elif table == 'ARTIST_ALBUM' or table == 'ARTIST' or table == 'GENRE_ARTIST_ALBUM' or table == 'GENRE_ARTIST' or table == 'GENRE_A':
-            if self.display_virtuals_in_artist_index: at.append(22)
-            if self.display_works_in_artist_index: at.append(32)
+            if self.display_virtuals_in_artist_index and virtual: at.append(22)
+            if self.display_works_in_artist_index and work: at.append(32)
         elif table == 'ALBUMARTIST_ALBUM' or table == 'ALBUMARTIST' or table == 'GENRE_ALBUMARTIST_ALBUM' or table == 'GENRE_ALBUMARTIST' or table == 'GENRE_AA':
-            if self.display_virtuals_in_artist_index: at.append(23)
-            if self.display_works_in_artist_index: at.append(33)
+            if self.display_virtuals_in_artist_index and virtual: at.append(23)
+            if self.display_works_in_artist_index and work: at.append(33)
         elif table == 'CONTRIBUTINGARTIST_ALBUM' or table == 'CONTRIBUTINGARTIST':
-            if self.display_virtuals_in_contributingartist_index: at.append(24)
-            if self.display_works_in_contributingartist_index: at.append(34)
+            if self.display_virtuals_in_contributingartist_index and virtual: at.append(24)
+            if self.display_works_in_contributingartist_index and work: at.append(34)
         elif table == 'COMPOSER_ALBUM' or table == 'COMPOSER':
-            if self.display_virtuals_in_composer_index: at.append(25)
-            if self.display_works_in_composer_index: at.append(35)
+            if self.display_virtuals_in_composer_index and virtual: at.append(25)
+            if self.display_works_in_composer_index and work: at.append(35)
         return at
 
     def get_albumtype_where(self, albumtypes):
@@ -3909,7 +4023,7 @@ class DummyContentDirectory(Service):
             db = self.proxy.db
         else:
             db = sqlite3.connect(self.dbspec)
-        log.debug(db)
+#        log.debug(db)
         c = db.cursor()
         statement = "select lastscanid from params where key = '1'"
         log.debug("statement: %s", statement)
