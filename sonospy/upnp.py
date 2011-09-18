@@ -49,13 +49,15 @@ def main():
     parser = OptionParser(usage)
     
     parser.add_option("-d", "--debug", action="store_true", dest="debug")
+    
+    parser.add_option("-i", "--invalidate", action="store_true", dest="invalidate", default=False)
 
     (options, args) = parser.parse_args()
 
+    print options
     print args
 
     if options.debug:
-        print "option.debug: " + str(options.debug)
         modcheck['all'] = True
 
     config = ConfigParser.ConfigParser()
@@ -104,53 +106,17 @@ def main():
         addresses = newaddresses
         print addresses
 
+    invalidate = '%i' % options.invalidate
+
     for (proxy, port, udn) in addresses:
         hostName = "%s:%s" % (ip_address, port)
         soapret = sendSOAP(hostName,
                                'urn:schemas-upnp-org:service:ContentDirectory:1',
                                '/ContentDirectory/control',
                                'ReloadIni',
-                               {'Invalidate':'0'})
+                               {'Invalidate': invalidate})
         print soapret
 
-
-    '''
--->  dest port 10245
-POST /ContentDirectory/control HTTP/1.1
-CONNECTION: close
-Host: 192.168.0.15
-User-agent: Sonospy
-Content-type: text/xml; charset="utf-8"
-Content-length: 446
-SOAPAction: "urn:schemas-upnp-org:service:ContentDirectory:1#Browse"
-
-<?xml version="1.0" encoding="utf-8"?>
-<s:Envelope xmlns:ns0="urn:schemas-upnp-org:service:ContentDirectory:1" 
- s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"
- xmlns:s="http://schemas.xmlsoap.org/soap/envelope/">
-    <s:Body>
-        <ns0:Browse><BrowseFlag>BrowseDirectChildren</BrowseFlag><ObjectID>0</ObjectID><Filter>*</Filter><RequestedCount>200</RequestedCount><StartingIndex>0</StartingIndex><SortCriteria /></ns0:Browse>
-    </s:Body>
-</s:Envelope>
-
-
-POST /ContentDirectory/control HTTP/1.1
-SOAPAction: "urn:schemas-upnp-org:service:ContentDirectory:1#ReloadIni"
-Host: 192.168.0.15:10244
-Content-Type: text/xml
-Content-Length: 336
-
-<?xml version="1.0"?>
-<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope" 
- SOAP-ENV:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-    <SOAP-ENV:Body>
-	    <m:ReloadIni xmlns:m="urn:schemas-upnp-org:service:ContentDirectory:1">
-            <Invalidate>0</Invalidate>
-	    </m:ReloadIni>
-    </SOAP-ENV:Body>
-</SOAP-ENV:Envelope>
-
-    '''
     
 def getrunningproxies():
 

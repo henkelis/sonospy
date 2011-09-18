@@ -1407,6 +1407,26 @@ class DummyContentDirectory(Service):
 
         result = {'Result': ret}
 
+        if int(invalidate) != 0:
+            self.set_containerupdateid()
+
+        return result
+
+    def soap_InvalidateCD(self, *args, **kwargs):
+
+        log.debug("PROXY_INVALIDATECD: %s", kwargs)
+
+        invalidate = kwargs.get('Invalidate', '')
+        log.debug('Invalidate: %s' % invalidate)
+
+        self.set_containerupdateid()
+
+        ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
+        ret += '1'
+        ret += '</DIDL-Lite>'
+
+        result = {'Result': ret}
+
         return result
 
     def soap_Browse(self, *args, **kwargs):
@@ -4030,6 +4050,33 @@ class DummyContentDirectory(Service):
         c.execute(statement)
         new_updateid, = c.fetchone()
         new_updateid = int(new_updateid)
+        if new_updateid != self.containerupdateid:
+            self.containerupdateid = new_updateid
+            self.systemupdateid += 1
+            self._state_variables['SystemUpdateID'].update(self.systemupdateid)
+            log.debug("SystemUpdateID value: %s" % self._state_variables['SystemUpdateID'].get_value())
+        c.close()
+        if not self.proxy.db_persist_connection:
+            db.close()
+
+    def set_containerupdateid(self):
+        # set containerupdateid, eventing systemupdateid
+        if self.proxy.db_persist_connection:
+            db = self.proxy.db
+        else:
+            db = sqlite3.connect(self.dbspec)
+#        log.debug(db)
+        c = db.cursor()
+
+        statement = "update params set lastscanid = lastscanid + 1 where key = '1'"
+        log.debug("statement: %s", statement)
+        c.execute(statement)
+        statement = "select lastscanid from params where key = '1'"
+        log.debug("statement: %s", statement)
+        c.execute(statement)
+        new_updateid, = c.fetchone()
+        new_updateid = int(new_updateid)
+        
         if new_updateid != self.containerupdateid:
             self.containerupdateid = new_updateid
             self.systemupdateid += 1

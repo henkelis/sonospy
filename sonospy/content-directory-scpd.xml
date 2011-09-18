@@ -64,6 +64,13 @@
                 <argument><name>Result</name><direction>out</direction><relatedStateVariable>Result</relatedStateVariable></argument>
             </argumentList>
         </action>
+        <action>
+            <name>InvalidateCD</name>
+            <argumentList>
+                <argument><name>Invalidate</name><direction>in</direction><relatedStateVariable>Invalidate</relatedStateVariable></argument>
+                <argument><name>Result</name><direction>out</direction><relatedStateVariable>Result</relatedStateVariable></argument>
+            </argumentList>
+        </action>
     </actionList>
     <serviceStateTable>
         <stateVariable sendEvents="no">
