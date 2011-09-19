@@ -77,7 +77,8 @@ class PlayController(webserver.CustomResource):
         query = unescape(request.query, unescape_entities)
         ret = self.setter(query)
         response.status = 200
-        response.body = make_utf8(ret)
+#        response.body = make_utf8(ret)
+        response.body = ''
         return response.body
 
 class GetDeviceController(webserver.CustomResource):

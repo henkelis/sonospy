@@ -1446,6 +1446,8 @@ Music/Rating                101     object.container
         query = param.split('=')
         request = query[1]
 
+        print "request: %s" % request
+
         # check for multi
         if request[0:5] == 'MULTI':
         
@@ -1490,8 +1492,12 @@ Music/Rating                101     object.container
 
             entry = entry.replace(hierarchynamelist, entryname)
 
-            print "entry: " + str(entry)
             type = self.get_root_type(entryref)
+
+            if type == 'SONOSCURRENTQUEUE':
+                entry = '::'.join(entries[0:4])
+            print "entry: " + str(entry)
+
             if type == 'SONOSPYMEDIASERVER' or type == 'SonospyMediaServer_ROOT' or type == 'SonospyServerSearch_ROOT':
                 id = entrysid
             else:
@@ -1596,7 +1602,10 @@ Music/Rating                101     object.container
 
     def get_root_type(self, entryref):
         rootref = self.getrootref(entryref)
-        rootid, roottype = self.rootdatatype[rootref]
+        if rootref in self.rootdatatype:
+            rootid, roottype = self.rootdatatype[rootref]
+        else:
+            roottype = 'SONOSCURRENTQUEUE'
         return roottype
 
 
