@@ -6,7 +6,7 @@
 # Works are aimed at allowing you to pull together a set of tracks into
 # a composer's single work. It's likely that you want to do that to be
 # able to play one work comprised of several tracks, but only a subset
-# of a CD, as one piece.
+# of a CD (perhaps across discs), as one piece.
 
 # Virtuals are aimed at allowing you to pull together a set of tracks
 # into an album. You may for instance want to create a version of an album
@@ -55,8 +55,8 @@
 #     'title' is the base name of the work or virtual (can be overridden in
 #     scan.ini).
 #
-#     Set other attributes to values to override values in all tracks for this
-#     work or virtual.
+#     Set other attributes to values to override tag values in all tracks
+#     for this work or virtual.
 #
 #     Use string <blank> to blank out a tag.
 #
@@ -65,6 +65,23 @@
 #
 #     Lines beginning with # are ignored, as are blank lines
 #
+#     Tags that can be set are:
+#         
+#         title
+#         artist
+#         albumartist
+#         composer
+#         year
+#         genre
+#         cover
+#         discnumber
+#         inserted
+#         created
+#         lastmodified
+#         albumsort
+#         artistsort
+#         albumartistsort
+#         composersort
 
 type=
 title=Green Curry Virtual
@@ -78,6 +95,10 @@ discnumber=
 inserted=
 created=
 lastmodified=
+albumsort=
+artistsort=
+albumartistsort=
+composersort=
 
 #
 # tracks
@@ -118,15 +139,6 @@ R.E.M
 TYPE=work
 title=Red Curry Work
 artist=The Red Curry Band
-albumartist=
-composer=
-year=
-genre=
-cover=
-discnumber=
-inserted=
-created=
-lastmodified=
 
 /somewhere else/more music/flactrack.flac
 21st Century Breakdown/Green Day - Peacemaker [Album Version].mp3

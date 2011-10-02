@@ -142,7 +142,10 @@ class Proxy(object):
                 error = "Unable to access database file"
             else:
                 try:
-                    db = sqlite3.connect(self.dbspec, check_same_thread = False)
+                    if self.db_persist_connection:
+                        db = sqlite3.connect(self.dbspec, check_same_thread = False)
+                    else:
+                        db = sqlite3.connect(self.dbspec)
                     cs = db.execute("PRAGMA cache_size;")
                     log.debug('cache_size before: %s', cs.fetchone()[0])
                     db.execute("PRAGMA cache_size = %s;" % self.db_cache_size)
@@ -313,7 +316,7 @@ class Proxy(object):
         log.debug("statement: %s", statement)
         c.execute(statement)
 
-        id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = c.fetchone()
+        id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = c.fetchone()
         log.debug("id: %s", id)
         mime = fixMime(mime)
         cover, artid = self.cdservice.choosecover(folderart, trackart, folderartid, trackartid)
@@ -1456,6 +1459,11 @@ class DummyContentDirectory(Service):
  'SortCriteria': ''}
         '''
 
+# TODO
+# TODO: remember to decide what to do with titlesort and how to allow the user to select it (or other tags)
+# TODO: remember to check whether we can drop the artists table (it appears we never select from it...) - others (composer)?
+# TODO
+
         objectID = kwargs['ObjectID']
         browseFlag = kwargs['BrowseFlag']
         log.debug("objectID: %s" % objectID)
@@ -1464,7 +1472,7 @@ class DummyContentDirectory(Service):
             db = self.proxy.db
         else:
             db = sqlite3.connect(self.dbspec)
-        log.debug(db)
+#        log.debug(db)
         c = db.cursor()
 
         startingIndex = int(kwargs['StartingIndex'])
@@ -1523,60 +1531,53 @@ class DummyContentDirectory(Service):
             album_albumartist = album_albumartist.replace("'", "''")
 
             if album_type != 10:
-                where = "dummyalbum='%s'" % album_title
+                where = "n.dummyalbum='%s'" % album_title
             else:
-                where = "album='%s'" % album_title
+                where = "n.album='%s'" % album_title
             if 'artist' in self.album_group:
-                where += " and artist='%s'" % album_artist
+                where += " and n.artist='%s'" % album_artist
             if 'albumartist' in self.album_group:
-                where += " and albumartist='%s'" % album_albumartist
+                where += " and n.albumartist='%s'" % album_albumartist
             if self.show_duplicates:
-                where += " and duplicate=%s" % album_duplicate
+                where += " and n.duplicate=%s" % album_duplicate
             else:
-                where += " and duplicate=0"
+                where += " and n.duplicate=0"
             if album_type != 10:
-                where += " and albumtype=%s" % album_type
+                where += " and n.albumtype=%s" % album_type
 
             if album_type != 10:
                 # is a work or a virtual album
-#                statement = '''select * from tracks t, tracknumbers n where id in
-#                               (select track_id from TrackNumbers where %s)
-#                               and t.rowid = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=%s and n.dummyalbum="%s"
-#                               order by t.discnumber, n.tracknumber, t.title''' % (where, album_type, album_title)
-
                 countstatement = '''
-                                    select count(*) from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
-                                   (select track_id from TrackNumbers where %s)
-                                    and n.albumtype=%s and n.dummyalbum="%s"
-                                 ''' % (where, album_type, album_title)
+                                    select count(*) from tracknumbers n where %s
+                                 ''' % (where, )
                 c.execute(countstatement)
                 totalMatches, = c.fetchone()
-
                 statement = '''
-                                select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
-                               (select track_id from TrackNumbers where %s)
-                                and n.albumtype=%s and n.dummyalbum="%s"
-                                order by n.tracknumber, t.title limit %d, %d
-                            ''' % (where, album_type, album_title, startingIndex, requestedCount)
-
+                                select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                on n.track_id = t.rowid 
+                                where %s
+                                order by n.tracknumber, t.title 
+                                limit %d, %d
+                            ''' % (where, startingIndex, requestedCount)
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             else:
                 # is a normal album            
-                countstatement = "select count(*) from tracks where %s" % (where)
+                countstatement = "select count(*) from tracks n where %s" % (where)
                 c.execute(countstatement)
                 totalMatches, = c.fetchone()
-                statement = "select * from tracks where %s order by discnumber, tracknumber, title limit %d, %d" % (where, startingIndex, requestedCount)
+                statement = "select * from tracks n where %s order by discnumber, tracknumber, title limit %d, %d" % (where, startingIndex, requestedCount)
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             for row in c:
 #                log.debug("row: %s", row)
                 if album_type != 10:
-                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10 = row
+                    id, id2, duplicate, title, artist, album, genre, tracktracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, tracknumber, coverart, coverartid = row
+                    cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid, coverart, coverartid)
                 else:
-                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
+                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
+                    cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
                 mime = fixMime(mime)
-                cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
                 # TODO: automate mount
                 wsfile = filename
@@ -1675,7 +1676,7 @@ class DummyContentDirectory(Service):
             for row in c:   # will only be one row
                 log.debug("row: %s", row)
                 if btype == 'TRACK':
-                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
+                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
                 else:                    
                     playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
                     log.debug(pl_trackfile)
@@ -1690,6 +1691,7 @@ class DummyContentDirectory(Service):
                     id = pl_track_id
                     tracknumber = pl_track
                     folderart = trackart = folderartid = trackartid = None
+                    titlesort = albumsort = None
 
                 mime = fixMime(mime)
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
@@ -1810,7 +1812,7 @@ class DummyContentDirectory(Service):
             c.execute(statement)
             for row in c:
                 log.debug("row: %s", row)
-                id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+                id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
 
                 if not id:
                     # playlist entry with no matching track - assume stream
@@ -1823,6 +1825,7 @@ class DummyContentDirectory(Service):
                     albumartist = ''
                     album = ''
                     id = pl_track_id
+                    titlesort = albumsort = None
 
                 mime = fixMime(mime)
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
@@ -1987,7 +1990,7 @@ class DummyContentDirectory(Service):
             db = self.proxy.db
         else:
             db = sqlite3.connect(self.dbspec)
-        log.debug(db)
+#        log.debug(db)
 
 #        cs = db.execute("PRAGMA cache_size;")
 #        log.debug('cache_size now: %s', cs.fetchone()[0])
@@ -2504,9 +2507,9 @@ class DummyContentDirectory(Service):
                         c.execute(orderstatement, (found_genre, found_field, start, length))
 
                     for row in c:
-#                        log.debug("row: %s", row)
+                        log.debug("row: %s", row)
 
-                        id, album, artist, year, albumartist, duplicate, cover, artid, inserted, composer, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount = row
+                        id, album, artist, year, albumartist, duplicate, cover, artid, inserted, composer, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount, albumsort = row
                         id = str(id)
                         playcount = str(playcount)
 
@@ -2921,24 +2924,15 @@ class DummyContentDirectory(Service):
                                     fields.append(album)
                                     log.debug('    album option: %s', album)
 
-                            possible_albumtypes = self.get_possible_albumtypes('COMPOSER_ALBUM')
-                                    
+                            albumstatement = "select albumtype from albums where artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.composer_album_albumtype_where)                                    
                             countstatement = "select count(*) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s" % (duplicate_number)
-                            countstatement2 = "select count(*) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
+                            countstatement2 = "select count(*) from tracknumbers where composer=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where rowid in (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
-                            statement2 = "select distinct(albumtype) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-#                            statement3 = '''select * from tracks t, tracknumbers n where id in 
-#                                           (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s)
-#                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-#                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
-
-                            statement3 = '''
-                                            select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
-                                            (select track_id from tracknumbers where track_id in 
-                                                (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s and albumtype=?)
-                                            and albumtype=?)
-                                            and albumtype=? 
-                                            order by n.tracknumber, t.title
+                            statement2 = '''
+                                            select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                            on n.track_id = t.rowid 
+                                            where n.composer=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
+                                            order by n.tracknumber, t.title 
                                             limit %d, %d
                                          ''' % (duplicate_number, startingIndex, requestedCount)
 
@@ -2976,47 +2970,29 @@ class DummyContentDirectory(Service):
                                     
                             if self.use_albumartist:
 
-                                possible_albumtypes = self.get_possible_albumtypes('ALBUMARTIST_ALBUM')
-                                    
+                                albumstatement = "select albumtype from albums where albumartist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.albumartist_album_albumtype_where)                                    
                                 countstatement = "select count(*) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s" % (duplicate_number)
-                                countstatement2 = "select count(*) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
+                                countstatement2 = "select count(*) from tracknumbers where albumartist=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                                 statement = "select * from tracks where rowid in (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
-                                statement2 = "select distinct(albumtype) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-#                                statement3 = '''select * from tracks t, tracknumbers n where id in 
-#                                               (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s)
-#                                               and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-#                                               order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
-
-                                statement3 = '''
-                                                select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
-                                                (select track_id from tracknumbers where track_id in 
-                                                    (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s and albumtype=?)
-                                                and albumtype=?)
-                                                and albumtype=? 
-                                                order by n.tracknumber, t.title
+                                statement2 = '''
+                                                select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                                on n.track_id = t.rowid 
+                                                where n.albumartist=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
+                                                order by n.tracknumber, t.title 
                                                 limit %d, %d
                                              ''' % (duplicate_number, startingIndex, requestedCount)
 
                             else:                
                             
-                                possible_albumtypes = self.get_possible_albumtypes('ARTIST_ALBUM')
-                                    
+                                albumstatement = "select albumtype from albums where artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.artist_album_albumtype_where)                                    
                                 countstatement = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s" % (duplicate_number)
-                                countstatement2 = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
+                                countstatement2 = "select count(*) from tracknumbers where artist=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                                 statement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
-                                statement2 = "select distinct(albumtype) from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-#                                statement3 = '''select * from tracks t, tracknumbers n where id in 
-#                                               (select track_id from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s)
-#                                               and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-#                                               order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
-
-                                statement3 = '''
-                                                select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
-                                                (select track_id from tracknumbers where track_id in 
-                                                    (select track_id from ArtistAlbumTrack where albumartist=? and album=? and duplicate=%s and albumtype=?)
-                                                and albumtype=?)
-                                                and albumtype=? 
-                                                order by n.tracknumber, t.title
+                                statement2 = '''
+                                                select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                                on n.track_id = t.rowid 
+                                                where n.artist=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
+                                                order by n.tracknumber, t.title 
                                                 limit %d, %d
                                              ''' % (duplicate_number, startingIndex, requestedCount)
 
@@ -3043,24 +3019,15 @@ class DummyContentDirectory(Service):
                                     log.debug('    artist: %s', artist)
                                     log.debug('    album: %s', album)
 
-                            possible_albumtypes = self.get_possible_albumtypes('CONTRIBUTINGARTIST_ALBUM')
-                                    
+                            albumstatement = "select albumtype from albums where artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.artist_album_albumtype_where)                                    
                             countstatement = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s" % (duplicate_number)
-                            countstatement2 = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?" % (duplicate_number)
+                            countstatement2 = "select count(*) from tracknumbers where artist=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
-                            statement2 = "select distinct(albumtype) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-#                            statement3 = '''select * from tracks t, tracknumbers n where id in 
-#                                           (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s)
-#                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-#                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
-
-                            statement3 = '''
-                                            select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
-                                            (select track_id from tracknumbers where track_id in 
-                                                (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s and albumtype=?)
-                                            and albumtype=?)
-                                            and albumtype=? 
-                                            order by n.tracknumber, t.title
+                            statement2 = '''
+                                            select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                            on n.track_id = t.rowid 
+                                            where n.artist=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
+                                            order by n.tracknumber, t.title 
                                             limit %d, %d
                                          ''' % (duplicate_number, startingIndex, requestedCount)
 
@@ -3138,52 +3105,31 @@ class DummyContentDirectory(Service):
                                     
                         if self.use_albumartist:
                         
-                            possible_albumtypes = self.get_possible_albumtypes('ALBUMARTIST_ALBUM')
-                        
+                            albumstatement = "select albumtype from albums where genre=? and albumartist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.albumartist_album_albumtype_where)                                    
                             countstatement = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s" % (duplicate_number)
-                            countstatement2 = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s and albumtype=?" % (duplicate_number)
+                            countstatement2 = "select count(*) from tracknumbers where genre=? and albumartist=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where rowid in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
-                            statement2 = "select distinct(albumtype) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-#                            statement3 = '''select * from tracks t, tracknumbers n where id in 
-#                                           (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s)
-#                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-#                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
-
-                            statement3 = '''
-                                            select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
-                                            (select track_id from tracknumbers where track_id in 
-                                                (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s and albumtype=?)
-                                            and albumtype=?)
-                                            and albumtype=? 
-                                            order by n.tracknumber, t.title
+                            statement2 = '''
+                                            select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                            on n.track_id = t.rowid 
+                                            where n.genre=? and n.albumartist=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
+                                            order by n.tracknumber, t.title 
                                             limit %d, %d
                                          ''' % (duplicate_number, startingIndex, requestedCount)
 
                         else:                
 
-                            possible_albumtypes = self.get_possible_albumtypes('ARTIST_ALBUM')
-                        
+                            albumstatement = "select albumtype from albums where genre=? and artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.artist_album_albumtype_where)                                    
                             countstatement = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s" % (duplicate_number)
-                            countstatement2 = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s and albumtype=?" % (duplicate_number)
+                            countstatement2 = "select count(*) from tracknumbers where genre=? and artist=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where rowid in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
-                            statement2 = "select distinct(albumtype) from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s order by albumtype" % (duplicate_number)
-#                            statement3 = '''select * from tracks t, tracknumbers n where id in 
-#                                           (select track_id from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s)
-#                                           and t.id = n.track_id and t.genre=n.genre and t.artist=n.artist and t.albumartist=n.albumartist and t.album=n.album and t.composer=n.composer and t.duplicate=n.duplicate and n.albumtype=?
-#                                           order by t.discnumber, n.tracknumber, t.title limit %d, %d''' % (duplicate_number, startingIndex, requestedCount)
-
-                            statement3 = '''
-                                            select * from tracks t join tracknumbers n on t.rowid = n.track_id where t.rowid in
-                                            (select track_id from tracknumbers where track_id in 
-                                                (select track_id from GenreArtistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=%s and albumtype=?)
-                                            and albumtype=?)
-                                            and albumtype=? 
-                                            order by n.tracknumber, t.title
+                            statement2 = '''
+                                            select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                            on n.track_id = t.rowid 
+                                            where n.genre=? and n.artist=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
+                                            order by n.tracknumber, t.title 
                                             limit %d, %d
                                          ''' % (duplicate_number, startingIndex, requestedCount)
-
-                    log.debug("count statement: %s", countstatement)
-                    log.debug("statement: %s", statement)
 
                     # process each fields option across all levels until we find a match
                     matches = {}
@@ -3195,32 +3141,48 @@ class DummyContentDirectory(Service):
                         for artist in artists:
                             for field in fields:
                                 if tracks_type == 'FIELD':
-                                    c.execute(countstatement, (field, ))
+                                    bindvars = (field, )
+                                    log.debug("countstatement: %s", countstatement)
+                                    log.debug("vars: %s", bindvars)
+                                    c.execute(countstatement, bindvars)
                                 elif tracks_type == 'ARTIST':
                                     if not_album:
-                                        c.execute(countstatement, (artist, field))
+                                        bindvars = (artist, field)
+                                        log.debug("countstatement: %s", countstatement)
+                                        log.debug("vars: %s", bindvars)
+                                        c.execute(countstatement, bindvars)
                                     else:
-                                        albumtype = 10
-                                        c.execute(statement2, (artist, field))
-                                        for row in c:
-                                            albumtype, = row
-                                            if albumtype == 10: break
-                                            elif albumtype in possible_albumtypes: break
+                                        bindvars = (artist, field)
+                                        log.debug("albumstatement: %s", albumstatement)
+                                        log.debug("vars: %s", bindvars)
+                                        c.execute(albumstatement, bindvars)
+                                        albumtype, = c.fetchone()
                                         if albumtype == 10:
-                                            c.execute(countstatement, (artist, field))
+                                            bindvars = (artist, field)
+                                            log.debug("countstatement: %s", countstatement)
+                                            log.debug("vars: %s", bindvars)
+                                            c.execute(countstatement, bindvars)
                                         else:            
-                                            c.execute(countstatement2, (artist, field, albumtype))
+                                            bindvars = (artist, field, albumtype)
+                                            log.debug("countstatement2: %s", countstatement2)
+                                            log.debug("vars: %s", bindvars)
+                                            c.execute(countstatement2, bindvars)
                                 elif tracks_type == 'GENRE':
-                                    albumtype = 10
-                                    c.execute(statement2, (genre, artist, field))
-                                    for row in c:
-                                        albumtype, = row
-                                        if albumtype == 10: break
-                                        elif albumtype in possible_albumtypes: break
+                                    bindvars = (genre, artist, field)
+                                    log.debug("albumstatement: %s", albumstatement)
+                                    log.debug("vars: %s", bindvars)
+                                    c.execute(albumstatement, bindvars)
+                                    albumtype, = c.fetchone()
                                     if albumtype == 10:
-                                        c.execute(countstatement, (genre, artist, field))
+                                        bindvars = (genre, artist, field)
+                                        log.debug("countstatement: %s", countstatement)
+                                        log.debug("vars: %s", bindvars)
+                                        c.execute(countstatement, bindvars)
                                     else:            
-                                        c.execute(countstatement2, (genre, artist, field, albumtype))
+                                        bindvars = (genre, artist, field, albumtype)
+                                        log.debug("countstatement2: %s", countstatement2)
+                                        log.debug("vars: %s", bindvars)
+                                        c.execute(countstatement2, bindvars)
                                 totalMatches, = c.fetchone()
                                 totalMatches = int(totalMatches)
                                 if totalMatches != 0:
@@ -3240,44 +3202,55 @@ class DummyContentDirectory(Service):
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
 
-            albumtype = 10
             if tracks_type == 'TRACKS':
+                log.debug("statement: %s", statement)
                 c.execute(statement)
             elif tracks_type == 'FIELD':
-                c.execute(statement, (field, ))
+                bindvars = (field, )
+                log.debug("statement: %s", statement)
+                log.debug("vars: %s", bindvars)
+                c.execute(statement, bindvars)
             elif tracks_type == 'ARTIST':
                 if not_album:
                     # genre/artist
-                    c.execute(statement, (artist, field))
+                    bindvars = (artist, field)
+                    log.debug("statement: %s", statement)
+                    log.debug("vars: %s", bindvars)
+                    c.execute(statement, bindvars)
                 else:
-                
-                    log.debug(statement2)
-                    log.debug(artist)
-                    log.debug(field)
-                    log.debug(statement3)
-                
-                    c.execute(statement2, (artist, field))
-                    albumtype, = c.fetchone()
                     if albumtype != 10:
-                        c.execute(statement3, (artist, field, albumtype, albumtype, albumtype))
+                        bindvars = (artist, field, albumtype)
+                        log.debug("statement2: %s", statement2)
+                        log.debug("vars: %s", bindvars)
+                        c.execute(statement2, bindvars)
                     else:            
-                        c.execute(statement, (artist, field))
+                        bindvars = (artist, field)
+                        log.debug("statement: %s", statement)
+                        log.debug("vars: %s", bindvars)
+                        c.execute(statement, bindvars)
             elif tracks_type == 'GENRE':
-                c.execute(statement2, (genre, artist, field))
-                albumtype, = c.fetchone()
                 if albumtype != 10:
-                    c.execute(statement3, (genre, artist, field, albumtype, albumtype, albumtype))
+                    bindvars = (genre, artist, field, albumtype)
+                    log.debug("statement2: %s", statement2)
+                    log.debug("vars: %s", bindvars)
+                    c.execute(statement2, bindvars)
                 else:            
-                    c.execute(statement, (genre, artist, field))
+                    bindvars = (genre, artist, field)
+                    log.debug("statement: %s", statement)
+                    log.debug("vars: %s", bindvars)
+                    c.execute(statement, bindvars)
 
             for row in c:
-                log.debug("row: %s", row)
-                if albumtype != 10:
-                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, d1, d2, d3, d4, d5, d6, d7, d8, d9, d10 = row
+#                log.debug("row: %s", row)
+                if albumtype != 10 and \
+                   (tracks_type == 'ARTIST' or tracks_type == 'GENRE') and \
+                   not_album == False:
+                    id, id2, duplicate, title, artist, album, genre, tracktracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, tracknumber, coverart, coverartid = row
+                    cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid, coverart, coverartid)
                 else:
-                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned = row
+                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
+                    cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
                 mime = fixMime(mime)
-                cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
                 # TODO: automate mount
                 wsfile = filename
@@ -3681,7 +3654,7 @@ class DummyContentDirectory(Service):
             db = self.proxy.db
         else:
             db = sqlite3.connect(self.dbspec)
-        log.debug(db)
+#        log.debug(db)
         c = db.cursor()
         try:
             c.execute("""select * from albums""")
@@ -3888,7 +3861,8 @@ class DummyContentDirectory(Service):
                     elif values['proxyname'] == 'all' and values['controller'] == controller and not bothfound and not proxyfound and not controllerfound:
                         controllerfound = True
                         foundvalues = values
-                    elif not bothfound and not proxyfound and not controllerfound and not foundvalues:
+                    elif values['proxyname'] == 'all' and values['controller'] == 'all' and \
+                         not bothfound and not proxyfound and not controllerfound and not foundvalues:
                         foundvalues = values
             at = self.get_possible_albumtypes(sorttype)
             log.debug(at)
@@ -3924,7 +3898,7 @@ class DummyContentDirectory(Service):
                     elif values['proxyname'] == 'all' and values['controller'] == controller:
                         controllerfound = True
                         controllervalues.append(values)
-                    else:
+                    elif values['proxyname'] == 'all' and values['controller'] == 'all':
                         neithervalues.append(values)
             log.debug(bothvalues)
             log.debug(proxyvalues)
@@ -3976,26 +3950,6 @@ class DummyContentDirectory(Service):
                 return '34', albumtype
             elif table == 'COMPOSER_ALBUM' or table == 'COMPOSER':
                 return '35', albumtype
-
-        # TODO: check whether we still need these
-        elif albumtype == 'artist_virtual':
-            return '22', albumtype
-        elif albumtype == 'albumartist_virtual':
-            return '23', albumtype
-        elif albumtype == 'contributingartist_virtual':
-            return '24', albumtype
-        elif albumtype == 'composer_virtual':
-            return '25', albumtype
-
-        elif albumtype == 'artist_work':
-            return '32', albumtype
-        elif albumtype == 'albumartist_work':
-            return '33', albumtype
-        elif albumtype == 'contributingartist_work':
-            return '34', albumtype
-        elif albumtype == 'composer_work':
-            return '35', albumtype
-
         else:
             return '10', 'album'
 
@@ -4141,18 +4095,23 @@ class DummyContentDirectory(Service):
             return album, None
         return newalbum, dup
 
-    def choosecover(self, folderart, trackart, folderartid, trackartid):
+    def choosecover(self, folderart, trackart, folderartid, trackartid, coverart=None, coverartid=0):
 #        log.debug(folderart)
 #        log.debug(trackart)
 #        log.debug(folderartid)
 #        log.debug(trackartid)
+#        log.debug(coverart)
+#        log.debug(coverartid)
         try:
-            if trackart and trackart != '' and not (folderart and folderart!= '' and self.prefer_folderart):
-                cover = trackart
-                artid = trackartid
-            elif folderart and folderart != '':
+            if coverart and coverart != '' and self.prefer_folderart:
+                cover = coverart
+                artid = coverartid
+            elif folderart and folderart != '' and self.prefer_folderart:
                 cover = folderart
                 artid = folderartid
+            elif trackart and trackart != '':
+                cover = trackart
+                artid = trackartid
             else:
                 cover = ''
                 artid = ''
