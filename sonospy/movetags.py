@@ -1485,12 +1485,13 @@ def unwrap_list(liststring, multi_field_separator, include, the_processing):
     else: 
         newlist = multilist
         
+    # recreate the original string with just the selected entries in
+    newstring = MULTI_SEPARATOR.join(newlist)
+
     # perform 'the' processing on list
     if the_processing == 'after' or the_processing == 'remove':
         newlist = process_list_the(newlist, the_processing)
         
-    # recreate the original string with just the selected entries in
-    newstring = MULTI_SEPARATOR.join(newlist)
     # return both the updated original string and the corresponding list
     return newstring, newlist
     

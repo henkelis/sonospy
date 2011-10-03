@@ -731,7 +731,7 @@ def process_dir(scanpath, options, database):
             o_lastmodified, o_scannumber,  \
             o_folderartid, o_trackartid,  \
             o_inserted, o_lastscanned, \
-            o_titlesort, o_albumsort, o_artistsort, 
+            o_titlesort, o_albumsort, o_artistsort, \
             o_albumartistsort, o_composersort = crow
             # check if we have matched a partial path
             if scanpath != o_path:
