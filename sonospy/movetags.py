@@ -416,10 +416,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                 if updatetype == 'D' or updatetype == 'U':
                 
                     # separate out multi-entry lists and perform 'the' processing
-                    o_genreliststring, o_genrelist = unwrap_list(o_genreliststring, multi_field_separator, include_genre, 'no')
-                    o_artistliststring, o_artistlist = unwrap_list(o_artistliststring, multi_field_separator, include_artist, the_processing)
-                    o_albumartistliststring, o_albumartistlist = unwrap_list(o_albumartistliststring, multi_field_separator, include_albumartist, the_processing)
-                    o_composerliststring, o_composerlist = unwrap_list(o_composerliststring, multi_field_separator, include_composer, the_processing)
+                    o_genreliststringfull, o_genreliststring, o_genrelist = unwrap_list(o_genreliststring, multi_field_separator, include_genre, 'no')
+                    o_artistliststringfull, o_artistliststring, o_artistlist = unwrap_list(o_artistliststring, multi_field_separator, include_artist, the_processing)
+                    o_albumartistliststringfull, o_albumartistliststring, o_albumartistlist = unwrap_list(o_albumartistliststring, multi_field_separator, include_albumartist, the_processing)
+                    o_composerliststringfull, o_composerliststring, o_composerlist = unwrap_list(o_composerliststring, multi_field_separator, include_composer, the_processing)
                         
                     # adjust various fields
                     o_tracknumber = adjust_tracknumber(o_tracknumber)
@@ -436,6 +436,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                     # adjust albumartist - if there isn't one, copy in artist
                     if o_albumartistliststring == '':
+                        o_albumartistliststringfull = o_artistliststringfull
                         o_albumartistliststring = o_artistliststring
                         o_albumartistlist = o_artistlist
 
@@ -450,10 +451,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                 if updatetype == 'I' or updatetype == 'U':
 
                     # separate out multi-entry lists and perform the processing
-                    genreliststring, genrelist = unwrap_list(genreliststring, multi_field_separator, include_genre, 'no')
-                    artistliststring, artistlist = unwrap_list(artistliststring, multi_field_separator, include_artist, the_processing)
-                    albumartistliststring, albumartistlist = unwrap_list(albumartistliststring, multi_field_separator, include_albumartist, the_processing)
-                    composerliststring, composerlist = unwrap_list(composerliststring, multi_field_separator, include_composer, the_processing)
+                    genreliststringfull, genreliststring, genrelist = unwrap_list(genreliststring, multi_field_separator, include_genre, 'no')
+                    artistliststringfull, artistliststring, artistlist = unwrap_list(artistliststring, multi_field_separator, include_artist, the_processing)
+                    albumartistliststringfull, albumartistliststring, albumartistlist = unwrap_list(albumartistliststring, multi_field_separator, include_albumartist, the_processing)
+                    composerliststringfull, composerliststring, composerlist = unwrap_list(composerliststring, multi_field_separator, include_composer, the_processing)
                         
                     # adjust various fields
                     tracknumber = adjust_tracknumber(tracknumber)
@@ -470,6 +471,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                     # adjust albumartist - if there isn't one, copy in artist
                     if albumartistliststring == '':
+                        albumartistliststringfull = artistliststringfull
                         albumartistliststring = artistliststring
                         albumartistlist = artistlist
 
@@ -524,7 +526,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         # new track, so insert
                         duplicate = 0   # used if a track is duplicated, for both the track and the album
                         try:
-                            tracks = (id, id2, duplicate, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned, titlesort, albumsort)
+                            tracks = (id, id2, duplicate, title, artistliststringfull, album, genreliststringfull, tracknumber, year, albumartistliststringfull, composerliststringfull, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned, titlesort, albumsort)
                             logstring = "INSERT TRACK: %s" % str(tracks)
                             filelog.write_verbose_log(logstring)
                             cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
@@ -536,7 +538,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             tstring = title + " (%"
                             try:
                                 cs2.execute("""select max(duplicate) from tracks where title like ? and album=? and artist=? and tracknumber=?""",
-                                            (tstring, album, artistliststring, tracknumber))
+                                            (tstring, album, artistliststringfull, tracknumber))
                                 row = cs2.fetchone()
                             except sqlite3.Error, e:
                                 errorstring = "Error finding max duplicate on track insert: %s" % e
@@ -549,7 +551,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 else:
                                     tcount = int(tduplicate) + 1
                                 tstring = title + " (" + str(tcount) + ")"            
-                                tracks = (id, id2, tcount, tstring, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned, titlesort, albumsort)
+                                tracks = (id, id2, tcount, tstring, artistliststringfull, album, genreliststringfull, tracknumber, year, albumartistliststringfull, composerliststringfull, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned, titlesort, albumsort)
                                 logstring = "INSERT TRACK: %s" % str(tracks)
                                 filelog.write_verbose_log(logstring)
                                 try:
@@ -571,7 +573,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             if o_duplicate != 0:
                                 title = title + " (" + str(o_duplicate) + ")"            
 
-                            tracks = (id2, title, artistliststring, album, genreliststring, tracknumber, year, albumartistliststring, composerliststring, codec, length, size, created, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastscanned, titlesort, albumsort, track_id)
+                            tracks = (id2, title, artistliststringfull, album, genreliststringfull, tracknumber, year, albumartistliststringfull, composerliststringfull, codec, length, size, created, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastscanned, titlesort, albumsort, track_id)
                             logstring = "UPDATE TRACK: %s" % str(tracks)
                             filelog.write_verbose_log(logstring)
                             cs2.execute("""update tracks set 
@@ -1485,15 +1487,15 @@ def unwrap_list(liststring, multi_field_separator, include, the_processing):
     else: 
         newlist = multilist
         
-    # recreate the original string with just the selected entries in
-    newstring = MULTI_SEPARATOR.join(newlist)
-
     # perform 'the' processing on list
     if the_processing == 'after' or the_processing == 'remove':
         newlist = process_list_the(newlist, the_processing)
-        
+
+    # recreate the original string with just the selected entries in
+    newstring = MULTI_SEPARATOR.join(newlist)
+
     # return both the updated original string and the corresponding list
-    return newstring, newlist
+    return liststring, newstring, newlist
     
 def process_list_the(plist, the_processing):
     newlist = []
