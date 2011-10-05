@@ -163,6 +163,17 @@ if work_file_extension == virtual_file_extension:
 else:
     work_virtual_extensions = {work_file_extension: 'work', virtual_file_extension: 'virtual'}
 
+# symlinks
+follow_symlinks = False
+try:        
+    ini_follow_symlinks = config.get('gettags', 'follow_symlinks')
+    ini_follow_symlinks = ini_follow_symlinks.lower()
+    if ini_follow_symlinks == 'y': follow_symlinks = True
+except ConfigParser.NoSectionError:
+    pass
+except ConfigParser.NoOptionError:
+    pass
+
 '''
 For the path supplied
     For tracks
@@ -234,7 +245,16 @@ def process_dir(scanpath, options, database):
 
     # process tags first
 
-    for filepath, dirs, files in os.walk(scanpath):
+    visitedpaths = []
+    for filepath, dirs, files in os.walk(scanpath, followlinks=follow_symlinks):
+
+        filepath = os.path.abspath(os.path.realpath(filepath))
+        if follow_symlinks:
+            if filepath in visitedpaths:
+                errorstring = "Path already visited, check symlinks: %s" % filepath
+                filelog.write_error(errorstring)
+                exit(1)
+            visitedpaths.append(filepath)
 
         if type(filepath) == 'str': filepath = filepath.decode(enc, 'replace')
         if type(dirs) == 'str': dirs = [d.decode(enc, 'replace') for d in dirs]
@@ -798,7 +818,16 @@ def process_dir(scanpath, options, database):
         filelog.write_error(errorstring)
 
     # now process works and virtuals - processing the generator first
-    for filepath, dirs, files in itertools.chain(workvirtual_updates, os.walk(scanpath)):
+    visitedpaths = []
+    for filepath, dirs, files in itertools.chain(workvirtual_updates, os.walk(scanpath, followlinks=follow_symlinks)):
+
+        filepath = os.path.abspath(os.path.realpath(filepath))
+        if follow_symlinks:
+            if filepath in visitedpaths:
+                errorstring = "Path already visited, check symlinks: %s" % filepath
+                filelog.write_error(errorstring)
+                exit(1)
+            visitedpaths.append(filepath)
 
         if type(filepath) == 'str': filepath = filepath.decode(enc, 'replace')
         if type(dirs) == 'str': dirs = [d.decode(enc, 'replace') for d in dirs]
@@ -1223,7 +1252,16 @@ def process_dir(scanpath, options, database):
     db.commit()
 
     # now process playlists - processing the generator first
-    for filepath, dirs, files in itertools.chain(playlist_updates, os.walk(scanpath)):
+    visitedpaths = []
+    for filepath, dirs, files in itertools.chain(playlist_updates, os.walk(scanpath, followlinks=follow_symlinks)):
+
+        filepath = os.path.abspath(os.path.realpath(filepath))
+        if follow_symlinks:
+            if filepath in visitedpaths:
+                errorstring = "Path already visited, check symlinks: %s" % filepath
+                filelog.write_error(errorstring)
+                exit(1)
+            visitedpaths.append(filepath)
 
         if type(filepath) == 'str': filepath = filepath.decode(enc, 'replace')
         if type(dirs) == 'str': dirs = [d.decode(enc, 'replace') for d in dirs]
@@ -2013,7 +2051,16 @@ def generate_workvirtualfile_record(filespec, database):
     directory = os.path.isdir(filespec)
     if directory:
     
-        for filepath, dirs, files in os.walk(filespec):
+        visitedpaths = []
+        for filepath, dirs, files in os.walk(filespec, followlinks=follow_symlinks):
+
+            filepath = os.path.abspath(os.path.realpath(filepath))
+            if follow_symlinks:
+                if filepath in visitedpaths:
+                    errorstring = "Path already visited, check symlinks: %s" % filepath
+                    filelog.write_error(errorstring)
+                    exit(1)
+                visitedpaths.append(filepath)
 
             if type(filepath) == 'str': filepath = filepath.decode(enc, 'replace')
             if type(dirs) == 'str': dirs = [d.decode(enc, 'replace') for d in dirs]

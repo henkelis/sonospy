@@ -279,7 +279,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                 select_t  = 'tempdb.tags'
             if options.regenerate:
                 orderby_tu = 'id, updateorder'
-                orderby_wv = 'w.id, w.title, w.type, w.occurs, w.updateorder'
+                orderby_wv = 'w.wvfile, w.plfile, w.id, w.title, w.type, w.occurs, w.updateorder'
             else:
                 orderby_tu = 'updatetype, rowid'
                 orderby_wv = 'w.updatetype, w.rowid'
@@ -290,7 +290,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
             #    doesn't contain all the records we need (remember tags is the after image too))
             # 3) to get the full data for workvirtuals deletes we join with tags or tags_updates (if tag
             #    records have been deleted)
-            # Note:
+            # Note 1:
             #    In the SQL if we are processing a wv delete and the track exists in tags, it will be found in
             #    the second select (but not the third as it won't exist in tags_update). If the track does not 
             #    exist in tags then it must have been deleted and will exist in tags_update, so will be found
@@ -300,6 +300,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
             #    multiple virtuals and/or works, we need to ensure we keep the correct record order in the select
             #    if regenerating (using virtual/work title, type and occurs)
             # Note 3:
+            #    Because a user can have identical virtuals/works in separate files, we need to ensure we keep
+            #    the correct record order in the select if regenerating (using wvfile and plfile). Note that only
+            #    one will be picked up
+            # Note 4:
             #    The SQL assumes that the final result will conform to the three separate order by clauses
             statement = '''
                         select * from (
