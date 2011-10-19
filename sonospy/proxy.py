@@ -989,6 +989,7 @@ class DummyContentDirectory(Service):
     scpd_xml_path = os.path.join(os.getcwd(), 'content-directory-scpd.xml')
 
     id_range = 99999999
+    half_id_start = 50000000
     artist_parentid = 100000000
     contributingartist_parentid = 200000000   # dummy
     album_parentid = 300000000
@@ -1107,15 +1108,15 @@ class DummyContentDirectory(Service):
         except ConfigParser.NoOptionError:
             self.show_duplicates = False
         if self.show_duplicates:
-            self.album_distinct_duplicate = ' || duplicate'
-            self.album_groupby_duplicate = ', duplicate'
+            self.album_distinct_duplicate = ' || aa.duplicate'
+            self.album_groupby_duplicate = ', aa.duplicate'
             self.album_where_duplicate = ''
             self.album_and_duplicate = ''
         else:
             self.album_distinct_duplicate = ''
             self.album_groupby_duplicate = ''
-            self.album_where_duplicate = ' where duplicate = 0'
-            self.album_and_duplicate = ' and duplicate = 0'
+            self.album_where_duplicate = ' where aa.duplicate = 0'
+            self.album_and_duplicate = ' and aa.duplicate = 0'
 
         # get virtual display settings
         self.display_virtuals_in_album_index = True
@@ -1318,8 +1319,31 @@ class DummyContentDirectory(Service):
         self.replace_pre = '%s%s%s' % (self.chunk_metadata_delimiter_prefix_start, '%s', self.chunk_metadata_delimiter_prefix_end)
         self.replace_suf = '%s%s%s' % (self.chunk_metadata_delimiter_suffix_start, '%s', self.chunk_metadata_delimiter_suffix_end)
 
+        # get album to display
+        self.now_playing_album_selected_default = 'last'
+        self.now_playing_album = 'selected'    # default
+        try:        
+            self.now_playing_album = self.proxy.config.get('INI', 'now_playing_album')
+            self.now_playing_album = self.now_playing_album.lower()
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+        if not self.now_playing_album in ['all', 'first', 'last', 'selected']: self.now_playing_album = 'selected'
+
+        self.now_playing_album_combiner = '/'    # default
+        try:        
+            self.now_playing_album_combiner = self.proxy.config.get('INI', 'now_playing_album_combiner')
+            if self.now_playing_album_combiner.startswith("'") and self.now_playing_album_combiner.endswith("'"):
+                self.now_playing_album_combiner = self.now_playing_album_combiner[1:-1]
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+
         # get artist to display
-        self.now_playing_artist = 'all'    # default
+        self.now_playing_artist_selected_default = 'last'
+        self.now_playing_artist = 'selected'    # default
         try:        
             self.now_playing_artist = self.proxy.config.get('INI', 'now_playing_artist')
             self.now_playing_artist = self.now_playing_artist.lower()
@@ -1327,7 +1351,7 @@ class DummyContentDirectory(Service):
             pass
         except ConfigParser.NoOptionError:
             pass
-        if not self.now_playing_artist in ['all', 'first', 'last']: self.now_playing_artist = 'all'
+        if not self.now_playing_artist in ['all', 'first', 'last', 'selected']: self.now_playing_artist = 'selected'
 
         self.now_playing_artist_combiner = '/'    # default
         try:        
@@ -1339,21 +1363,42 @@ class DummyContentDirectory(Service):
         except ConfigParser.NoOptionError:
             pass
 
-        self.mouseover_artist = 'all'    # default
+        # get virtual and work album/artist to display
+        self.virtual_now_playing_album = False    # default
         try:        
-            self.mouseover_artist = self.proxy.config.get('INI', 'mouseover_artist')
-            self.mouseover_artist = self.mouseover_artist.lower()
+            ini_virtual_now_playing_album = self.proxy.config.get('INI', 'virtual_now_playing_album')
+            if ini_virtual_now_playing_album.lower() == 'y':
+                self.virtual_now_playing_album = True
         except ConfigParser.NoSectionError:
             pass
         except ConfigParser.NoOptionError:
             pass
-        if not self.mouseover_artist in ['all', 'first', 'last']: self.mouseover_artist = 'all'
 
-        self.mouseover_artist_combiner = '/'    # default
+        self.virtual_now_playing_artist = False    # default
         try:        
-            self.mouseover_artist_combiner = self.proxy.config.get('INI', 'mouseover_artist_combiner')
-            if self.mouseover_artist_combiner.startswith("'") and self.mouseover_artist_combiner.endswith("'"):
-                self.mouseover_artist_combiner = self.mouseover_artist_combiner[1:-1]
+            ini_virtual_now_playing_artist = self.proxy.config.get('INI', 'virtual_now_playing_artist')
+            if ini_virtual_now_playing_artist.lower() == 'y':
+                self.virtual_now_playing_artist = True
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+
+        self.work_now_playing_album = False    # default
+        try:        
+            ini_work_now_playing_album = self.proxy.config.get('INI', 'work_now_playing_album')
+            if ini_work_now_playing_album.lower() == 'y':
+                self.work_now_playing_album = True
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+
+        self.work_now_playing_artist = False    # default
+        try:        
+            ini_work_now_playing_artist = self.proxy.config.get('INI', 'work_now_playing_artist')
+            if ini_work_now_playing_artist.lower() == 'y':
+                self.work_now_playing_artist = True
         except ConfigParser.NoSectionError:
             pass
         except ConfigParser.NoOptionError:
@@ -1461,7 +1506,6 @@ class DummyContentDirectory(Service):
 
 # TODO
 # TODO: remember to decide what to do with titlesort and how to allow the user to select it (or other tags)
-# TODO: remember to check whether we can drop the artists table (it appears we never select from it...) - others (composer)?
 # TODO
 
         objectID = kwargs['ObjectID']
@@ -1479,10 +1523,16 @@ class DummyContentDirectory(Service):
         requestedCount = int(kwargs['RequestedCount'])
 
         # TODO: work out whether we need support for anything other than album, track and playlist
+        objectEntry = None
         if '__' in objectID:
             objectfacets = objectID.split('__')
             objectTable = objectfacets[0]
-            objectID = objectfacets[1]
+            if len(objectfacets) == 2:
+                objectID = objectfacets[1]
+                objectEntry = None
+            else:
+                objectEntry = objectfacets[1]
+                objectID = objectfacets[2]
         if len(objectID) == 8:
             # playlist id is 8 hex chars, everything else will be 10 or more
             plid = objectID
@@ -1519,25 +1569,60 @@ class DummyContentDirectory(Service):
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
 
+            # album and artist entry positions are passed in
+            album_passed = False
+            artist_passed = False
+            albumartist_passed = False
+            if not objectEntry:
+                albumposition = 0
+                artistposition = 0
+                albumartistposition = 0
+            else:
+                objectEntries = objectEntry.split('_')
+                albumposition = int(objectEntries[0])
+                artistposition = int(objectEntries[1])
+                albumartistposition = int(objectEntries[2])
+                album_passed = True
+                artist_passed = True
+                albumartist_passed = True
+
+            artist_selected = False
+            album_selected = False
+            if self.now_playing_artist == 'selected': artist_selected = True
+            if self.now_playing_album == 'selected': album_selected = True
+
             # note that there is no way to select discrete tracks from an album 
-            # that relate to an artist, composer etc with this search
-            statement = "select album, artist, albumartist, duplicate, albumtype from albums where id = '%s'" % (objectID)
+            # that relate to an artist, composer etc with this browse
+            
+            # album ID can be in one of two ranges, showing whether it is in the albums or albumsonly table
+            if objectID >= self.album_parentid + self.half_id_start:
+                statement = "select album, artistlist, albumartistlist, duplicate, albumtype from albumsonly where id = '%s'" % (objectID)
+            else:
+                statement = "select albumlist, artistlist, albumartistlist, duplicate, albumtype from albums where id = '%s'" % (objectID)
             log.debug("statement: %s", statement)
             c.execute(statement)
-            album_title, album_artist, album_albumartist, album_duplicate, album_type = c.fetchone()
+            albumlist, artistlist, albumartistlist, album_duplicate, album_type = c.fetchone()
 
-            album_title = album_title.replace("'", "''")
-            album_artist = album_artist.replace("'", "''")
-            album_albumartist = album_albumartist.replace("'", "''")
+            albumlist = albumlist.replace("'", "''")
+            artistlist = artistlist.replace("'", "''")
+            albumartistlist = albumartistlist.replace("'", "''")
+
+            albumentry = self.get_entry_at_position(albumposition, albumlist)
+            artistentry = self.get_entry_at_position(artistposition, artistlist)
+            albumartistentry = self.get_entry_at_position(albumartistposition, albumartistlist)
 
             if album_type != 10:
-                where = "n.dummyalbum='%s'" % album_title
+                where = "n.dummyalbum='%s'" % albumentry
+                if 'artist' in self.album_group:
+                    where += " and n.artist='%s'" % artistentry
+                if 'albumartist' in self.album_group:
+                    where += " and n.albumartist='%s'" % albumartistentry
             else:
-                where = "n.album='%s'" % album_title
-            if 'artist' in self.album_group:
-                where += " and n.artist='%s'" % album_artist
-            if 'albumartist' in self.album_group:
-                where += " and n.albumartist='%s'" % album_albumartist
+                where = "n.album='%s'" % albumlist
+                if 'artist' in self.album_group:
+                    where += " and n.artist='%s'" % artistlist
+                if 'albumartist' in self.album_group:
+                    where += " and n.albumartist='%s'" % albumartistlist
             if self.show_duplicates:
                 where += " and n.duplicate=%s" % album_duplicate
             else:
@@ -1553,7 +1638,7 @@ class DummyContentDirectory(Service):
                 c.execute(countstatement)
                 totalMatches, = c.fetchone()
                 statement = '''
-                                select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                select t.*, n.tracknumber, n.coverart, n.coverartid, n.rowid from tracknumbers n join tracks t 
                                 on n.track_id = t.rowid 
                                 where %s
                                 order by n.tracknumber, t.title 
@@ -1572,14 +1657,13 @@ class DummyContentDirectory(Service):
             for row in c:
 #                log.debug("row: %s", row)
                 if album_type != 10:
-                    id, id2, duplicate, title, artist, album, genre, tracktracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, tracknumber, coverart, coverartid = row
+                    id, id2, duplicate, title, artist, album, genre, tracktracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, tracknumber, coverart, coverartid, rowid = row
                     cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid, coverart, coverartid)
                 else:
                     id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
                     cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
                 mime = fixMime(mime)
 
-                # TODO: automate mount
                 wsfile = filename
                 wspath = os.path.join(path, filename)
                 path = self.convert_path(path)
@@ -1616,24 +1700,55 @@ class DummyContentDirectory(Service):
                 
                 duration = maketime(float(length))
 
-                if title == '': title = '[unknown title]'
-                if artist == '': artist = '[unknown artist]'
-                else: artist = self.get_artist(artist, self.mouseover_artist, self.mouseover_artist_combiner)
-                if albumartist == '': albumartist = '[unknown albumartist]'
-                else: albumartist = self.get_artist(albumartist, self.now_playing_artist, self.now_playing_artist_combiner)
-                if album == '': album = '[unknown album]'
-#                title = escape(title, escape_entities_quotepos)
-#                artist = escape(artist, escape_entities_quotepos)
-#                albumartist = escape(albumartist, escape_entities_quotepos)
-#                album = escape(album, escape_entities_quotepos)
+                if artist_passed and artist_selected:
+                    albumartist = albumartistentry
+                    artist = artistentry
+                else:
+                    if albumartistlist == '': albumartist = '[unknown albumartist]'
+                    if artist_selected:
+                        albumartist = self.get_entry(albumartistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                    else:
+                        albumartist = self.get_entry(albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                    albumartistposition = self.get_entry_position(albumartist, albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                    if artistlist == '': artist = '[unknown artist]'
+                    if artist_selected:
+                        artist = self.get_entry(artistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                    else:
+                        artist = self.get_entry(artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                    artistposition = self.get_entry_position(artist, artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                if album_passed and album_selected:
+                    album = albumentry
+                else:
+                    if albumlist == '': album = '[unknown album]'
+                    if album_selected:
+                        album = self.get_entry(albumlist, self.now_playing_album_selected_default, self.now_playing_album_combiner)
+                    else:
+                        album = self.get_entry(albumlist, self.now_playing_album, self.now_playing_album_combiner)
+                    albumposition = self.get_entry_position(album, albumlist, self.now_playing_album, self.now_playing_album_combiner)
+
                 title = escape(title)
                 artist = escape(artist)
                 albumartist = escape(albumartist)
                 album = escape(album)
                 tracknumber = self.convert_tracknumber(tracknumber)
 
+                if album_type >= 21 and album_type <= 25:
+                    if self.virtual_now_playing_album:
+                        albumposition = '%sv%s' % (albumposition, rowid)
+                    if self.virtual_now_playing_artist:
+                        artistposition = '%sv%s' % (artistposition, rowid)
+                        albumartistposition = '%sv%s' % (albumartistposition, rowid)
+                elif album_type >= 31 and album_type <= 35:
+                    if self.work_now_playing_album:
+                        albumposition = '%sw%s' % (albumposition, rowid)
+                    if self.work_now_playing_artist:
+                        artistposition = '%sw%s' % (artistposition, rowid)
+                        albumartistposition = '%sw%s' % (albumartistposition, rowid)
+                
+                full_id = 'T__%s_%s_%s__%s' % (albumposition, artistposition, albumartistposition, id)
+
                 count += 1
-                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, self.track_parentid)
+                ret += '<item id="%s" parentID="%s" restricted="true">' % (full_id, self.track_parentid)
                 ret += '<dc:title>%s</dc:title>' % (title)
                 ret += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (albumartist)
                 ret += '<upnp:artist role="Performer">%s</upnp:artist>' % (artist)
@@ -1652,6 +1767,16 @@ class DummyContentDirectory(Service):
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
 
+            albumposition = 0
+            artistposition = 0
+            albumartistposition = 0
+            album_passed = False
+            artist_passed = False
+            albumartist_passed = False
+            album_selected = False
+            artist_selected = False
+            special = False
+
             # the passed id will either be for a track or a playlist stream entry
             # check tracks first (most likely)
 
@@ -1660,9 +1785,77 @@ class DummyContentDirectory(Service):
             totalMatches, = c.fetchone()
             if totalMatches == 1:
                 btype = 'TRACK'
+
+                # album and artist entry positions are passed in
+                # - for virtuals/works they can be rowids too
+                if objectEntry:
+                    objectEntries = objectEntry.split('_')
+                    albumposition = objectEntries[0]
+                    artistposition = objectEntries[1]
+                    albumartistposition = objectEntries[1]
+                    album_passed = True
+                    artist_passed = True
+                    albumartist_passed = True
+                if self.now_playing_album == 'selected': album_selected = True
+                if self.now_playing_artist == 'selected': artist_selected = True
+
+                # split out virtual/work details if passed
+                specialalbumtype = None
+                if 'v' in albumposition:
+                    specialalbumtype = 'VIRTUAL'
+                    ap = albumposition.split('v')
+                    albumposition = ap[0]
+                    specialalbumrowid = ap[1]
+                if 'w' in albumposition:
+                    specialalbumtype = 'WORK'
+                    ap = albumposition.split('w')
+                    albumposition = ap[0]
+                    specialalbumrowid = ap[1]
+                specialartisttype = None
+                if 'v' in artistposition:
+                    specialartisttype = 'VIRTUAL'
+                    ap = artistposition.split('v')
+                    artistposition = ap[0]
+                    specialartistrowid = ap[1]
+                if 'w' in artistposition:
+                    specialartisttype = 'WORK'
+                    ap = artistposition.split('w')
+                    artistposition = ap[0]
+                    specialartistrowid = ap[1]
+                specialalbumartisttype = None
+                if 'v' in albumartistposition:
+                    specialalbumartisttype = 'VIRTUAL'
+                    ap = albumartistposition.split('v')
+                    albumartistposition = ap[0]
+                    specialalbumartistrowid = ap[1]
+                if 'w' in albumartistposition:
+                    specialalbumartisttype = 'WORK'
+                    ap = albumartistposition.split('w')
+                    albumartistposition = ap[0]
+                    specialalbumartistrowid = ap[1]
+                
+                albumposition = int(albumposition)
+                artistposition = int(artistposition)
+                albumartistposition = int(artistposition)
+                
+                # get special details
+                if specialalbumtype or specialartisttype:
+                    special = True
+                    if specialalbumtype: rowid = specialalbumrowid
+                    elif specialartisttype: rowid = specialartistrowid
+                    elif specialalbumartisttype: rowid = specialalbumartistrowid
+                    statement = "select artist, albumartist, dummyalbum from tracknumbers where rowid = '%s'" % (rowid)
+                    log.debug("statement: %s", statement)
+                    c.execute(statement)
+                    for row in c:   # will only be one row
+#                        log.debug("row: %s", row)
+                        s_artist, s_albumartist, s_album = row
+
+                # get track details
                 statement = "select * from tracks where id = '%s'" % (objectID)
                 log.debug("statement: %s", statement)
                 c.execute(statement)
+                
             else:
                 # didn't find track, check for playlist entry
                 btype = 'PLAYLIST'
@@ -1674,7 +1867,7 @@ class DummyContentDirectory(Service):
                 c.execute(statement)
 
             for row in c:   # will only be one row
-                log.debug("row: %s", row)
+#                log.debug("row: %s", row)
                 if btype == 'TRACK':
                     id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
                 else:                    
@@ -1696,7 +1889,6 @@ class DummyContentDirectory(Service):
                 mime = fixMime(mime)
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
-                # TODO: automate mount
                 wsfile = filename
                 wspath = os.path.join(path, filename)
                 path = self.convert_path(path)
@@ -1707,7 +1899,7 @@ class DummyContentDirectory(Service):
                 contenttype = mime
                 filetype = getFileType(filename)
 
-                log.debug(filetype)
+#                log.debug(filetype)
 
                 '''                
                 transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
@@ -1760,19 +1952,43 @@ class DummyContentDirectory(Service):
                 
                 duration = maketime(float(length))
 
+                if special:
+                    # virtual/work details have been passed in - replace artist/album with those details
+                    if specialartisttype:
+                        artist = s_artist
+                    if specialalbumartisttype:
+                        albumartist = s_albumartist
+                    if specialalbumtype:
+                        album = s_album
+
+                if artist_passed and artist_selected:
+                    albumartist = self.get_entry_at_position(albumartistposition, albumartist)
+                    artist = self.get_entry_at_position(artistposition, artist)
+                else:
+                    if albumartist == '': albumartist = '[unknown albumartist]'
+                    if artist_selected:
+                        albumartist = self.get_entry(albumartist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                    else:
+                        albumartist = self.get_entry(albumartist, self.now_playing_artist, self.now_playing_artist_combiner)
+                    if artist == '': artist = '[unknown artist]'
+                    if artist_selected:
+                        artist = self.get_entry(artist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                    else:
+                        artist = self.get_entry(artist, self.now_playing_artist, self.now_playing_artist_combiner)
+                if album_passed and album_selected:
+                    album = self.get_entry_at_position(albumposition, album)
+                else:
+                    if album == '': album = '[unknown album]'
+                    if album_selected:
+                        album = self.get_entry(album, self.now_playing_album_selected_default, self.now_playing_album_combiner)
+                    else:
+                        album = self.get_entry(album, self.now_playing_album, self.now_playing_album_combiner)
+
                 if title == '': title = '[unknown title]'
-                if artist == '': artist = '[unknown artist]'
-                else: artist = self.get_artist(artist, self.now_playing_artist, self.now_playing_artist_combiner)
-                if albumartist == '': albumartist = '[unknown albumartist]'
-                else: albumartist = self.get_artist(albumartist, self.now_playing_artist, self.now_playing_artist_combiner)
-                if album == '': album = '[unknown album]'
-#                title = escape(title, escape_entities_quotepos)
-#                artist = escape(artist, escape_entities_quotepos)
-#                albumartist = escape(albumartist, escape_entities_quotepos)
-#                album = escape(album, escape_entities_quotepos)
+
                 title = escape(title)
-                artist = escape(artist)
                 albumartist = escape(albumartist)
+                artist = escape(artist)
                 album = escape(album)
                 tracknumber = self.convert_tracknumber(tracknumber)
 
@@ -1797,6 +2013,9 @@ class DummyContentDirectory(Service):
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
 
+            if self.now_playing_album == 'selected': album_selected = True
+            if self.now_playing_artist == 'selected': artist_selected = True
+
             # playlists can contain stream entries that are not in tracks, so select with outer join
 
             countstatement = '''select count(*) from playlists p left outer join tracks t on t.rowid = p.track_rowid
@@ -1811,8 +2030,8 @@ class DummyContentDirectory(Service):
             log.debug("statement: %s", statement)
             c.execute(statement)
             for row in c:
-                log.debug("row: %s", row)
-                id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+#                log.debug("row: %s", row)
+                id, id2, duplicate, title, artistlist, albumlist, genre, tracknumber, year, albumartistlist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
 
                 if not id:
                     # playlist entry with no matching track - assume stream
@@ -1821,16 +2040,15 @@ class DummyContentDirectory(Service):
                     path = ''
                     length = 0
                     title = pl_trackfile
-                    artist = ''
-                    albumartist = ''
-                    album = ''
+                    artistlist = 'Stream'
+                    albumartistlist = 'Stream'
+                    albumlist = 'Stream'
                     id = pl_track_id
                     titlesort = albumsort = None
 
                 mime = fixMime(mime)
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
-                # TODO: automate mount
                 wsfile = filename
                 wspath = os.path.join(path, filename)
                 path = self.convert_path(path)
@@ -1862,8 +2080,6 @@ class DummyContentDirectory(Service):
                     log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wsfile, contenttype, newtype))
                     dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wsfile, newtype, contenttype, cover=cover, stream=True)
                     self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
-
-                
                 else:
                     log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s' % (dummyfile, wsfile, wspath, contenttype))
                     dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
@@ -1881,23 +2097,35 @@ class DummyContentDirectory(Service):
                 duration = maketime(float(length))
 
                 if title == '': title = '[unknown title]'
-                if artist == '': artist = '[unknown artist]'
-                else: artist = self.get_artist(artist, self.now_playing_artist, self.now_playing_artist_combiner)
-                if albumartist == '': albumartist = '[unknown albumartist]'
-                else: albumartist = self.get_artist(albumartist, self.now_playing_artist, self.now_playing_artist_combiner)
-                if album == '': album = '[unknown album]'
-#                title = escape(title, escape_entities_quotepos)
-#                artist = escape(artist, escape_entities_quotepos)
-#                albumartist = escape(albumartist, escape_entities_quotepos)
-#                album = escape(album, escape_entities_quotepos)
+                if albumartistlist == '': albumartist = '[unknown albumartist]'
+                if artist_selected:
+                    albumartist = self.get_entry(albumartistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                else:
+                    albumartist = self.get_entry(albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                albumartistposition = self.get_entry_position(albumartist, albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                if artistlist == '': artist = '[unknown artist]'
+                if artist_selected:
+                    artist = self.get_entry(artistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                else:
+                    artist = self.get_entry(artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                artistposition = self.get_entry_position(artist, artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                if albumlist == '': album = '[unknown album]'
+                if album_selected:
+                    album = self.get_entry(albumlist, self.now_playing_album_selected_default, self.now_playing_album_combiner)
+                else:
+                    album = self.get_entry(albumlist, self.now_playing_album, self.now_playing_album_combiner)
+                albumposition = self.get_entry_position(album, albumlist, self.now_playing_album, self.now_playing_album_combiner)
+                    
                 title = escape(title)
-                artist = escape(artist)
                 albumartist = escape(albumartist)
+                artist = escape(artist)
                 album = escape(album)
 #                tracknumber = self.convert_tracknumber(tracknumber)
 
+                full_id = 'T__%s_%s_%s__%s' % (albumposition, artistposition, albumartistposition, id)
+
                 count += 1
-                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, self.track_parentid)
+                ret += '<item id="%s" parentID="%s" restricted="true">' % (full_id, self.track_parentid)
                 ret += '<dc:title>%s</dc:title>' % (title)
                 ret += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (albumartist)
                 ret += '<upnp:artist role="Performer">%s</upnp:artist>' % (artist)
@@ -2184,7 +2412,7 @@ class DummyContentDirectory(Service):
                         c.execute(orderstatement, (found_genre, start, length))
 
                     for row in c:
-    #                    log.debug("row: %s", row)
+#                        log.debug("row: %s", row)
 
                         artist, lastplayed, playcount = row
                         playcount = str(playcount)
@@ -2222,6 +2450,7 @@ class DummyContentDirectory(Service):
             genres = []
             fields = []
             state_pre_suf = []
+            artisttype = None
         
             if searchCriteria == 'upnp:class = "object.container.album.musicAlbum" and @refID exists false' or \
                searchcontainer == 'Album':
@@ -2230,6 +2459,7 @@ class DummyContentDirectory(Service):
 
                 log.debug('albums')
                 searchtype = 'ALBUM'
+                artisttype = 'ENTRY'
 
                 albumwhere = self.album_where_duplicate
                 if searchcontainer:
@@ -2259,20 +2489,61 @@ class DummyContentDirectory(Service):
                     orderby, prefix, suffix, albumtype, table, header = orderbyentry
                     if not orderby or orderby == '':
                         if self.use_albumartist:
-                            orderby = 'album, albumartist'
+                            orderby = self.album_groupby_albumartist
                         else:
-                            orderby = 'album, artist'
-                    at = self.get_albumtype_where(albumtype)
+                            orderby = self.album_groupby_artist
+                    at = self.get_albumtype_where(albumtype, table='aa')
                     if albumwhere == '':
                         albumwhere = 'where %s' % at
                     else:
                         albumwhere += ' and %s' % at
 
-                    countstatement = "select count(distinct %s) from albums %s" % (album_distinct, albumwhere)
-                    if controllername == 'PCDCR':
-                        statement = "select a.* from ( select album, min(tracknumbers) as mintrack, albumtype, duplicate from albums %s group by %s ) as m inner join albums as a on a.album = m.album and a.tracknumbers = m.mintrack and a.albumtype = m.albumtype and a.duplicate = m.duplicate order by orderby limit ?, ?" % (albumwhere, album_groupby)
+                    if self.use_albumartist:
+                        countstatement = "select count(distinct %s) from AlbumartistAlbum aa %s" % (album_distinct, albumwhere)
                     else:
-                        statement = "select * from albums %s group by %s order by orderby limit ?, ?" % (albumwhere, album_groupby)
+                        countstatement = "select count(distinct %s) from ArtistAlbum aa %s" % (album_distinct, albumwhere)
+                        
+#                    if controllername == 'PCDCR':
+#                        statement = """
+#                                       select a.* from 
+#                                       ( select album, min(tracknumbers) as mintrack, albumtype, duplicate from albums %s group by %s ) as m 
+#                                       inner join albums as a on a.album = m.album and a.tracknumbers = m.mintrack and a.albumtype = m.albumtype and a.duplicate = m.duplicate 
+#                                       order by orderby limit ?, ?
+#                                    """ % (albumwhere, album_groupby)
+#                    else:
+
+                    if self.use_albumartist:
+                        if 'albumartist' in self.album_group:
+                            statement = """
+                                           select album, '', albumartist, '', a.* from AlbumartistAlbum aa join albums a on 
+                                           aa.album_id = a.id
+                                           %s group by %s
+                                           order by orderby limit ?, ?
+                                        """ % (albumwhere, album_groupby)
+                        else:
+                            artisttype = 'LIST'
+                            statement = """
+                                           select aa.album, '', aa.albumartist, '', a.* from AlbumartistAlbumsonly aa join albumsonly a on
+                                           aa.album_id = a.id
+                                           %s group by %s
+                                           order by orderby limit ?, ?
+                                        """ % (albumwhere, album_groupby)
+                    else:
+                        if 'artist' in self.album_group:
+                            statement = """
+                                           select album, artist, '', '', a.* from ArtistAlbum aa join albums a on 
+                                           aa.album_id = a.id
+                                           %s group by %s
+                                           order by orderby limit ?, ?
+                                        """ % (albumwhere, album_groupby)
+                        else:
+                            artisttype = 'LIST'
+                            statement = """
+                                           select aa.album, aa.artist, '', '', a.* from ArtistAlbumsonly aa join albumsonly a on
+                                           aa.album_id = a.id
+                                           %s group by %s
+                                           order by orderby limit ?, ?
+                                        """ % (albumwhere, album_groupby)
 
                     state_pre_suf.append((orderby, prefix, suffix, albumtype, table, header))
 
@@ -2293,8 +2564,16 @@ class DummyContentDirectory(Service):
                         log.debug('albums for composer')
                         composer = criteria[2][1:]
                         
-                        countstatement = "select count(distinct %s) from ComposerAlbum where composer=? and albumtypewhere %s" % (distinct_composer, self.album_and_duplicate)
-                        statement = "select * from albums where id in (select album_id from ComposerAlbum where composer=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_composer)
+                        countstatement = "select count(distinct %s) from ComposerAlbum aa where composer=? and albumtypewhere %s" % (distinct_composer, self.album_and_duplicate)
+#                        statement = "select * from albums where id in (select album_id from ComposerAlbum where composer=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_composer)
+                        statement = """
+                                       select album, '', '', composer, a.* from ComposerAlbum aa join albums a on 
+                                       aa.album_id = a.id
+                                       where composer=? and albumtypewhere %s
+                                       group by %s
+                                       order by orderby limit ?, ?
+                                    """ % (self.album_and_duplicate, groupby_composer)
+
                         composer_options = self.removepresuf(composer, 'COMPOSER', controllername)
                         for composer in composer_options:
                             if composer == '[unknown composer]': composer = ''
@@ -2309,16 +2588,38 @@ class DummyContentDirectory(Service):
                             id_pre = 'COMPOSER_ALBUM__'
 
                     elif criteria[1].endswith('microsoft:artistAlbumArtist '):
+                    
                         # Albums for albumartist
+                        
                         log.debug('albums for artist (microsoft:artistAlbumArtist)')
                         artist = criteria[2][1:]
                         if self.use_albumartist:
-                            countstatement = "select count(distinct %s) from AlbumartistAlbum where albumartist=? and albumtypewhere %s" % (distinct_albumartist, self.album_and_duplicate)
-                            statement = "select * from albums where id in (select album_id from AlbumartistAlbum where albumartist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_albumartist)
+#                            countstatement = "select count(distinct %s) from AlbumartistAlbum where albumartist=? and albumtypewhere %s" % (distinct_albumartist, self.album_and_duplicate)
+#                            statement = "select * from albums where id in (select album_id from AlbumartistAlbum where albumartist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_albumartist)
+
+                            countstatement = "select count(distinct %s) from AlbumartistAlbum aa where albumartist=? and albumtypewhere %s" % (distinct_albumartist, self.album_and_duplicate)
+                            statement = """
+                                           select album, '', albumartist, '', a.* from AlbumartistAlbum aa join albums a on 
+                                           aa.album_id = a.id
+                                           where albumartist=? and albumtypewhere %s
+                                           group by %s
+                                           order by orderby limit ?, ?
+                                        """ % (self.album_and_duplicate, groupby_albumartist)
+
                             artist_options = self.removepresuf(artist, 'ALBUMARTIST', controllername)
                         else:
-                            countstatement = "select count(distinct %s) from ArtistAlbum where artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
-                            statement = "select * from albums where id in (select album_id from ArtistAlbum where artist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
+#                            countstatement = "select count(distinct %s) from ArtistAlbum where artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
+#                            statement = "select * from albums where id in (select album_id from ArtistAlbum where artist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
+
+                            countstatement = "select count(distinct %s) from ArtistAlbum aa where artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
+                            statement = """
+                                           select album, artist, '', '', a.* from ArtistAlbum aa join albums a on 
+                                           aa.album_id = a.id
+                                           where artist=? and albumtypewhere %s
+                                           group by %s
+                                           order by orderby limit ?, ?
+                                        """ % (self.album_and_duplicate, groupby_artist)
+
                             artist_options = self.removepresuf(artist, 'ARTIST', controllername)
                         for artist in artist_options:
                             if artist == '[unknown artist]': artist = ''
@@ -2343,11 +2644,23 @@ class DummyContentDirectory(Service):
 
                     elif criteria[1].endswith('microsoft:artistPerformer '):
                         # searchCriteria: upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:artistPerformer = "1 Giant Leap"
+                        
                         # Albums for contributing artist
+                        
                         log.debug('albums for artist (microsoft:artistPerformer)')
                         artist = criteria[2][1:]
-                        countstatement = "select count(distinct %s) from ArtistAlbum where artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
-                        statement = "select * from albums where id in (select album_id from ArtistAlbum where artist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
+#                        countstatement = "select count(distinct %s) from ArtistAlbum where artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
+#                        statement = "select * from albums where id in (select album_id from ArtistAlbum where artist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
+
+                        countstatement = "select count(distinct %s) from ArtistAlbum aa where artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
+                        statement = """
+                                       select album, artist, '', '', a.* from ArtistAlbum aa join albums a on 
+                                       aa.album_id = a.id
+                                       where artist=? and albumtypewhere %s
+                                       group by %s
+                                       order by orderby limit ?, ?
+                                    """ % (self.album_and_duplicate, groupby_artist)
+
                         artist_options = self.removepresuf(artist, 'CONTRIBUTINGARTIST', controllername)
                         for artist in artist_options:
                             if artist == '[unknown artist]': artist = ''
@@ -2370,11 +2683,31 @@ class DummyContentDirectory(Service):
                         log.debug('albums for genre and artist')
                         genre = criteria[2][1:-33]
                         if self.use_albumartist:
-                            countstatement = "select count(distinct %s) from GenreAlbumartistAlbum where genre=? and albumartist=? and albumtypewhere %s" % (distinct_albumartist, self.album_and_duplicate)
-                            statement = "select * from albums where id in (select album_id from GenreAlbumartistAlbum where genre=? and albumartist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_albumartist)
+#                            countstatement = "select count(distinct %s) from GenreAlbumartistAlbum where genre=? and albumartist=? and albumtypewhere %s" % (distinct_albumartist, self.album_and_duplicate)
+#                            statement = "select * from albums where id in (select album_id from GenreAlbumartistAlbum where genre=? and albumartist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_albumartist)
+
+                            countstatement = "select count(distinct %s) from GenreAlbumartistAlbum aa where genre=? and albumartist=? and albumtypewhere %s" % (distinct_albumartist, self.album_and_duplicate)
+                            statement = """
+                                           select album, '', albumartist, '', a.* from GenreAlbumartistAlbum aa join albums a on 
+                                           aa.album_id = a.id
+                                           where genre=? and albumartist=? and albumtypewhere %s
+                                           group by %s
+                                           order by orderby limit ?, ?
+                                        """ % (self.album_and_duplicate, groupby_albumartist)
+
                         else:
-                            countstatement = "select count(distinct %s) from GenreArtistAlbum where genre=? and artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
-                            statement = "select * from albums where id in (select album_id from GenreArtistAlbum where genre=? and artist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
+#                            countstatement = "select count(distinct %s) from GenreArtistAlbum where genre=? and artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
+#                            statement = "select * from albums where id in (select album_id from GenreArtistAlbum where genre=? and artist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_artist)
+                            
+                            countstatement = "select count(distinct %s) from GenreArtistAlbum aa where genre=? and artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
+                            statement = """
+                                           select album, artist, '', '', a.* from GenreArtistAlbum aa join albums a on 
+                                           aa.album_id = a.id
+                                           where genre=? and artist=? and albumtypewhere %s
+                                           group by %s
+                                           order by orderby limit ?, ?
+                                        """ % (self.album_and_duplicate, groupby_artist)
+
                         genre_options = self.removepresuf(genre, 'GENRE', controllername)
                         for genre in genre_options:
                             if genre == '[unknown genre]': genre = ''
@@ -2436,12 +2769,12 @@ class DummyContentDirectory(Service):
                             if searchtype == 'ALBUM':
                                 c.execute(countstatement)
                             elif searchtype == 'FIELD_ALBUM':
-                                albumtypewhere = self.get_albumtype_where(albumtype)
+                                albumtypewhere = self.get_albumtype_where(albumtype, table='aa')
                                 loopcountstatement = countstatement.replace('albumtypewhere', albumtypewhere)
                                 log.debug(loopcountstatement)
                                 c.execute(loopcountstatement, (field, ))
                             elif searchtype == 'GENRE_FIELD_ALBUM':
-                                albumtypewhere = self.get_albumtype_where(albumtype)
+                                albumtypewhere = self.get_albumtype_where(albumtype, table='aa')
                                 loopcountstatement = countstatement.replace('albumtypewhere', albumtypewhere)
                                 c.execute(loopcountstatement, (genre, field))
                             tableMatches, = c.fetchone()
@@ -2495,7 +2828,7 @@ class DummyContentDirectory(Service):
                         res += '</container>'
 
                     orderstatement = statement.replace('order by orderby', 'order by ' + orderby)
-                    albumtypewhere = self.get_albumtype_where(albumtype)
+                    albumtypewhere = self.get_albumtype_where(albumtype, table='aa')
                     orderstatement = orderstatement.replace('albumtypewhere', albumtypewhere)
                     log.debug(orderstatement)
 
@@ -2507,19 +2840,72 @@ class DummyContentDirectory(Service):
                         c.execute(orderstatement, (found_genre, found_field, start, length))
 
                     for row in c:
-                        log.debug("row: %s", row)
+#                        log.debug("row: %s", row)
 
-                        id, album, artist, year, albumartist, duplicate, cover, artid, inserted, composer, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount, albumsort = row
+#                        id, album, artist, year, albumartist, duplicate, cover, artid, inserted, composer, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount, albumsort = row
+                        album, artist, albumartist, composer, id, albumlist, artistlist, year, albumartistlist, duplicate, cover, artid, inserted, composerlist, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount, albumsort = row
                         id = str(id)
                         playcount = str(playcount)
 
+                        # work out what was passed
+                        if id_pre == 'ALBUM__':
+                            if self.use_albumartist: passed_artist = 'ALBUMARTIST'
+                            else: passed_artist = 'ARTIST'
+                        elif id_pre == 'COMPOSER_ALBUM__':
+                            passed_artist = None
+                        elif id_pre == 'ALBUMARTIST_ALBUM__' or id_pre == 'GENRE_ALBUMARTIST_ALBUM__':
+                            passed_artist = 'ALBUMARTIST'
+                        elif id_pre == 'ARTIST_ALBUM__' or id_pre == 'CONTRIBUTINGARTIST_ALBUM__' or id_pre == 'GENRE_ARTIST_ALBUM__':
+                            passed_artist = 'ARTIST'
+
+                        # get entries/entry positions
+                        if passed_artist == 'ALBUMARTIST':
+                            if artisttype == 'LIST':
+                                if albumartist == '': albumartist = '[unknown albumartist]'
+                                if self.now_playing_artist == 'selected':
+                                    albumartist = self.get_entry(albumartist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                                else:
+                                    albumartist = self.get_entry(albumartist, self.now_playing_artist, self.now_playing_artist_combiner)
+                            albumartist_entry = self.get_entry_position(albumartist, albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                            if self.now_playing_artist == 'selected':
+                                artist_entry = albumartist_entry
+                                artist = self.get_entry_at_position(artist_entry, artistlist)
+                            else:
+                                artist = self.get_entry(artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                                artist_entry = self.get_entry_position(artist, artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                        elif passed_artist == 'ARTIST':
+                            if artisttype == 'LIST':
+                                if artist == '': artist = '[unknown artist]'
+                                if self.now_playing_artist == 'selected':
+                                    artist = self.get_entry(artist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                                else:
+                                    artist = self.get_entry(artist, self.now_playing_artist, self.now_playing_artist_combiner)
+                            artist_entry = self.get_entry_position(artist, artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                            if self.now_playing_artist == 'selected':
+                                albumartist_entry = artist_entry
+                                albumartist = self.get_entry_at_position(albumartist_entry, albumartistlist)
+                            else:
+                                albumartist = self.get_entry(albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                                albumartist_entry = self.get_entry_position(albumartist, albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                        else:
+                            if self.now_playing_artist == 'selected':
+                                artist = self.get_entry(artistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                            else:
+                                artist = self.get_entry(artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                            artist_entry = self.get_entry_position(artist, artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                            if self.now_playing_artist == 'selected':
+                                albumartist = self.get_entry(albumartistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                            else:
+                                albumartist = self.get_entry(albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                            albumartist_entry = self.get_entry_position(albumartist, albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                        if album == '': album = '[unknown album]'
+                        if self.now_playing_album == 'selected':
+                            album_entry = self.get_entry_position(album, albumlist, self.now_playing_album_selected_default, self.now_playing_album_combiner)
+                        else:
+                            album_entry = self.get_entry_position(album, albumlist, self.now_playing_album, self.now_playing_album_combiner)
+
                         # NOTE: in this case IDs are real IDs, but because of the group by's they are not necessarily the right ones
 
-                        if artist == '': artist = '[unknown artist]'
-                        else: artist = self.get_artist(artist, self.mouseover_artist, self.mouseover_artist_combiner)
-                        if albumartist == '': albumartist = '[unknown albumartist]'
-                        else: albumartist = self.get_artist(albumartist, self.mouseover_artist, self.mouseover_artist_combiner)
-                        if album == '': album = '[unknown album]'
                         album = escape(album)
                         artist = escape(artist)
                         albumartist = escape(albumartist)
@@ -2556,7 +2942,7 @@ class DummyContentDirectory(Service):
                             dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
                             self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
 
-                        id = id_pre + str(id)
+                        id = '%s%s_%s_%s__%s' % (id_pre, album_entry, artist_entry, albumartist_entry, id)
 
                         count += 1
                         res += '<container id="%s" parentID="%s" restricted="true">' % (id, self.track_parentid)
@@ -2677,7 +3063,7 @@ class DummyContentDirectory(Service):
                 albumwhere = 'where %s' % self.albumartist_album_albumtype_where
                 countstatement = "select count(distinct genre) from GenreAlbumartistAlbum %s" % albumwhere
 
-                statement = """select genre, lastplayed, playcount from genres where genre in
+                statement = """select genre, lastplayed, playcount from Genre where genre in
                                (select distinct genre from GenreAlbumartistAlbum %s)
                                order by orderby limit ?, ?"""  % albumwhere
 
@@ -2687,7 +3073,7 @@ class DummyContentDirectory(Service):
                 albumwhere = 'where %s' % self.artist_album_albumtype_where
                 countstatement = "select count(distinct genre) from GenreArtistAlbum %s" % albumwhere
 
-                statement = """select genre, lastplayed, playcount from genres where genre in
+                statement = """select genre, lastplayed, playcount from Genre where genre in
                                (select distinct genre from GenreArtistAlbum %s)
                                order by orderby limit ?, ?"""  % albumwhere
 
@@ -2815,6 +3201,7 @@ class DummyContentDirectory(Service):
                         tracks_type = 'FIELD'
                         genres.append('dummy')
                         artists.append('dummy')
+                        field_is = None
 
                         if criteria[0].endswith('microsoft:authorComposer '):
 
@@ -2822,6 +3209,7 @@ class DummyContentDirectory(Service):
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:authorComposer = "A New Found Glory"
                             log.debug('tracks for composer')
                             composer = criteria[1][1:]
+                            field_is = 'COMPOSER'
                             countstatement = "select count(*) from ComposerAlbumTrack where composer=? %s" % (self.album_and_duplicate)
                             statement = "select * from tracks where rowid in (select track_id from ComposerAlbumTrack where composer=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                             composer_options = self.removepresuf(composer, 'COMPOSER', controllername)
@@ -2839,6 +3227,10 @@ class DummyContentDirectory(Service):
                             # SearchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistAlbumArtist = "30 Seconds to Mars"
                             log.debug('tracks for artist')
                             artist = criteria[1][1:]
+                            if self.use_albumartist:
+                                field_is = 'ALBUMARTIST'
+                            else:
+                                field_is = 'ARTIST'
                             if self.use_albumartist:
                                 countstatement = "select count(*) from AlbumartistAlbumTrack where albumartist=? %s" % (self.album_and_duplicate)
                                 statement = "select * from tracks where rowid in (select track_id from AlbumartistAlbumTrack where albumartist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
@@ -2862,6 +3254,7 @@ class DummyContentDirectory(Service):
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistPerformer = "1 Giant Leap"
                             log.debug('tracks for contributing artist')
                             artist = criteria[1][1:]
+                            field_is = 'ARTIST'
                             countstatement = "select count(*) from ArtistAlbumTrack where artist=? %s" % (self.album_and_duplicate)
                             statement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack where artist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
                             artist_options = self.removepresuf(artist, 'CONTRIBUTINGARTIST', controllername)
@@ -2879,6 +3272,7 @@ class DummyContentDirectory(Service):
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and upnp:genre = "Alt. Pop"
                             log.debug('tracks for genre')
                             genre = criteria[1][1:]
+                            field_is = 'GENRE'
                             if self.use_albumartist:
                                 countstatement = "select count(*) from GenreAlbumartistAlbumTrack where genre=? %s" % (self.album_and_duplicate)
                                 statement = "select * from tracks where rowid in (select track_id from GenreAlbumartistAlbumTrack where genre=? %s) order by albumartist, album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
@@ -2899,12 +3293,14 @@ class DummyContentDirectory(Service):
                         tracks_type = 'ARTIST'
                         genres.append('dummy')
                         not_album = False
+                        artist_is = None
 
                         if criteria[0].endswith('microsoft:authorComposer '):
                             # tracks for composer/album
                             # SearchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:authorComposer = "A Lee" and upnp:album = "Fallen"
                             log.debug('tracks for composer/album')
                             composer = criteria[1][1:-16]
+                            artist_is = 'COMPOSER'
                             composer_options = self.removepresuf(composer, 'COMPOSER', controllername)
                             for composer in composer_options:
                                 if composer == '[unknown composer]': composer = ''
@@ -2924,12 +3320,12 @@ class DummyContentDirectory(Service):
                                     fields.append(album)
                                     log.debug('    album option: %s', album)
 
-                            albumstatement = "select albumtype from albums where artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.composer_album_albumtype_where)                                    
+                            albumstatement = "select albumtype from ComposerAlbum where composer=? and album=? and duplicate=%s and %s" % (duplicate_number, self.composer_album_albumtype_where)                                    
                             countstatement = "select count(*) from ComposerAlbumTrack where composer=? and album=? and duplicate=%s" % (duplicate_number)
                             countstatement2 = "select count(*) from tracknumbers where composer=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where rowid in (select track_id from ComposerAlbumTrack where composer=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = '''
-                                            select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                            select t.*, n.tracknumber, n.coverart, n.coverartid, n.rowid from tracknumbers n join tracks t 
                                             on n.track_id = t.rowid 
                                             where n.composer=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
                                             order by n.tracknumber, t.title 
@@ -2941,6 +3337,10 @@ class DummyContentDirectory(Service):
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistAlbumArtist = "1 Giant Leap" and upnp:album = "1 Giant Leap"
                             log.debug('tracks for artist/album')
                             artist = criteria[1][1:-16]
+                            if self.use_albumartist:
+                                artist_is = 'ALBUMARTIST'
+                            else:
+                                artist_is = 'ARTIST'
                             if self.use_albumartist:
                                 artist_options = self.removepresuf(artist, 'ALBUMARTIST', controllername)
                             else:
@@ -2970,12 +3370,13 @@ class DummyContentDirectory(Service):
                                     
                             if self.use_albumartist:
 
-                                albumstatement = "select albumtype from albums where albumartist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.albumartist_album_albumtype_where)                                    
+#                                albumstatement = "select albumtype from albums where albumartist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.albumartist_album_albumtype_where)                                    
+                                albumstatement = "select albumtype from AlbumartistAlbum where albumartist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.albumartist_album_albumtype_where)                                    
                                 countstatement = "select count(*) from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s" % (duplicate_number)
                                 countstatement2 = "select count(*) from tracknumbers where albumartist=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                                 statement = "select * from tracks where rowid in (select track_id from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                                 statement2 = '''
-                                                select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                                select t.*, n.tracknumber, n.coverart, n.coverartid, n.rowid from tracknumbers n join tracks t 
                                                 on n.track_id = t.rowid 
                                                 where n.albumartist=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
                                                 order by n.tracknumber, t.title 
@@ -2984,12 +3385,12 @@ class DummyContentDirectory(Service):
 
                             else:                
                             
-                                albumstatement = "select albumtype from albums where artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.artist_album_albumtype_where)                                    
+                                albumstatement = "select albumtype from ArtistAlbum where artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.artist_album_albumtype_where)                                    
                                 countstatement = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s" % (duplicate_number)
                                 countstatement2 = "select count(*) from tracknumbers where artist=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                                 statement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                                 statement2 = '''
-                                                select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                                select t.*, n.tracknumber, n.coverart, n.coverartid, n.rowid from tracknumbers n join tracks t 
                                                 on n.track_id = t.rowid 
                                                 where n.artist=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
                                                 order by n.tracknumber, t.title 
@@ -3001,6 +3402,7 @@ class DummyContentDirectory(Service):
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistPerformer = "1 Giant Leap" and upnp:album = "1 Giant Leap"
                             log.debug('tracks for contributing artist/album')
                             artist = criteria[1][1:-16]
+                            artist_is = 'ARTIST'
                             artist_options = self.removepresuf(artist, 'CONTRIBUTINGARTIST', controllername)
                             for artist in artist_options:
                                 if artist == '[unknown artist]': artist = ''
@@ -3019,12 +3421,12 @@ class DummyContentDirectory(Service):
                                     log.debug('    artist: %s', artist)
                                     log.debug('    album: %s', album)
 
-                            albumstatement = "select albumtype from albums where artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.artist_album_albumtype_where)                                    
+                            albumstatement = "select albumtype from ArtistAlbum where artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.artist_album_albumtype_where)                                    
                             countstatement = "select count(*) from ArtistAlbumTrack where artist=? and album=? and duplicate=%s" % (duplicate_number)
                             countstatement2 = "select count(*) from tracknumbers where artist=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack where artist=? and album=? and duplicate=%s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = '''
-                                            select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                            select t.*, n.tracknumber, n.coverart, n.coverartid, n.rowid from tracknumbers n join tracks t 
                                             on n.track_id = t.rowid 
                                             where n.artist=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
                                             order by n.tracknumber, t.title 
@@ -3037,6 +3439,10 @@ class DummyContentDirectory(Service):
                             not_album = True
                             log.debug('tracks for genre/artist')
                             genre = criteria[1][1:-33]
+                            if self.use_albumartist:
+                                artist_is = 'ALBUMARTIST'
+                            else:
+                                artist_is = 'ARTIST'
                             genre_options = self.removepresuf(genre, 'GENRE', controllername)
                             for genre in genre_options:
                                 if genre == '[unknown genre]': genre = ''
@@ -3066,7 +3472,12 @@ class DummyContentDirectory(Service):
                         # tracks for genre/artist/album
                         log.debug('tracks for genre/artist/album')
                         tracks_type = 'GENRE'
+                        not_album = False
                         genre = criteria[1][1:-33]
+                        if self.use_albumartist:
+                            artist_is = 'ALBUMARTIST'
+                        else:
+                            artist_is = 'ARTIST'
                         genre_options = self.removepresuf(genre, 'GENRE', controllername)
                         for genre in genre_options:
                             if genre == '[unknown genre]': genre = ''
@@ -3105,12 +3516,12 @@ class DummyContentDirectory(Service):
                                     
                         if self.use_albumartist:
                         
-                            albumstatement = "select albumtype from albums where genre=? and albumartist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.albumartist_album_albumtype_where)                                    
+                            albumstatement = "select albumtype from GenreAlbumartistAlbum where genre=? and albumartist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.albumartist_album_albumtype_where)                                    
                             countstatement = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s" % (duplicate_number)
                             countstatement2 = "select count(*) from tracknumbers where genre=? and albumartist=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where rowid in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = '''
-                                            select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                            select t.*, n.tracknumber, n.coverart, n.coverartid, n.rowid from tracknumbers n join tracks t 
                                             on n.track_id = t.rowid 
                                             where n.genre=? and n.albumartist=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
                                             order by n.tracknumber, t.title 
@@ -3119,12 +3530,12 @@ class DummyContentDirectory(Service):
 
                         else:                
 
-                            albumstatement = "select albumtype from albums where genre=? and artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.artist_album_albumtype_where)                                    
+                            albumstatement = "select albumtype from GenreArtistAlbum where genre=? and artist=? and album=? and duplicate=%s and %s" % (duplicate_number, self.artist_album_albumtype_where)                                    
                             countstatement = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s" % (duplicate_number)
                             countstatement2 = "select count(*) from tracknumbers where genre=? and artist=? and dummyalbum=? and duplicate=%s and albumtype=?" % (duplicate_number)
                             statement = "select * from tracks where rowid in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
                             statement2 = '''
-                                            select t.*, n.tracknumber, n.coverart, n.coverartid from tracknumbers n join tracks t 
+                                            select t.*, n.tracknumber, n.coverart, n.coverartid, n.rowid from tracknumbers n join tracks t 
                                             on n.track_id = t.rowid 
                                             where n.genre=? and n.artist=? and n.dummyalbum=? and n.duplicate=%s and n.albumtype=? 
                                             order by n.tracknumber, t.title 
@@ -3206,53 +3617,52 @@ class DummyContentDirectory(Service):
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             elif tracks_type == 'FIELD':
-                bindvars = (field, )
+                bindvars = (found_field, )
                 log.debug("statement: %s", statement)
                 log.debug("vars: %s", bindvars)
                 c.execute(statement, bindvars)
             elif tracks_type == 'ARTIST':
                 if not_album:
                     # genre/artist
-                    bindvars = (artist, field)
+                    bindvars = (found_artist, field)
                     log.debug("statement: %s", statement)
                     log.debug("vars: %s", bindvars)
                     c.execute(statement, bindvars)
                 else:
                     if albumtype != 10:
-                        bindvars = (artist, field, albumtype)
+                        bindvars = (found_artist, found_field, albumtype)
                         log.debug("statement2: %s", statement2)
                         log.debug("vars: %s", bindvars)
                         c.execute(statement2, bindvars)
                     else:            
-                        bindvars = (artist, field)
+                        bindvars = (found_artist, found_field)
                         log.debug("statement: %s", statement)
                         log.debug("vars: %s", bindvars)
                         c.execute(statement, bindvars)
             elif tracks_type == 'GENRE':
                 if albumtype != 10:
-                    bindvars = (genre, artist, field, albumtype)
+                    bindvars = (found_genre, found_artist, found_field, albumtype)
                     log.debug("statement2: %s", statement2)
                     log.debug("vars: %s", bindvars)
                     c.execute(statement2, bindvars)
                 else:            
-                    bindvars = (genre, artist, field)
+                    bindvars = (found_genre, found_artist, found_field)
                     log.debug("statement: %s", statement)
                     log.debug("vars: %s", bindvars)
                     c.execute(statement, bindvars)
 
             for row in c:
 #                log.debug("row: %s", row)
-                if albumtype != 10 and \
-                   (tracks_type == 'ARTIST' or tracks_type == 'GENRE') and \
+                if (tracks_type == 'ARTIST' or tracks_type == 'GENRE') and \
+                   albumtype != 10 and \
                    not_album == False:
-                    id, id2, duplicate, title, artist, album, genre, tracktracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, tracknumber, coverart, coverartid = row
+                    id, id2, duplicate, title, artistlist, albumlist, genre, tracktracknumber, year, albumartistlist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, tracknumber, coverart, coverartid, rowid = row
                     cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid, coverart, coverartid)
                 else:
-                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
+                    id, id2, duplicate, title, artistlist, albumlist, genre, tracknumber, year, albumartistlist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
                     cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
                 mime = fixMime(mime)
 
-                # TODO: automate mount
                 wsfile = filename
                 wspath = os.path.join(path, filename)
 #                wspath = path + filename
@@ -3291,19 +3701,124 @@ class DummyContentDirectory(Service):
                 duration = maketime(float(length))
 
                 if title == '': title = '[unknown title]'
-                if artist == '': artist = '[unknown artist]'
-                else: artist = self.get_artist(artist, self.now_playing_artist, self.now_playing_artist_combiner)
-                if albumartist == '': albumartist = '[unknown albumartist]'
-                else: albumartist = self.get_artist(albumartist, self.now_playing_artist, self.now_playing_artist_combiner)
-                if album == '': album = '[unknown album]'
+
+                # get passed key fields (artist/albumartist/album)
+                passed_artist = None
+                passed_albumartist = None
+                passed_album = None
+                if tracks_type == 'TRACKS':
+                    # nothing passed
+                    pass
+                elif tracks_type == 'FIELD':
+                    if field_is == 'ARTIST':
+                        passed_artist = found_field
+                    elif field_is == 'ALBUMARTIST':
+                        passed_albumartist = found_field
+                elif tracks_type == 'ARTIST':
+                    if not_album == False:
+                        if artist_is == 'ARTIST':
+                            passed_artist = found_artist
+                        elif artist_is == 'ALBUMARTIST':
+                            passed_albumartist = found_artist
+                        passed_album = found_field
+                    else:
+                        if artist_is == 'ARTIST':
+                            passed_artist = found_field
+                        elif artist_is == 'ALBUMARTIST':
+                            passed_albumartist = found_field
+                elif tracks_type == 'GENRE':
+                    if artist_is == 'ARTIST':
+                        passed_artist = found_artist
+                    elif artist_is == 'ALBUMARTIST':
+                        passed_albumartist = found_artist
+                    passed_album = found_field
+
+                # get which entry to use as default
+                artist_selected = False
+                album_selected = False
+                if self.now_playing_artist == 'selected': artist_selected = True
+                if self.now_playing_album == 'selected': album_selected = True
+
+                # get positions for passed fields (they should all be found)
+                artist_entry = 0
+                albumartist_entry = 0
+                album_entry = 0
+                if passed_artist:
+                    artist_entry = self.get_entry_position(passed_artist, artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                if passed_albumartist:
+                    albumartist_entry = self.get_entry_position(passed_albumartist, albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                if passed_album:
+                    album_entry = self.get_entry_position(passed_album, albumlist, self.now_playing_album, self.now_playing_album_combiner)
+
+                # overwrite returned key fields (artist/albumartist/album) with those passed if appropriate
+                # - if not passed or selected, get appropriate entries
+                artist_entry_id = 0
+                albumartist_entry_id = 0
+                album_entry_id = 0
+                if passed_artist and artist_selected:
+                    artist = passed_artist
+                    artist_entry_id = str(artist_entry)
+                else:
+                    if artistlist == '': artist = '[unknown artist]'
+                    else: 
+                        if artist_selected:
+                            artist = self.get_entry(artistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                        else:
+                            artist = self.get_entry(artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                    artist_entry_id = str(self.get_entry_position(artist, artistlist, self.now_playing_artist, self.now_playing_artist_combiner))
+
+                if passed_albumartist and artist_selected:
+                    albumartist = passed_albumartist
+                    albumartist_entry_id = str(albumartist_entry)
+                else:
+                    if albumartistlist == '': albumartist = '[unknown albumartist]'
+                    else: 
+                        if artist_selected:
+                            albumartist = self.get_entry(albumartistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
+                        else:
+                            albumartist = self.get_entry(albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
+                    albumartist_entry_id = str(self.get_entry_position(albumartist, albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner))
+
+                if passed_album and album_selected:
+                    album = passed_album
+                    album_entry_id = str(album_entry)
+                else:
+                    if albumlist == '': album = '[unknown album]'
+                    else:
+                        if album_selected:
+                            album = self.get_entry(albumlist, self.now_playing_album_selected_default, self.now_playing_album_combiner)
+                        else:
+                            album = self.get_entry(albumlist, self.now_playing_album, self.now_playing_album_combiner)
+                    album_entry_id = str(self.get_entry_position(album, albumlist, self.now_playing_album, self.now_playing_album_combiner))
+
+                log.debug(artist)
+                log.debug(albumartist)
+                log.debug(album)
+                
                 title = escape(title)
                 artist = escape(artist)
                 albumartist = escape(albumartist)
                 album = escape(album)
                 tracknumber = self.convert_tracknumber(tracknumber)
                 count += 1
+
+                if tracks_type != 'TRACKS':
+                    if albumtype >= 21 and albumtype <= 25:
+                        if self.virtual_now_playing_album:
+                            album_entry_id = '%sv%s' % (album_entry_id, rowid)
+                        if self.virtual_now_playing_artist:
+                            artist_entry_id = '%sv%s' % (artist_entry_id, rowid)
+                            albumartist_entry_id = '%sv%s' % (albumartist_entry_id, rowid)
+                    elif albumtype >= 31 and albumtype <= 35:
+                        if self.work_now_playing_album:
+                            album_entry_id = '%sw%s' % (album_entry_id, rowid)
+                        if self.work_now_playing_artist:
+                            artist_entry_id = '%sw%s' % (artist_entry_id, rowid)
+                            albumartist_entry_id = '%sw%s' % (albumartist_entry_id, rowid)
                 
-                ret += '<item id="%s" parentID="%s" restricted="true">' % (id, self.track_parentid)
+                full_id = 'T__%s_%s_%s__%s' % (album_entry_id, artist_entry_id, albumartist_entry_id, str(id))
+                
+                ret += '<item id="%s" parentID="%s" restricted="true">' % (full_id, self.track_parentid)
                 ret += '<dc:title>%s</dc:title>' % (title)
                 ret += '<upnp:artist role="AlbumArtist">%s</upnp:artist>' % (albumartist)
                 ret += '<upnp:artist role="Performer">%s</upnp:artist>' % (artist)
@@ -3638,14 +4153,36 @@ class DummyContentDirectory(Service):
         log.debug(uniqueentries)
         return uniqueentries
 
-    def get_artist(self, artist, entrytype, combiner):
-        artistlist = artist.split(MULTI_SEPARATOR)
+    def get_entry(self, entrylist, entrytype, combiner):
+        entrylist = entrylist.split(MULTI_SEPARATOR)
         if entrytype == 'all':
-            return combiner.join(artistlist)
+            return combiner.join(entrylist)
         elif entrytype == 'first':
-            return artistlist[0]        
+            return entrylist[0]        
         elif entrytype == 'last':
-            return artistlist[-1]        
+            return entrylist[-1]        
+        else:
+            return entrylist[-1]        
+
+    def get_entry_position(self, entry, entrylist, entrytype, combiner):
+        if entry == '':
+            # nothing passed, so return according to ini
+            return self.get_entry(entrylist, entrytype, combiner)
+        entrylist = entrylist.split(MULTI_SEPARATOR)
+        try:
+           inx = entrylist.index(entry)
+        except ValueError:
+            # shouldn't happen, but return first item position just in case
+           inx = 0
+        return inx
+
+    def get_entry_at_position(self, position, entrylist):
+        entrylist = entrylist.split(MULTI_SEPARATOR)
+        try:
+           return entrylist[position]
+        except IndexError:
+            # shouldn't happen, but return first item just in case
+           return entrylist[0]
 
     def prime_cache(self):
         log.debug("prime start: %.3f" % time.time())
@@ -3869,6 +4406,8 @@ class DummyContentDirectory(Service):
             if not foundvalues:
                 return [(None, None, None, at, 'dummy', None)]
             else:
+                # convert any artist/albumartist entries
+                foundvalues = self.convert_artist(foundvalues)
                 return [(foundvalues['sort_order'], foundvalues['entry_prefix'], foundvalues['entry_suffix'], at, 'dummy', None)]
 
         else:   # must be 'A(dvanced)'
@@ -3913,6 +4452,29 @@ class DummyContentDirectory(Service):
                 log.debug(at)
                 return [(None, None, None, at, 'dummy', None)]
 
+    def convert_artist(self, valuedict):
+        newvaluedict = {}
+        for key, value in valuedict.iteritems():
+            if key.lower() in ['sort_order', 'entry_prefix', 'entry_suffix']:
+                entries = value.split(',')
+                entries = [s.strip().lower() for s in entries]
+                if self.use_albumartist:
+                    if 'artist' in entries:
+                        newentries = []
+                        for e in entries:
+                            if e == 'artist': e = 'albumartist'
+                            newentries += [e]             
+                        value = ','.join(newentries)
+                else:
+                    if 'albumartist' in entries:
+                        newentries = []
+                        for e in entries:
+                            if e == 'albumartist': e = 'artist'
+                            newentries += [e]             
+                        value = ','.join(newentries)
+            newvaluedict[key] = value
+        return newvaluedict
+
     def get_orderby_values(self, sorttype, values):
         values.sort(key=operator.itemgetter('section_sequence'))
         orderbyvalues = []
@@ -3920,6 +4482,7 @@ class DummyContentDirectory(Service):
             at = self.get_possible_albumtypes(sorttype, filteralbum=valueset['section_albumtype'])
             log.debug(at)
             log.debug(valueset)
+            valueset = self.convert_artist(valueset)
             orderbyvalues.append((valueset['sort_order'], valueset['entry_prefix'], valueset['entry_suffix'], at, valueset['section_albumtype'], valueset['section_name']))
         return orderbyvalues
 
@@ -3985,11 +4548,15 @@ class DummyContentDirectory(Service):
             if self.display_works_in_composer_index and work: at.append(35)
         return at
 
-    def get_albumtype_where(self, albumtypes):
-        if len(albumtypes) == 1:
-            return 'albumtype=%s' % albumtypes[0]
+    def get_albumtype_where(self, albumtypes, table=None):
+        if table:
+            table = '%s.' % table
         else:
-            return 'albumtype in (%s)' % ','.join(str(t) for t in albumtypes)
+            table = ''
+        if len(albumtypes) == 1:
+            return '%salbumtype=%s' % (table, albumtypes[0])
+        else:
+            return '%salbumtype in (%s)' % (table, ','.join(str(t) for t in albumtypes))
 
     def get_containerupdateid(self):
         # get containerupdateid from db, eventing systemupdateid if necessary
