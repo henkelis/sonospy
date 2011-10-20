@@ -960,7 +960,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                     
                     # now save the albumlist/duplicate/albumtype for albumsonly processing at the end
                     # - we don't process them here as we only need to process them once per album
-                    albumsonlyentry = (album, duplicate, albumtype, albumsort, albumlist)
+                    if album_updatetype == 'D':
+                        albumsonlyentry = (o_album, o_duplicate, o_albumtype, o_albumsort, o_albumlist)
+                    else:
+                        albumsonlyentry = (album, duplicate, albumtype, albumsort, albumlist)
                     if not albumsonlyentry in albumsonlylist:
                         albumsonlylist += [albumsonlyentry]
 
@@ -1238,7 +1241,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         try:
                             # only delete artist if other tracks don't refer to it
                             delete = (o_artist, o_artist)
-                            logstring = "DELETE ARTIST: %s" % str(o_artist)
+                            logstring = "DELETE ARTIST: %s" % o_artist
                             filelog.write_verbose_log(logstring)
                             cs2.execute("""delete from Artist where not exists (select 1 from ArtistAlbumTrack where artist=?) and artist=?""", delete)
                         except sqlite3.Error, e:
@@ -1288,7 +1291,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         try:
                             # only delete albumartist if other tracks don't refer to it
                             delete = (o_albumartist, o_albumartist)
-                            logstring = "DELETE ALBUMARTIST: %s" % str(o_albumartist)
+                            logstring = "DELETE ALBUMARTIST: %s" % o_albumartist
                             filelog.write_verbose_log(logstring)
                             cs2.execute("""delete from Albumartist where not exists (select 1 from AlbumartistAlbumTrack where albumartist=?) and albumartist=?""", delete)
                         except sqlite3.Error, e:
@@ -1338,7 +1341,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         try:
                             # only delete composer if other tracks don't refer to it
                             delete = (o_composer, o_composer)
-                            logstring = "DELETE COMPOSER: %s" % str(o_composer)
+                            logstring = "DELETE COMPOSER: %s" % o_composer
                             filelog.write_verbose_log(logstring)
                             cs2.execute("""delete from Composer where not exists (select 1 from ComposerAlbumTrack where composer=?) and composer=?""", delete)
                         except sqlite3.Error, e:
@@ -1388,7 +1391,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         try:
                             # only delete genre if other tracks don't refer to it
                             delete = (o_genre, o_genre, o_genre)
-                            logstring = "DELETE GENRE: %s" % str(o_genre)
+                            logstring = "DELETE GENRE: %s" % o_genre
                             filelog.write_verbose_log(logstring)
                             cs2.execute("""
                                         delete from Genre where not exists (

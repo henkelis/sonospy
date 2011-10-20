@@ -1708,12 +1708,14 @@ class DummyContentDirectory(Service):
                     if artist_selected:
                         albumartist = self.get_entry(albumartistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
                     else:
+                        albumartistlist = albumartist
                         albumartist = self.get_entry(albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
                     albumartistposition = self.get_entry_position(albumartist, albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
                     if artistlist == '': artist = '[unknown artist]'
                     if artist_selected:
                         artist = self.get_entry(artistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
                     else:
+                        artistlist = artist
                         artist = self.get_entry(artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
                     artistposition = self.get_entry_position(artist, artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
                 if album_passed and album_selected:
