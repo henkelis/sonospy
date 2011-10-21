@@ -915,7 +915,7 @@ def process_dir(scanpath, options, database):
                                 c.execute("""select trackartid from tags where path=? and filename=?""", (co_trackpath, co_trackfile))
                                 crow = c.fetchone()
                             except sqlite3.Error, e:
-                                errorstring = "Error getting tags details: %s" % e.args[0]
+                                errorstring = "Error getting tags details for workvirtual cover: %s" % e.args[0]
                                 filelog.write_error(errorstring)
                             if crow:
                                 wvcoverartid, = crow
@@ -931,7 +931,7 @@ def process_dir(scanpath, options, database):
                         c.execute("""select * from tags where path=? and filename=?""", (tr_trackpath, tr_trackfile))
                         crow = c.fetchone()
                     except sqlite3.Error, e:
-                        errorstring = "Error getting tags details: %s" % e.args[0]
+                        errorstring = "Error getting tags details for workvirtual track: %s" % e.args[0]
                         filelog.write_error(errorstring)
                     if not crow:
                         # this track does not exist, reject the work/virtual record
@@ -1387,7 +1387,7 @@ def process_dir(scanpath, options, database):
                             c.execute("""select * from tags where path=? and filename=?""", (tr_trackpath, tr_trackfile))
                             crow = c.fetchone()
                         except sqlite3.Error, e:
-                            errorstring = "Error getting tags details: %s" % e.args[0]
+                            errorstring = "Error getting tags details for playlist track: %s" % e.args[0]
                             filelog.write_error(errorstring)
                         if not crow:
                             # this track does not exist
@@ -2205,7 +2205,7 @@ def get_workvirtual_track_details(trackpath, trackfile, database):
     try:
         c3.execute("""select album, discnumber, track from tags where path=? and filename=?""", (trackpath, trackfile))
     except sqlite3.Error, e:
-        errorstring = "Error getting tags details: %s" % e.args[0]
+        errorstring = "Error getting tags for workvirtual track details: %s" % e.args[0]
         filelog.write_error(errorstring)
     crow = c3.fetchone()
     if crow:

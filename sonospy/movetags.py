@@ -1628,7 +1628,9 @@ def unwrap_list(liststring, multi_field_separator, include, the_processing):
             entrylist = [e for e in entrylist if e != '']
             multilist.extend(entrylist)
     # select the entries we want
-    if include == 'first': 
+    if len(multilist) == 0:
+        newlist = multilist
+    elif include == 'first': 
         newlist = [multilist[0]]
     elif include == 'last': 
         newlist [multilist[-1]]
