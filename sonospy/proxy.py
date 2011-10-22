@@ -1097,6 +1097,17 @@ class DummyContentDirectory(Service):
         except ConfigParser.NoOptionError:
             pass
 
+        # get albumartist setting
+        self.show_separate_albums = False
+        try:        
+            ini_show_separate_albums = self.proxy.config.get('INI', 'show_separate_albums')
+            if ini_show_separate_albums.lower() == 'y':
+                self.show_separate_albums = True
+        except ConfigParser.NoSectionError:
+            self.show_separate_albums = False
+        except ConfigParser.NoOptionError:
+            self.show_separate_albums = False
+
         # get duplicates setting
         self.show_duplicates = False
         try:        
@@ -1595,7 +1606,7 @@ class DummyContentDirectory(Service):
             # that relate to an artist, composer etc with this browse
             
             # album ID can be in one of two ranges, showing whether it is in the albums or albumsonly table
-            if objectID >= self.album_parentid + self.half_id_start:
+            if objectIDval >= self.album_parentid + self.half_id_start:
                 statement = "select album, artistlist, albumartistlist, duplicate, albumtype from albumsonly where id = '%s'" % (objectID)
             else:
                 statement = "select albumlist, artistlist, albumartistlist, duplicate, albumtype from albums where id = '%s'" % (objectID)
@@ -1617,12 +1628,24 @@ class DummyContentDirectory(Service):
                     where += " and n.artist='%s'" % artistentry
                 if 'albumartist' in self.album_group:
                     where += " and n.albumartist='%s'" % albumartistentry
+                if not 'artist' in self.album_group and not 'albumartist' in self.album_group:
+                    if self.show_separate_albums:
+                        if self.use_albumartist:
+                            where += " and n.albumartist='%s'" % albumartistentry
+                        else:
+                            where += " and n.artist='%s'" % artistentry
             else:
                 where = "n.album='%s'" % albumlist
                 if 'artist' in self.album_group:
                     where += " and n.artist='%s'" % artistlist
                 if 'albumartist' in self.album_group:
                     where += " and n.albumartist='%s'" % albumartistlist
+                if not 'artist' in self.album_group and not 'albumartist' in self.album_group:
+                    if self.show_separate_albums:
+                        if self.use_albumartist:
+                            where += " and n.albumartist='%s'" % albumartistlist
+                        else:
+                            where += " and n.artist='%s'" % artistlist
             if self.show_duplicates:
                 where += " and n.duplicate=%s" % album_duplicate
             else:
@@ -2524,12 +2547,14 @@ class DummyContentDirectory(Service):
                                         """ % (albumwhere, album_groupby)
                         else:
                             artisttype = 'LIST'
+                            separate_albums = ''
+                            if self.show_separate_albums: separate_albums = ',albumartist'
                             statement = """
                                            select aa.album, '', aa.albumartist, '', a.* from AlbumartistAlbumsonly aa join albumsonly a on
                                            aa.album_id = a.id
-                                           %s group by %s
+                                           %s group by %s%s
                                            order by orderby limit ?, ?
-                                        """ % (albumwhere, album_groupby)
+                                        """ % (albumwhere, album_groupby, separate_albums)
                     else:
                         if 'artist' in self.album_group:
                             statement = """
@@ -2540,12 +2565,14 @@ class DummyContentDirectory(Service):
                                         """ % (albumwhere, album_groupby)
                         else:
                             artisttype = 'LIST'
+                            separate_albums = ''
+                            if self.show_separate_albums: separate_albums = ',artist'
                             statement = """
                                            select aa.album, aa.artist, '', '', a.* from ArtistAlbumsonly aa join albumsonly a on
                                            aa.album_id = a.id
-                                           %s group by %s
+                                           %s group by %s%s
                                            order by orderby limit ?, ?
-                                        """ % (albumwhere, album_groupby)
+                                        """ % (albumwhere, album_groupby, separate_albums)
 
                     state_pre_suf.append((orderby, prefix, suffix, albumtype, table, header))
 

@@ -173,7 +173,17 @@ def process_tags(args, options, tagdatabase, trackdatabase):
         pass
     except ConfigParser.NoOptionError:
         pass
-    
+
+    # exception album titles
+    separate_album_list = []
+    try:        
+        separate_albums = config.get('movetags', 'separate_album_list')
+        separate_album_list = split_on_comma(separate_albums)
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+
     # names
     album_work_name_structure = '"%s - %s - %s" % (composer, work, artist)'
     composer_album_work_name_structure = '"%s - %s - %s" % (genre, work, artist)'
@@ -961,9 +971,9 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                     # now save the albumlist/duplicate/albumtype for albumsonly processing at the end
                     # - we don't process them here as we only need to process them once per album
                     if album_updatetype == 'D':
-                        albumsonlyentry = (o_album, o_duplicate, o_albumtype, o_albumsort, o_albumlist)
+                        albumsonlyentry = (o_album, o_duplicate, o_albumtype, o_albumsort, o_albumlist, album_updatetype, o_artistliststring, o_albumartistliststring)
                     else:
-                        albumsonlyentry = (album, duplicate, albumtype, albumsort, albumlist)
+                        albumsonlyentry = (album, duplicate, albumtype, albumsort, albumlist, album_updatetype, artistliststring, albumartistliststring)
                     if not albumsonlyentry in albumsonlylist:
                         albumsonlylist += [albumsonlyentry]
 
@@ -1422,56 +1432,107 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             filelog.write_error(errorstring)
 
             # now process albums where artist and albumartist are not used to differentiate i.e. albumsonly
-            # just select all albums that match and combine their track entries
-            for album, duplicate, albumtype, albumsort, albumlist in albumsonlylist:
+            # - select all albums that match and combine their track entries
+            # note that we do allow an exceptions list
+            for album, duplicate, albumtype, albumsort, albumlist, album_updatetype, artist, albumartist in albumsonlylist:
+            
                 try:
-                    # get album details
-                    cs2.execute("""select count(*) from albums where albumlist=? and duplicate=? and albumtype=?""",
-                                  (album, duplicate, albumtype))
-                    n, = cs2.fetchone()
-                    if n == 0:
+
+                    # check for albumsonly exceptions
+                    keep_albums_separate = False
+                    for lalbum in albumlist:
+                        if album in separate_album_list:
+                            keep_albums_separate = True
+
+                    if album_updatetype == 'D':
+                
                         # album has been deleted
                         # delete albumonly if it exists
-                        delete = (album, duplicate, albumtype)
-                        logstring = "DELETE ALBUMONLY: %s" % str(delete)
-                        filelog.write_verbose_log(logstring)
-                        cs2.execute("""delete from albumsonly where album=? and duplicate=? and albumtype=?""", delete)
+                        
+                        if keep_albums_separate:
+                        
+                            delete = (album, artist, albumartist, duplicate, albumtype)
+                            logstring = "DELETE ALBUMONLY: %s" % str(delete)
+                            filelog.write_verbose_log(logstring)
+                            cs2.execute("""delete from albumsonly where album=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=?""", delete)
 
-                        # process albumsonly lookups
-                        for lalbum in albumlist:
-                            delete = (lalbum, duplicate, albumtype)
-                            logstring = "DELETE ArtistAlbumsonly:" + str(delete)
+                            # process albumsonly lookups
+                            for lalbum in albumlist:
+                                delete = (lalbum, artist, duplicate, albumtype)
+                                logstring = "DELETE ArtistAlbumsonly:" + str(delete)
+                                filelog.write_verbose_log(logstring)
+                                cs2.execute("""delete from ArtistAlbumsonly where album=? and artist=? and duplicate=? and albumtype=?""", delete)
+                                delete = (lalbum, albumartist, duplicate, albumtype)
+                                logstring = "DELETE AlbumartistAlbumsonly:" + str(delete)
+                                filelog.write_verbose_log(logstring)
+                                cs2.execute("""delete from AlbumartistAlbumsonly where album=? and albumartist=? and duplicate=? and albumtype=?""", delete)
+
+                        else:
+
+                            delete = (album, duplicate, albumtype)
+                            logstring = "DELETE ALBUMONLY: %s" % str(delete)
                             filelog.write_verbose_log(logstring)
-                            cs2.execute("""delete from ArtistAlbumsonly where album=? and duplicate=? and albumtype=?""", delete)
-                            logstring = "DELETE AlbumartistAlbumsonly:" + str(delete)
-                            filelog.write_verbose_log(logstring)
-                            cs2.execute("""delete from AlbumartistAlbumsonly where album=? and duplicate=? and albumtype=?""", delete)
+                            cs2.execute("""delete from albumsonly where album=? and duplicate=? and albumtype=?""", delete)
+
+                            # process albumsonly lookups
+                            for lalbum in albumlist:
+                                delete = (lalbum, duplicate, albumtype)
+                                logstring = "DELETE ArtistAlbumsonly:" + str(delete)
+                                filelog.write_verbose_log(logstring)
+                                cs2.execute("""delete from ArtistAlbumsonly where album=? and duplicate=? and albumtype=?""", delete)
+                                logstring = "DELETE AlbumartistAlbumsonly:" + str(delete)
+                                filelog.write_verbose_log(logstring)
+                                cs2.execute("""delete from AlbumartistAlbumsonly where album=? and duplicate=? and albumtype=?""", delete)
 
                     else:
-                        cs2.execute("""select * from albums where albumlist=? and duplicate=? and albumtype=? order by tracknumbers""",
-                                      (album, duplicate, albumtype))
-                        all_tracknumbers = []
-                        lowest_tracknumbers = 'z'
-                        for crow in cs2:
-                            if crow[10] < lowest_tracknumbers:
+
+                        # insert/update
+                        if keep_albums_separate:
+                            cs2.execute("""select * from albums where albumlist=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=? order by tracknumbers""",
+                                          (album, artist, albumartist, duplicate, albumtype))
+                        else:
+                            cs2.execute("""select * from albums where albumlist=? and duplicate=? and albumtype=? order by tracknumbers""",
+                                          (album, duplicate, albumtype))
+
+                        if keep_albums_separate:
+
+                            crow = cs2.fetchone()
+                            if crow:    # must be found
                                 a_id, a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_lastplayed, a_playcount, a_albumsort = crow
-                                lowest_tracknumbers = crow[10]
-                            all_tracknumbers += crow[10].split(',')
-                            
-                        # sort tracknumbers
-                        all_tracknumbers = sorted(all_tracknumbers, tracknumbers_cmp)
-                        all_tracknumbers = ','.join(all_tracknumbers)
+
+                        else:
+
+                            # process tracknumbers
+                            all_tracknumbers = []
+                            lowest_tracknumbers = 'z'
+                            for crow in cs2:
+                                if crow[10] < lowest_tracknumbers:
+                                    a_id, a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_lastplayed, a_playcount, a_albumsort = crow
+                                    lowest_tracknumbers = crow[10]
+                                all_tracknumbers += crow[10].split(',')
+
+                            # sort tracknumbers
+                            all_tracknumbers = sorted(all_tracknumbers, tracknumbers_cmp)
+                            all_tracknumbers = ','.join(all_tracknumbers)
+                            a_tracknumbers = all_tracknumbers
 
                         # check if albumsonly exists
-                        cs2.execute("""select id from albumsonly where album=? and duplicate=? and albumtype=?""",
-                                      (album, duplicate, albumtype))
+                        if keep_albums_separate:
+                            cs2.execute("""select id from albumsonly where album=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=?""",
+                                          (album, artist, albumartist, duplicate, albumtype))
+                        else:
+                            cs2.execute("""select id from albumsonly where album=? and duplicate=? and albumtype=?""",
+                                          (album, duplicate, albumtype))
                         crow = cs2.fetchone()
                         if crow:
+                        
+                            # albumsonly exists, update it
                             a_album_id, = crow
+
                             albums = (a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_albumsort, a_album_id)
                             logstring = "UPDATE ALBUMSONLY: %s" % str(albums)
                             filelog.write_verbose_log(logstring)
-                            cs2.execute("""update albumsonly set 
+                            cs2.execute("""update albumsonly set
                                            album=?,
                                            artistlist=?,
                                            year=?,
@@ -1486,34 +1547,53 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                            lastmodified=?,
                                            albumtype=?,
                                            albumsort=?
-                                           where id=?""", 
+                                           where id=?""",
                                            albums)
                         else:
-                            # insert albumonly with new tracknumbers
-                            albums = (None, a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, all_tracknumbers, a_created, a_lastmodified, a_albumtype, a_lastplayed, a_playcount, a_albumsort)
+                            # insert albumonly
+                            albums = (None, a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_lastplayed, a_playcount, a_albumsort)
                             logstring = "INSERT ALBUMSONLY: %s" % str(albums)
                             filelog.write_verbose_log(logstring)
                             cs2.execute('insert into albumsonly values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', albums)
                             a_album_id = cs2.lastrowid
 
                         # process albumsonly lookups
-                        for lalbum in albumlist:
-                            check = (a_album_id, lalbum, duplicate, albumtype, albumsort)
-                            cs2.execute("""select * from ArtistAlbumsonly where album_id=? and album=? and duplicate=? and albumtype=? and albumsort=?""", check)
-                            crow = cs2.fetchone()
-                            if not crow:
-                                insert = a_album_id, lalbum, a_artist, duplicate, albumtype, albumsort, '', ''
-                                logstring = "INSERT ArtistAlbumsonly:" + str(insert)
-                                filelog.write_verbose_log(logstring)
-                                cs2.execute('insert into ArtistAlbumsonly values (?,?,?,?,?,?,?,?)', insert)
-                            check = (a_album_id, lalbum, duplicate, albumtype, albumsort)
-                            cs2.execute("""select * from AlbumartistAlbumsonly where album_id=? and album=? and duplicate=? and albumtype=? and albumsort=?""", check)
-                            crow = cs2.fetchone()
-                            if not crow:
-                                insert = a_album_id, lalbum, a_albumartist, duplicate, albumtype, albumsort, '', ''
-                                logstring = "INSERT AlbumartistAlbumsonly:" + str(insert)
-                                filelog.write_verbose_log(logstring)
-                                cs2.execute('insert into AlbumartistAlbumsonly values (?,?,?,?,?,?,?,?)', insert)
+                        if keep_albums_separate:
+                            for lalbum in albumlist:
+                                check = (a_album_id, lalbum, artist, duplicate, albumtype, albumsort)
+                                cs2.execute("""select * from ArtistAlbumsonly where album_id=? and album=? and artist=? and duplicate=? and albumtype=? and albumsort=?""", check)
+                                crow = cs2.fetchone()
+                                if not crow:
+                                    insert = a_album_id, lalbum, a_artist, duplicate, albumtype, albumsort, '', ''
+                                    logstring = "INSERT ArtistAlbumsonly:" + str(insert)
+                                    filelog.write_verbose_log(logstring)
+                                    cs2.execute('insert into ArtistAlbumsonly values (?,?,?,?,?,?,?,?)', insert)
+                                check = (a_album_id, lalbum, albumartist, duplicate, albumtype, albumsort)
+                                cs2.execute("""select * from AlbumartistAlbumsonly where album_id=? and album=? and albumartist=? and duplicate=? and albumtype=? and albumsort=?""", check)
+                                crow = cs2.fetchone()
+                                if not crow:
+                                    insert = a_album_id, lalbum, a_albumartist, duplicate, albumtype, albumsort, '', ''
+                                    logstring = "INSERT AlbumartistAlbumsonly:" + str(insert)
+                                    filelog.write_verbose_log(logstring)
+                                    cs2.execute('insert into AlbumartistAlbumsonly values (?,?,?,?,?,?,?,?)', insert)
+                        else:
+                            for lalbum in albumlist:
+                                check = (a_album_id, lalbum, duplicate, albumtype, albumsort)
+                                cs2.execute("""select * from ArtistAlbumsonly where album_id=? and album=? and duplicate=? and albumtype=? and albumsort=?""", check)
+                                crow = cs2.fetchone()
+                                if not crow:
+                                    insert = a_album_id, lalbum, a_artist, duplicate, albumtype, albumsort, '', ''
+                                    logstring = "INSERT ArtistAlbumsonly:" + str(insert)
+                                    filelog.write_verbose_log(logstring)
+                                    cs2.execute('insert into ArtistAlbumsonly values (?,?,?,?,?,?,?,?)', insert)
+                                check = (a_album_id, lalbum, duplicate, albumtype, albumsort)
+                                cs2.execute("""select * from AlbumartistAlbumsonly where album_id=? and album=? and duplicate=? and albumtype=? and albumsort=?""", check)
+                                crow = cs2.fetchone()
+                                if not crow:
+                                    insert = a_album_id, lalbum, a_albumartist, duplicate, albumtype, albumsort, '', ''
+                                    logstring = "INSERT AlbumartistAlbumsonly:" + str(insert)
+                                    filelog.write_verbose_log(logstring)
+                                    cs2.execute('insert into AlbumartistAlbumsonly values (?,?,?,?,?,?,?,?)', insert)
 
                 except sqlite3.Error, e:
                     errorstring = "Error updating albumonly details: %s" % e.args[0]
@@ -1609,6 +1689,14 @@ def tracknumbers_cmp(a, b):
     elif a == 'n': return 1
     elif b == 'n': return -1
     else: return cmp(int(a), int(b))
+
+def split_on_comma(string):
+    # strings in string to be split can contain commas, but will be escaped with \
+    tstring = string.replace('\,', '~%^@#')
+    splitstring = tstring.split(',')
+    splitstring = [e.replace('~%^@#', ',').strip() for e in splitstring]
+    splitstring = [e for e in splitstring if e != '']
+    return splitstring    
 
 def unwrap_list(liststring, multi_field_separator, include, the_processing):
     # passed string can be multiple separator separated entries within multiple separator separated entries
@@ -1960,8 +2048,9 @@ def create_database(database):
                                                   playcount integer,
                                                   albumsort text COLLATE NOCASE)
                       ''')
-            c.execute('''create unique index inxAlbumsonly on albumsonly (album, duplicate, albumtype)''')
+            c.execute('''create unique index inxAlbumsonly on albumsonly (album, artistlist, albumartistlist, duplicate, albumtype)''')
             c.execute('''create unique index inxAlbumsonlyId on albumsonly (id)''')
+            c.execute('''create index inxAlbumsonlyshort on albumsonly (album, duplicate, albumtype)''')
     
             # seed autoincrement
             c.execute('''insert into albumsonly values (350000000,'','','','','','','','','','','','','','','','')''')
