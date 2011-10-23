@@ -553,10 +553,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         # new track, so insert
                         duplicate = 0   # used if a track is duplicated, for both the track and the album
                         try:
-                            tracks = (id, id2, duplicate, title, artistliststringfull, albumliststringfull, genreliststringfull, tracknumber, year, albumartistliststringfull, composerliststringfull, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned, titlesort, albumsort)
+                            tracks = (id, id2, duplicate, title, artistliststring, artistliststringfull, albumliststringfull, genreliststringfull, tracknumber, year, albumartistliststring, albumartistliststringfull, composerliststring, composerliststringfull, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned, titlesort, albumsort)
                             logstring = "INSERT TRACK: %s" % str(tracks)
                             filelog.write_verbose_log(logstring)
-                            cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
+                            cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
                             track_rowid = cs2.lastrowid
                         except sqlite3.Error, e:
                             # assume we have a duplicate
@@ -565,7 +565,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             tstring = title + " (%"
                             try:
                                 cs2.execute("""select max(duplicate) from tracks where title like ? and album=? and artist=? and tracknumber=?""",
-                                            (tstring, albumliststringfull, artistliststringfull, tracknumber))
+                                            (tstring, albumliststringfull, artistliststring, tracknumber))
                                 row = cs2.fetchone()
                             except sqlite3.Error, e:
                                 errorstring = "Error finding max duplicate on track insert: %s" % e
@@ -578,11 +578,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 else:
                                     tcount = int(tduplicate) + 1
                                 tstring = title + " (" + str(tcount) + ")"            
-                                tracks = (id, id2, tcount, tstring, artistliststringfull, albumliststringfull, genreliststringfull, tracknumber, year, albumartistliststringfull, composerliststringfull, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned, titlesort, albumsort)
+                                tracks = (id, id2, tcount, tstring, artistliststring, artistliststringfull, albumliststringfull, genreliststringfull, tracknumber, year, albumartistliststring, albumartistliststringfull, composerliststring, composerliststringfull, codec, length, size, created, path, filename, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, '', '', lastscanned, titlesort, albumsort)
                                 logstring = "INSERT TRACK: %s" % str(tracks)
                                 filelog.write_verbose_log(logstring)
                                 try:
-                                    cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
+                                    cs2.execute('insert into tracks values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', tracks)
                                     track_rowid = cs2.lastrowid
                                     duplicate = tcount
                                 except sqlite3.Error, e:
@@ -600,13 +600,13 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             if o_duplicate != 0:
                                 title = title + " (" + str(o_duplicate) + ")"            
 
-                            tracks = (id2, title, artistliststringfull, albumliststringfull, genreliststringfull, tracknumber, year, albumartistliststringfull, composerliststringfull, codec, length, size, created, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastscanned, titlesort, albumsort, track_id)
+                            tracks = (id2, title, artistliststring, artistliststringfull, albumliststringfull, genreliststringfull, tracknumber, year, albumartistliststring, albumartistliststringfull, composerliststring, composerliststringfull, codec, length, size, created, discnumber, commentliststring, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastscanned, titlesort, albumsort, track_id)
                             logstring = "UPDATE TRACK: %s" % str(tracks)
                             filelog.write_verbose_log(logstring)
                             cs2.execute("""update tracks set 
-                                           id2=?, title=?, artist=?, album=?, 
+                                           id2=?, title=?, artist=?, artistfull=?, album=?, 
                                            genre=?, tracknumber=?, year=?, 
-                                           albumartist=?, composer=?, codec=?, 
+                                           albumartist=?, albumartistfull=?, composer=?, composerfull=?, codec=?, 
                                            length=?, size=?, 
                                            created=?, 
                                            discnumber=?, comment=?, 
@@ -766,6 +766,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         album_id = None
                         try:
                             cs2.execute("""select id, tracknumbers from albums where albumlist=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=?""",
+#                                        (o_album, o_artistliststringfull, o_albumartistliststringfull, o_duplicate, o_albumtype))
                                         (o_album, o_artistliststring, o_albumartistliststring, o_duplicate, o_albumtype))
                             row = cs2.fetchone()
                             if row:
@@ -813,7 +814,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                             cs2.execute("""select year, folderart, trackart, folderartid, trackartid, inserted, composer, created, lastmodified, albumsort from tracks where album=? and artist=? and albumartist=? and duplicate=? and tracknumber=?""",
                                                         (o_album, o_artistliststring, o_albumartistliststring, o_duplicate, find_track))
                                             row = cs2.fetchone()
-                                            # TODO: check why we sometimes don't get a row
+                                            # TODO: check why we sometimes don't get a row - probably related to 'the', which we have now fixed
                                             if row:
                                                 n_year, n_folderart, n_trackart, n_folderartid, n_trackartid, n_inserted, n_composer, n_created, n_lastmodified, n_albumsort = row
                                             else:
@@ -874,6 +875,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 # last track, can delete album                            
                                 try:
                                     # only delete album if other tracks don't refer to it
+#                                    delete = (o_album, o_artistliststringfull, o_albumartistliststringfull, o_duplicate, o_albumtype, album_id)
                                     delete = (o_album, o_artistliststring, o_albumartistliststring, o_duplicate, o_albumtype, album_id)
                                     logstring = "DELETE ALBUM: %s" % str(delete)
                                     filelog.write_verbose_log(logstring)
@@ -888,6 +890,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             # check whether we already have this album (from a previous run or another track)
                             count = 0
                             cs2.execute("""select id, tracknumbers from albums where albumlist=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=?""",
+#                                          (album, artistliststringfull, albumartistliststringfull, duplicate, albumtype))
                                           (album, artistliststring, albumartistliststring, duplicate, albumtype))
                             crow = cs2.fetchone()
                             if crow:
@@ -909,6 +912,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 tracknumbers = ','.join(s_tracks)
                                 # check whether the track we are processing has a lower number than the lowest one we have stored
                                 if not lowest_track or album_tracknumber < lowest_track:
+#                                    albums = (album, artistliststringfull, year, albumartistliststringfull, duplicate, cover, artid, inserted, composerliststring, tracknumbers, created, lastmodified, albumtype, albumsort, album_id)
                                     albums = (album, artistliststring, year, albumartistliststring, duplicate, cover, artid, inserted, composerliststring, tracknumbers, created, lastmodified, albumtype, albumsort, album_id)
                                     logstring = "UPDATE ALBUM: %s" % str(albums)
                                     filelog.write_verbose_log(logstring)
@@ -948,6 +952,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                 tracknumbers = str(album_tracknumber)
                                 if tracknumbers.strip() == '':
                                     tracknumbers = 'n'
+#                                albums = (album_id, album, artistliststringfull, year, albumartistliststringfull, duplicate, cover, artid, inserted, composerliststring, tracknumbers, created, lastmodified, albumtype, '', '', albumsort)
                                 albums = (album_id, album, artistliststring, year, albumartistliststring, duplicate, cover, artid, inserted, composerliststring, tracknumbers, created, lastmodified, albumtype, '', '', albumsort)
                                 logstring = "INSERT ALBUM: %s" % str(albums)
                                 filelog.write_verbose_log(logstring)
@@ -971,9 +976,9 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                     # now save the albumlist/duplicate/albumtype for albumsonly processing at the end
                     # - we don't process them here as we only need to process them once per album
                     if album_updatetype == 'D':
-                        albumsonlyentry = (o_album, o_duplicate, o_albumtype, o_albumsort, o_albumlist, album_updatetype, o_artistliststring, o_albumartistliststring)
+                        albumsonlyentry = (o_album, o_duplicate, o_albumtype, o_albumsort, o_albumlist, album_updatetype, o_artistliststring, o_artistliststringfull, o_albumartistliststring, o_albumartistliststringfull)
                     else:
-                        albumsonlyentry = (album, duplicate, albumtype, albumsort, albumlist, album_updatetype, artistliststring, albumartistliststring)
+                        albumsonlyentry = (album, duplicate, albumtype, albumsort, albumlist, album_updatetype, artistliststring, artistliststringfull, albumartistliststring, albumartistliststringfull)
                     if not albumsonlyentry in albumsonlylist:
                         albumsonlylist += [albumsonlyentry]
 
@@ -1023,7 +1028,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                             for o_albumartist in o_albumartistlisttmp:
                                                 for o_composer in o_composerlisttmp:
 
-#                                                    delete = (track_rowid, o_genreliststring, o_artistliststring, o_albumartistliststring, o_originalalbum, o_album, o_composerliststring, o_duplicate, o_albumtype, album_tracknumber, o_coverart, o_coverartid)
+#                                                    delete = (track_rowid, o_genreliststring, o_artistliststringfull, o_albumartistliststringfull, o_originalalbum, o_album, o_composerliststringfull, o_duplicate, o_albumtype, album_tracknumber, o_coverart, o_coverartid)
                                                     delete = (track_rowid, o_genre, o_artist, o_albumartist, o_originalalbum, o_album, o_composer, o_duplicate, o_albumtype, album_tracknumber, o_coverart, o_coverartid)
 
                                                     logstring = "DELETE TrackNumbers:" + str(delete)
@@ -1093,7 +1098,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                             for albumartist in albumartistlisttmp:
                                                 for composer in composerlisttmp:
 
-#                                                    check = (track_rowid, genreliststring, artistliststring, albumartistliststring, originalalbum, album, composerliststring, duplicate, albumtype, album_tracknumber, coverart, coverartid)
+#                                                    check = (track_rowid, genreliststring, artistliststringfull, albumartistliststringfull, originalalbum, album, composerliststringfull, duplicate, albumtype, album_tracknumber, coverart, coverartid)
                                                     check = (track_rowid, genre, artist, albumartist, originalalbum, album, composer, duplicate, albumtype, album_tracknumber, coverart, coverartid)
                                                     cs2.execute("""select * from TrackNumbers where track_id=? and genre=? and artist=? and albumartist=? and album=? and dummyalbum=? and composer=? and duplicate=? and albumtype=? and tracknumber=? and coverart=? and coverartid=?""", check)
                                                     crow = cs2.fetchone()
@@ -1434,15 +1439,22 @@ def process_tags(args, options, tagdatabase, trackdatabase):
             # now process albums where artist and albumartist are not used to differentiate i.e. albumsonly
             # - select all albums that match and combine their track entries
             # note that we do allow an exceptions list
-            for album, duplicate, albumtype, albumsort, albumlist, album_updatetype, artist, albumartist in albumsonlylist:
+            for album, duplicate, albumtype, albumsort, albumlist, album_updatetype, artistlist, artistlistfull, albumartistlist, albumartistlistfull in albumsonlylist:
             
                 try:
+
+#                    print repr(album)
+#                    print repr(artist)
+#                    print albumlist
 
                     # check for albumsonly exceptions
                     keep_albums_separate = False
                     for lalbum in albumlist:
-                        if album in separate_album_list:
+                        if lalbum in separate_album_list:
                             keep_albums_separate = True
+
+#                    print keep_albums_separate
+#                    print album_updatetype
 
                     if album_updatetype == 'D':
                 
@@ -1451,18 +1463,19 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         
                         if keep_albums_separate:
                         
-                            delete = (album, artist, albumartist, duplicate, albumtype)
+#                            delete = (album, artistlistfull, albumartistlistfull, duplicate, albumtype)
+                            delete = (album, artistlist, albumartistlist, duplicate, albumtype)
                             logstring = "DELETE ALBUMONLY: %s" % str(delete)
                             filelog.write_verbose_log(logstring)
-                            cs2.execute("""delete from albumsonly where album=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=?""", delete)
+                            cs2.execute("""delete from albumsonly where albumlist=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=?""", delete)
 
                             # process albumsonly lookups
                             for lalbum in albumlist:
-                                delete = (lalbum, artist, duplicate, albumtype)
+                                delete = (lalbum, artistlist, duplicate, albumtype)
                                 logstring = "DELETE ArtistAlbumsonly:" + str(delete)
                                 filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from ArtistAlbumsonly where album=? and artist=? and duplicate=? and albumtype=?""", delete)
-                                delete = (lalbum, albumartist, duplicate, albumtype)
+                                delete = (lalbum, albumartistlist, duplicate, albumtype)
                                 logstring = "DELETE AlbumartistAlbumsonly:" + str(delete)
                                 filelog.write_verbose_log(logstring)
                                 cs2.execute("""delete from AlbumartistAlbumsonly where album=? and albumartist=? and duplicate=? and albumtype=?""", delete)
@@ -1472,7 +1485,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             delete = (album, duplicate, albumtype)
                             logstring = "DELETE ALBUMONLY: %s" % str(delete)
                             filelog.write_verbose_log(logstring)
-                            cs2.execute("""delete from albumsonly where album=? and duplicate=? and albumtype=?""", delete)
+                            cs2.execute("""delete from albumsonly where albumlist=? and duplicate=? and albumtype=?""", delete)
 
                             # process albumsonly lookups
                             for lalbum in albumlist:
@@ -1489,7 +1502,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         # insert/update
                         if keep_albums_separate:
                             cs2.execute("""select * from albums where albumlist=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=? order by tracknumbers""",
-                                          (album, artist, albumartist, duplicate, albumtype))
+                                          (album, artistlist, albumartistlist, duplicate, albumtype))
                         else:
                             cs2.execute("""select * from albums where albumlist=? and duplicate=? and albumtype=? order by tracknumbers""",
                                           (album, duplicate, albumtype))
@@ -1497,6 +1510,9 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         if keep_albums_separate:
 
                             crow = cs2.fetchone()
+                            
+#                            print crow
+
                             if crow:    # must be found
                                 a_id, a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_lastplayed, a_playcount, a_albumsort = crow
 
@@ -1518,10 +1534,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                         # check if albumsonly exists
                         if keep_albums_separate:
-                            cs2.execute("""select id from albumsonly where album=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=?""",
-                                          (album, artist, albumartist, duplicate, albumtype))
+                            cs2.execute("""select id from albumsonly where albumlist=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=?""",
+#                                          (album, artistlistfull, albumartistlistfull, duplicate, albumtype))
+                                          (album, artistlist, albumartistlist, duplicate, albumtype))
                         else:
-                            cs2.execute("""select id from albumsonly where album=? and duplicate=? and albumtype=?""",
+                            cs2.execute("""select id from albumsonly where albumlist=? and duplicate=? and albumtype=?""",
                                           (album, duplicate, albumtype))
                         crow = cs2.fetchone()
                         if crow:
@@ -1530,10 +1547,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             a_album_id, = crow
 
                             albums = (a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_albumsort, a_album_id)
+                            
                             logstring = "UPDATE ALBUMSONLY: %s" % str(albums)
                             filelog.write_verbose_log(logstring)
                             cs2.execute("""update albumsonly set
-                                           album=?,
+                                           albumlist=?,
                                            artistlist=?,
                                            year=?,
                                            albumartistlist=?,
@@ -1552,6 +1570,9 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         else:
                             # insert albumonly
                             albums = (None, a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_lastplayed, a_playcount, a_albumsort)
+                            
+#                            print albums
+                            
                             logstring = "INSERT ALBUMSONLY: %s" % str(albums)
                             filelog.write_verbose_log(logstring)
                             cs2.execute('insert into albumsonly values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', albums)
@@ -1560,7 +1581,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         # process albumsonly lookups
                         if keep_albums_separate:
                             for lalbum in albumlist:
-                                check = (a_album_id, lalbum, artist, duplicate, albumtype, albumsort)
+                                check = (a_album_id, lalbum, artistlist, duplicate, albumtype, albumsort)
                                 cs2.execute("""select * from ArtistAlbumsonly where album_id=? and album=? and artist=? and duplicate=? and albumtype=? and albumsort=?""", check)
                                 crow = cs2.fetchone()
                                 if not crow:
@@ -1568,7 +1589,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                     logstring = "INSERT ArtistAlbumsonly:" + str(insert)
                                     filelog.write_verbose_log(logstring)
                                     cs2.execute('insert into ArtistAlbumsonly values (?,?,?,?,?,?,?,?)', insert)
-                                check = (a_album_id, lalbum, albumartist, duplicate, albumtype, albumsort)
+                                check = (a_album_id, lalbum, albumartistlist, duplicate, albumtype, albumsort)
                                 cs2.execute("""select * from AlbumartistAlbumsonly where album_id=? and album=? and albumartist=? and duplicate=? and albumtype=? and albumsort=?""", check)
                                 crow = cs2.fetchone()
                                 if not crow:
@@ -1930,12 +1951,15 @@ def create_database(database):
                                               duplicate integer,
                                               title text COLLATE NOCASE, 
                                               artist text COLLATE NOCASE, 
+                                              artistfull text COLLATE NOCASE, 
                                               album text COLLATE NOCASE,
                                               genre text COLLATE NOCASE, 
                                               tracknumber integer,
                                               year integer,
                                               albumartist text COLLATE NOCASE, 
+                                              albumartistfull text COLLATE NOCASE, 
                                               composer text COLLATE NOCASE, 
+                                              composerfull text COLLATE NOCASE, 
                                               codec text,
                                               length integer, 
                                               size integer,
@@ -2031,7 +2055,7 @@ def create_database(database):
         n, = c.fetchone()
         if n == 0:
             c.execute('''create table albumsonly (id integer primary key autoincrement, 
-                                                  album text COLLATE NOCASE, 
+                                                  albumlist text COLLATE NOCASE, 
                                                   artistlist text COLLATE NOCASE,
                                                   year integer,
                                                   albumartistlist text COLLATE NOCASE, 
@@ -2048,9 +2072,9 @@ def create_database(database):
                                                   playcount integer,
                                                   albumsort text COLLATE NOCASE)
                       ''')
-            c.execute('''create unique index inxAlbumsonly on albumsonly (album, artistlist, albumartistlist, duplicate, albumtype)''')
+            c.execute('''create unique index inxAlbumsonly on albumsonly (albumlist, artistlist, albumartistlist, duplicate, albumtype)''')
             c.execute('''create unique index inxAlbumsonlyId on albumsonly (id)''')
-            c.execute('''create index inxAlbumsonlyshort on albumsonly (album, duplicate, albumtype)''')
+            c.execute('''create index inxAlbumsonlyshort on albumsonly (albumlist, duplicate, albumtype)''')
     
             # seed autoincrement
             c.execute('''insert into albumsonly values (350000000,'','','','','','','','','','','','','','','','')''')

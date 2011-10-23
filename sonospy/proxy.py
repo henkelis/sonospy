@@ -1607,7 +1607,7 @@ class DummyContentDirectory(Service):
             
             # album ID can be in one of two ranges, showing whether it is in the albums or albumsonly table
             if objectIDval >= self.album_parentid + self.half_id_start:
-                statement = "select album, artistlist, albumartistlist, duplicate, albumtype from albumsonly where id = '%s'" % (objectID)
+                statement = "select albumlist, artistlist, albumartistlist, duplicate, albumtype from albumsonly where id = '%s'" % (objectID)
             else:
                 statement = "select albumlist, artistlist, albumartistlist, duplicate, albumtype from albums where id = '%s'" % (objectID)
             log.debug("statement: %s", statement)
@@ -1680,10 +1680,10 @@ class DummyContentDirectory(Service):
             for row in c:
 #                log.debug("row: %s", row)
                 if album_type != 10:
-                    id, id2, duplicate, title, artist, album, genre, tracktracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, tracknumber, coverart, coverartid, rowid = row
+                    id, id2, duplicate, title, artistshort, artist, album, genre, tracktracknumber, year, albumartistshort, albumartist, composershort, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, tracknumber, coverart, coverartid, rowid = row
                     cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid, coverart, coverartid)
                 else:
-                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
+                    id, id2, duplicate, title, artistshort, artist, album, genre, tracknumber, year, albumartistshort, albumartist, composershort, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
                     cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
                 mime = fixMime(mime)
 
@@ -1750,6 +1750,8 @@ class DummyContentDirectory(Service):
                     else:
                         album = self.get_entry(albumlist, self.now_playing_album, self.now_playing_album_combiner)
                     albumposition = self.get_entry_position(album, albumlist, self.now_playing_album, self.now_playing_album_combiner)
+
+                if title == '': title = '[unknown title]'
 
                 title = escape(title)
                 artist = escape(artist)
@@ -1894,7 +1896,7 @@ class DummyContentDirectory(Service):
             for row in c:   # will only be one row
 #                log.debug("row: %s", row)
                 if btype == 'TRACK':
-                    id, id2, duplicate, title, artist, album, genre, tracknumber, year, albumartist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
+                    id, id2, duplicate, title, artistshort, artist, album, genre, tracknumber, year, albumartistshort, albumartist, composershort, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
                 else:                    
                     playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
                     log.debug(pl_trackfile)
@@ -2056,7 +2058,7 @@ class DummyContentDirectory(Service):
             c.execute(statement)
             for row in c:
 #                log.debug("row: %s", row)
-                id, id2, duplicate, title, artistlist, albumlist, genre, tracknumber, year, albumartistlist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
+                id, id2, duplicate, title, artistlistshort, artistlist, albumlist, genre, tracknumber, year, albumartistlistshort, albumartistlist, composerlistshort, composerlist, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
 
                 if not id:
                     # playlist entry with no matching track - assume stream
@@ -2524,9 +2526,19 @@ class DummyContentDirectory(Service):
                         albumwhere += ' and %s' % at
 
                     if self.use_albumartist:
-                        countstatement = "select count(distinct %s) from AlbumartistAlbum aa %s" % (album_distinct, albumwhere)
+                        if 'albumartist' in self.album_group:
+                            countstatement = "select count(distinct %s) from AlbumartistAlbum aa %s" % (album_distinct, albumwhere)
+                        else:
+                            separate_albums = ''
+                            if self.show_separate_albums: separate_albums = '||albumartist'
+                            countstatement = "select count(distinct %s%s) from AlbumartistAlbumsonly aa %s" % (album_distinct, separate_albums, albumwhere)
                     else:
-                        countstatement = "select count(distinct %s) from ArtistAlbum aa %s" % (album_distinct, albumwhere)
+                        if 'artist' in self.album_group:
+                            countstatement = "select count(distinct %s) from ArtistAlbum aa %s" % (album_distinct, albumwhere)
+                        else:
+                            separate_albums = ''
+                            if self.show_separate_albums: separate_albums = '||artist'
+                            countstatement = "select count(distinct %s) from ArtistAlbumsonly aa %s" % (album_distinct, separate_albums, albumwhere)
                         
 #                    if controllername == 'PCDCR':
 #                        statement = """
@@ -3685,10 +3697,10 @@ class DummyContentDirectory(Service):
                 if (tracks_type == 'ARTIST' or tracks_type == 'GENRE') and \
                    albumtype != 10 and \
                    not_album == False:
-                    id, id2, duplicate, title, artistlist, albumlist, genre, tracktracknumber, year, albumartistlist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, tracknumber, coverart, coverartid, rowid = row
+                    id, id2, duplicate, title, artistlistshort, artistlist, albumlist, genre, tracktracknumber, year, albumartistlistshort, albumartistlist, composerlistshort, composerlist, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, tracknumber, coverart, coverartid, rowid = row
                     cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid, coverart, coverartid)
                 else:
-                    id, id2, duplicate, title, artistlist, albumlist, genre, tracknumber, year, albumartistlist, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
+                    id, id2, duplicate, title, artistlistshort, artistlist, albumlist, genre, tracknumber, year, albumartistlistshort, albumartistlist, composerlistshort, composerlist, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
                     cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
                 mime = fixMime(mime)
 
