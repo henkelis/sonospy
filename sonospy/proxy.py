@@ -2040,6 +2040,8 @@ class DummyContentDirectory(Service):
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
             count = 0
 
+            album_selected = False
+            artist_selected = False
             if self.now_playing_album == 'selected': album_selected = True
             if self.now_playing_artist == 'selected': artist_selected = True
 
@@ -2057,7 +2059,7 @@ class DummyContentDirectory(Service):
             log.debug("statement: %s", statement)
             c.execute(statement)
             for row in c:
-#                log.debug("row: %s", row)
+                log.debug("row: %s", row)
                 id, id2, duplicate, title, artistlistshort, artistlist, albumlist, genre, tracknumber, year, albumartistlistshort, albumartistlist, composerlistshort, composerlist, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort, playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
 
                 if not id:
