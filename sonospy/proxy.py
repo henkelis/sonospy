@@ -1607,12 +1607,12 @@ class DummyContentDirectory(Service):
             
             # album ID can be in one of two ranges, showing whether it is in the albums or albumsonly table
             if objectIDval >= self.album_parentid + self.half_id_start:
-                statement = "select albumlist, artistlist, albumartistlist, duplicate, albumtype from albumsonly where id = '%s'" % (objectID)
+                statement = "select albumlist, artistlist, albumartistlist, duplicate, albumtype, separated from albumsonly where id = '%s'" % (objectID)
             else:
-                statement = "select albumlist, artistlist, albumartistlist, duplicate, albumtype from albums where id = '%s'" % (objectID)
+                statement = "select albumlist, artistlist, albumartistlist, duplicate, albumtype, 0 from albums where id = '%s'" % (objectID)
             log.debug("statement: %s", statement)
             c.execute(statement)
-            albumlist, artistlist, albumartistlist, album_duplicate, album_type = c.fetchone()
+            albumlist, artistlist, albumartistlist, album_duplicate, album_type, separated = c.fetchone()
 
             albumlist = albumlist.replace("'", "''")
             artistlist = artistlist.replace("'", "''")
@@ -1629,7 +1629,7 @@ class DummyContentDirectory(Service):
                 if 'albumartist' in self.album_group:
                     where += " and n.albumartist='%s'" % albumartistentry
                 if not 'artist' in self.album_group and not 'albumartist' in self.album_group:
-                    if self.show_separate_albums:
+                    if self.show_separate_albums and separated:
                         if self.use_albumartist:
                             where += " and n.albumartist='%s'" % albumartistentry
                         else:
@@ -1641,7 +1641,7 @@ class DummyContentDirectory(Service):
                 if 'albumartist' in self.album_group:
                     where += " and n.albumartist='%s'" % albumartistlist
                 if not 'artist' in self.album_group and not 'albumartist' in self.album_group:
-                    if self.show_separate_albums:
+                    if self.show_separate_albums and separated:
                         if self.use_albumartist:
                             where += " and n.albumartist='%s'" % albumartistlist
                         else:
@@ -2552,7 +2552,7 @@ class DummyContentDirectory(Service):
                     if self.use_albumartist:
                         if 'albumartist' in self.album_group:
                             statement = """
-                                           select album, '', albumartist, '', a.* from AlbumartistAlbum aa join albums a on 
+                                           select album, '', albumartist, '', a.*, 0 from AlbumartistAlbum aa join albums a on 
                                            aa.album_id = a.id
                                            %s group by %s
                                            order by orderby limit ?, ?
@@ -2570,7 +2570,7 @@ class DummyContentDirectory(Service):
                     else:
                         if 'artist' in self.album_group:
                             statement = """
-                                           select album, artist, '', '', a.* from ArtistAlbum aa join albums a on 
+                                           select album, artist, '', '', a.*, 0 from ArtistAlbum aa join albums a on 
                                            aa.album_id = a.id
                                            %s group by %s
                                            order by orderby limit ?, ?
@@ -2608,7 +2608,7 @@ class DummyContentDirectory(Service):
                         countstatement = "select count(distinct %s) from ComposerAlbum aa where composer=? and albumtypewhere %s" % (distinct_composer, self.album_and_duplicate)
 #                        statement = "select * from albums where id in (select album_id from ComposerAlbum where composer=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, groupby_composer)
                         statement = """
-                                       select album, '', '', composer, a.* from ComposerAlbum aa join albums a on 
+                                       select album, '', '', composer, a.*, 0 from ComposerAlbum aa join albums a on 
                                        aa.album_id = a.id
                                        where composer=? and albumtypewhere %s
                                        group by %s
@@ -2640,7 +2640,7 @@ class DummyContentDirectory(Service):
 
                             countstatement = "select count(distinct %s) from AlbumartistAlbum aa where albumartist=? and albumtypewhere %s" % (distinct_albumartist, self.album_and_duplicate)
                             statement = """
-                                           select album, '', albumartist, '', a.* from AlbumartistAlbum aa join albums a on 
+                                           select album, '', albumartist, '', a.*, 0 from AlbumartistAlbum aa join albums a on 
                                            aa.album_id = a.id
                                            where albumartist=? and albumtypewhere %s
                                            group by %s
@@ -2654,7 +2654,7 @@ class DummyContentDirectory(Service):
 
                             countstatement = "select count(distinct %s) from ArtistAlbum aa where artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
                             statement = """
-                                           select album, artist, '', '', a.* from ArtistAlbum aa join albums a on 
+                                           select album, artist, '', '', a.*, 0 from ArtistAlbum aa join albums a on 
                                            aa.album_id = a.id
                                            where artist=? and albumtypewhere %s
                                            group by %s
@@ -2695,7 +2695,7 @@ class DummyContentDirectory(Service):
 
                         countstatement = "select count(distinct %s) from ArtistAlbum aa where artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
                         statement = """
-                                       select album, artist, '', '', a.* from ArtistAlbum aa join albums a on 
+                                       select album, artist, '', '', a.*, 0 from ArtistAlbum aa join albums a on 
                                        aa.album_id = a.id
                                        where artist=? and albumtypewhere %s
                                        group by %s
@@ -2729,7 +2729,7 @@ class DummyContentDirectory(Service):
 
                             countstatement = "select count(distinct %s) from GenreAlbumartistAlbum aa where genre=? and albumartist=? and albumtypewhere %s" % (distinct_albumartist, self.album_and_duplicate)
                             statement = """
-                                           select album, '', albumartist, '', a.* from GenreAlbumartistAlbum aa join albums a on 
+                                           select album, '', albumartist, '', a.*, 0 from GenreAlbumartistAlbum aa join albums a on 
                                            aa.album_id = a.id
                                            where genre=? and albumartist=? and albumtypewhere %s
                                            group by %s
@@ -2742,7 +2742,7 @@ class DummyContentDirectory(Service):
                             
                             countstatement = "select count(distinct %s) from GenreArtistAlbum aa where genre=? and artist=? and albumtypewhere %s" % (distinct_artist, self.album_and_duplicate)
                             statement = """
-                                           select album, artist, '', '', a.* from GenreArtistAlbum aa join albums a on 
+                                           select album, artist, '', '', a.*, 0 from GenreArtistAlbum aa join albums a on 
                                            aa.album_id = a.id
                                            where genre=? and artist=? and albumtypewhere %s
                                            group by %s
@@ -2884,7 +2884,7 @@ class DummyContentDirectory(Service):
 #                        log.debug("row: %s", row)
 
 #                        id, album, artist, year, albumartist, duplicate, cover, artid, inserted, composer, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount, albumsort = row
-                        album, artist, albumartist, composer, id, albumlist, artistlist, year, albumartistlist, duplicate, cover, artid, inserted, composerlist, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount, albumsort = row
+                        album, artist, albumartist, composer, id, albumlist, artistlist, year, albumartistlist, duplicate, cover, artid, inserted, composerlist, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount, albumsort, separated = row
                         id = str(id)
                         playcount = str(playcount)
 

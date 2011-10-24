@@ -1443,18 +1443,13 @@ def process_tags(args, options, tagdatabase, trackdatabase):
             
                 try:
 
-#                    print repr(album)
-#                    print repr(artist)
-#                    print albumlist
-
                     # check for albumsonly exceptions
                     keep_albums_separate = False
+                    separate_value = 0
                     for lalbum in albumlist:
                         if lalbum in separate_album_list:
                             keep_albums_separate = True
-
-#                    print keep_albums_separate
-#                    print album_updatetype
+                            separate_value = 1
 
                     if album_updatetype == 'D':
                 
@@ -1463,7 +1458,6 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         
                         if keep_albums_separate:
                         
-#                            delete = (album, artistlistfull, albumartistlistfull, duplicate, albumtype)
                             delete = (album, artistlist, albumartistlist, duplicate, albumtype)
                             logstring = "DELETE ALBUMONLY: %s" % str(delete)
                             filelog.write_verbose_log(logstring)
@@ -1510,9 +1504,6 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         if keep_albums_separate:
 
                             crow = cs2.fetchone()
-                            
-#                            print crow
-
                             if crow:    # must be found
                                 a_id, a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_lastplayed, a_playcount, a_albumsort = crow
 
@@ -1535,7 +1526,6 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         # check if albumsonly exists
                         if keep_albums_separate:
                             cs2.execute("""select id from albumsonly where albumlist=? and artistlist=? and albumartistlist=? and duplicate=? and albumtype=?""",
-#                                          (album, artistlistfull, albumartistlistfull, duplicate, albumtype))
                                           (album, artistlist, albumartistlist, duplicate, albumtype))
                         else:
                             cs2.execute("""select id from albumsonly where albumlist=? and duplicate=? and albumtype=?""",
@@ -1546,7 +1536,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             # albumsonly exists, update it
                             a_album_id, = crow
 
-                            albums = (a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_albumsort, a_album_id)
+                            albums = (a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_albumsort, separate_value, a_album_id)
                             
                             logstring = "UPDATE ALBUMSONLY: %s" % str(albums)
                             filelog.write_verbose_log(logstring)
@@ -1564,18 +1554,16 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                            created=?,
                                            lastmodified=?,
                                            albumtype=?,
-                                           albumsort=?
+                                           albumsort=?,
+                                           separated=?
                                            where id=?""",
                                            albums)
                         else:
                             # insert albumonly
-                            albums = (None, a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_lastplayed, a_playcount, a_albumsort)
-                            
-#                            print albums
-                            
+                            albums = (None, a_album, a_artist, a_year, a_albumartist, a_duplicate, a_cover, a_artid, a_inserted, a_composer, a_tracknumbers, a_created, a_lastmodified, a_albumtype, a_lastplayed, a_playcount, a_albumsort, separate_value)
                             logstring = "INSERT ALBUMSONLY: %s" % str(albums)
                             filelog.write_verbose_log(logstring)
-                            cs2.execute('insert into albumsonly values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', albums)
+                            cs2.execute('insert into albumsonly values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', albums)
                             a_album_id = cs2.lastrowid
 
                         # process albumsonly lookups
@@ -2070,14 +2058,15 @@ def create_database(database):
                                                   albumtype integer, 
                                                   lastplayed real,
                                                   playcount integer,
-                                                  albumsort text COLLATE NOCASE)
+                                                  albumsort text COLLATE NOCASE,
+                                                  separated integer)
                       ''')
             c.execute('''create unique index inxAlbumsonly on albumsonly (albumlist, artistlist, albumartistlist, duplicate, albumtype)''')
             c.execute('''create unique index inxAlbumsonlyId on albumsonly (id)''')
             c.execute('''create index inxAlbumsonlyshort on albumsonly (albumlist, duplicate, albumtype)''')
     
             # seed autoincrement
-            c.execute('''insert into albumsonly values (350000000,'','','','','','','','','','','','','','','','')''')
+            c.execute('''insert into albumsonly values (350000000,'','','','','','','','','','','','','','','','','')''')
             c.execute('''delete from albumsonly where id=350000000''')
 
         # artist/albumartist/composer/genre lookups - to hold playcounts
