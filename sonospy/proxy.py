@@ -1225,11 +1225,12 @@ class DummyContentDirectory(Service):
             pass
         except ConfigParser.NoOptionError:
             pass
-        if ini_alternative_index_sorting == 'N':
+        ini_alternative_index_sorting = ini_alternative_index_sorting[:1].upper().strip()
+        if ini_alternative_index_sorting in ('', 'N'):
             ais = 'N'
         else:
-            ais = ini_alternative_index_sorting[:1].upper()
-            if ais == 'S' or ais == 'Y':
+            ais = ini_alternative_index_sorting
+            if ais in ('S', 'Y'):
                 ais = 'S'
             elif ais == 'A':
                 pass
@@ -4432,13 +4433,13 @@ class DummyContentDirectory(Service):
 #                log.debug(values)
                 if changedsorttype == index and values['active'] == 'y':
                     # precedence is proxy-and-controller/proxy/controller/neither
-                    if values['proxyname'] == self.proxy.proxyname and values['controller'] == controller and not bothfound:
+                    if values['proxyname'] == self.proxy.proxyname and controller.startswith(values['controller']) and not bothfound:
                         bothfound = True
                         foundvalues = values
                     elif values['proxyname'] == self.proxy.proxyname and values['controller'] == 'all' and not bothfound and not proxyfound:
                         proxyfound = True
                         foundvalues = values
-                    elif values['proxyname'] == 'all' and values['controller'] == controller and not bothfound and not proxyfound and not controllerfound:
+                    elif values['proxyname'] == 'all' and controller.startswith(values['controller']) and not bothfound and not proxyfound and not controllerfound:
                         controllerfound = True
                         foundvalues = values
                     elif values['proxyname'] == 'all' and values['controller'] == 'all' and \
@@ -4471,13 +4472,13 @@ class DummyContentDirectory(Service):
 #                log.debug(values)
                 if changedsorttype == index and values['active'] == 'y':
                     # precedence is proxy-and-controller/proxy/controller/neither
-                    if values['proxyname'] == self.proxy.proxyname and values['controller'] == controller:
+                    if values['proxyname'] == self.proxy.proxyname and controller.startswith(values['controller']):
                         bothfound = True
                         bothvalues.append(values)
                     elif values['proxyname'] == self.proxy.proxyname and values['controller'] == 'all':
                         proxyfound = True
                         proxyvalues.append(values)
-                    elif values['proxyname'] == 'all' and values['controller'] == controller:
+                    elif values['proxyname'] == 'all' and controller.startswith(values['controller']):
                         controllerfound = True
                         controllervalues.append(values)
                     elif values['proxyname'] == 'all' and values['controller'] == 'all':
