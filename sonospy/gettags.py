@@ -225,16 +225,23 @@ When processing playlists subsequently, select from playlists_update on scannumb
     record 0 is the before image, record 1 the after image
 '''
 
+db = None
+c = None
+db2 = None
+c2 = None
+
 def process_dir(scanpath, options, database):
+
+    global db, c, db2, c2
+
+    db = sqlite3.connect(database, check_same_thread = False)
+    c = db.cursor()
+
+    db2 = sqlite3.connect(database, check_same_thread = False)
+    c2 = db2.cursor()
 
     logstring = "Scanning: %s" % scanpath
     filelog.write_log(logstring)
-    db = sqlite3.connect(database, check_same_thread = False)
-#    db.execute("PRAGMA synchronous = 0;")
-    c = db.cursor()
-
-    db2 = sqlite3.connect(database)
-    c2 = db2.cursor()
     
     c.execute('''insert into scans values (?,?)''', (None, scanpath))
     scannumber = c.lastrowid
@@ -800,22 +807,26 @@ def process_dir(scanpath, options, database):
     # 
     # so that we can process these entries in the same loop as the workvirtual loop, we create a generator
 
-    workvirtual_updates = get_workvirtual_update(scannumber, database)
+    workvirtual_updates = get_workvirtual_update(scannumber)
 
     # to make sure we don't process a workvirtual twice, we use a temporary table to store what we process
     try:
-        c2.execute("""create temporary table tempwv (wvfile text)""")
+        c.execute("""create temporary table tempwv (wvfile text)""")
     except sqlite3.Error, e:
         errorstring = "Error creating temporary workvirtual table: %s" % e.args[0]
         filelog.write_error(errorstring)
 
+    db.commit()
+
     # we also need to check tracks against playlists (later)
-    playlist_updates = get_playlist_update(scannumber, database)
+    playlist_updates = get_playlist_update(scannumber)
     try:
-        c2.execute("""create temporary table temppl (plfile text)""")
+        c.execute("""create temporary table temppl (plfile text)""")
     except sqlite3.Error, e:
         errorstring = "Error creating temporary playlist table: %s" % e.args[0]
         filelog.write_error(errorstring)
+
+    db.commit()
 
     # now process works and virtuals - processing the generator first
     visitedpaths = []
@@ -870,12 +881,12 @@ def process_dir(scanpath, options, database):
                 # check whether we have processed this file before
 
                 try:
-                    c2.execute("""select wvfile from temp.tempwv where wvfile=?""", (ffn, ))
-                    row = c2.fetchone()
+                    c.execute("""select wvfile from temp.tempwv where wvfile=?""", (ffn, ))
+                    row = c.fetchone()
                     if row:
                         continue
                     else:
-                        c2.execute("""insert into tempwv values (?)""", (ffn, ))
+                        c.execute("""insert into temp.tempwv values (?)""", (ffn, ))
                     
                 except sqlite3.Error, e:
                     errorstring = "Error processing temporary workvirtual table: %s" % e.args[0]
@@ -907,7 +918,7 @@ def process_dir(scanpath, options, database):
                         wvtrack = 0
                         prev_wvnumber = wvnumber
                         # process workvirtual cover
-                        wvcoverartid = None
+                        wvcoverartid = 0
                         if wvcover:
                             # check if cover refers to embedded art (i.e. to a track in the database)
                             co_trackpath, co_trackfile = os.path.split(wvcover)
@@ -1248,7 +1259,7 @@ def process_dir(scanpath, options, database):
         errorstring = "Error processing workvirtual track deletions: %s" % e.args[0]
         filelog.write_error(errorstring)
 
-    db2.commit()
+#    db2.commit()
     db.commit()
 
     # now process playlists - processing the generator first
@@ -1300,12 +1311,12 @@ def process_dir(scanpath, options, database):
                 # check whether we have processed this file before
 
                 try:
-                    c2.execute("""select plfile from temp.temppl where plfile=?""", (ffn, ))
-                    row = c2.fetchone()
+                    c.execute("""select plfile from temp.temppl where plfile=?""", (ffn, ))
+                    row = c.fetchone()
                     if row:
                         continue
                     else:
-                        c2.execute("""insert into temppl values (?)""", (ffn, ))
+                        c.execute("""insert into temp.temppl values (?)""", (ffn, ))
                     
                 except sqlite3.Error, e:
                     errorstring = "Error processing temporary playlist table: %s" % e.args[0]
@@ -1601,7 +1612,7 @@ def process_dir(scanpath, options, database):
         errorstring = "Error deleting playlists_update entries: %s" % e.args[0]
         filelog.write_error(errorstring)
 
-    db2.commit()
+#    db2.commit()
     db.commit()
 
     # update stats
@@ -1635,15 +1646,13 @@ def get_art_id(c, artspec):
         filelog.write_error(errorstring)
     return artid
 
-def get_workvirtual_update(scannumber, database):
+def get_workvirtual_update(scannumber):
 
-    db3 = sqlite3.connect(database)
-    c3 = db3.cursor()
     # get tag records that have been changed and find all associated workvirtuals
     try:
         statement = """select distinct(wvfile) from workvirtuals where trackfile in (select distinct(path || "%s" || filename) from tags_update where scannumber=?)""" % (os.sep)
-        c3.execute(statement, (scannumber, ))
-        for crow in c3:
+        c.execute(statement, (scannumber, ))
+        for crow in c:
             wvfile, = crow
             path, spec = os.path.split(wvfile)
             yield path, ['..wv..'], [spec]
@@ -1651,17 +1660,14 @@ def get_workvirtual_update(scannumber, database):
     except sqlite3.Error, e:
         errorstring = "Error processing track changes against workvirtuals: %s" % e.args[0]
         filelog.write_error(errorstring)
-    c3.close()
 
-def get_playlist_update(scannumber, database):
+def get_playlist_update(scannumber):
 
-    db3 = sqlite3.connect(database)
-    c3 = db3.cursor()
     # get tag records that have been changed and find all associated playlists
     try:
         statement = """select distinct(plfile) from playlists where trackfile in (select distinct(path || "%s" || filename) from tags_update where scannumber=?)""" % (os.sep)
-        c3.execute(statement, (scannumber, ))
-        for crow in c3:
+        c.execute(statement, (scannumber, ))
+        for crow in c:
             plfile, = crow
             path, spec = os.path.split(plfile)
             yield path, ['..pl..'], [spec]
@@ -1669,7 +1675,6 @@ def get_playlist_update(scannumber, database):
     except sqlite3.Error, e:
         errorstring = "Error processing track changes against playlists: %s" % e.args[0]
         filelog.write_error(errorstring)
-    c3.close()
 
 def generate_subset(options, sourcedatabase, targetdatabase, where):
 
@@ -2069,7 +2074,7 @@ def generate_workvirtualfile_record(filespec, database):
             files.sort()
             for fn in files:
                 if check_workvirtual_file(fn):
-                    album, discnumber, tracknumber = get_workvirtual_track_details(filepath, fn, database)
+                    album, discnumber, tracknumber = get_workvirtual_track_details(filepath, fn)
                     filelist.append((fn, filepath, album, discnumber, tracknumber))
         # sort the list on album/discnumber/tracknumber
         filelist = sorted(filelist, key=itemgetter(2,3,4))
@@ -2198,27 +2203,22 @@ def read_wpl_playlist(filespec):
                     tracks.append(filespec)
     return tracks
 
-def get_workvirtual_track_details(trackpath, trackfile, database):
+def get_workvirtual_track_details(trackpath, trackfile):
 
-    db3 = sqlite3.connect(database)
-    c3 = db3.cursor()
     try:
-        c3.execute("""select album, discnumber, track from tags where path=? and filename=?""", (trackpath, trackfile))
+        c.execute("""select album, discnumber, track from tags where path=? and filename=?""", (trackpath, trackfile))
     except sqlite3.Error, e:
         errorstring = "Error getting tags for workvirtual track details: %s" % e.args[0]
         filelog.write_error(errorstring)
-    crow = c3.fetchone()
+    crow = c.fetchone()
     if crow:
         # track exists, get data
-#        print crow
         album, discnumber, track = crow
         track = adjust_tracknumber(track)
         discnumber = truncate_number(discnumber)
         crow = (album, discnumber, track)
-#        print crow
     else:
         crow = (None, None, None)
-    c3.close()
     return crow
 
 paths = ['http://', 'file://', 'rtsp://', 'smb://', 'rtp://', 'ftp://', 'mms://']
