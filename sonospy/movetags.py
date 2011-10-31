@@ -995,30 +995,30 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             for o_album in o_albumlist:
                                 for o_genre in o_genrelist:
                                     for o_artist in o_artistlist:
-                                        delete = (track_rowid, o_genre, o_artist, o_album, o_duplicate, o_albumtype)
+                                        delete = (track_rowid, o_genre, o_artist, album_id, o_duplicate, o_albumtype)
                                         logstring = "DELETE GenreArtistAlbumTrack: %s" % str(delete)
                                         filelog.write_verbose_log(logstring)
-                                        cs2.execute("""delete from GenreArtistAlbumTrack where track_id=? and genre=? and artist=? and album=? and duplicate=? and albumtype=?""", delete)
+                                        cs2.execute("""delete from GenreArtistAlbumTrack where track_id=? and genre=? and artist=? and album_id=? and duplicate=? and albumtype=?""", delete)
                                     for o_albumartist in o_albumartistlist:
-                                        delete = (track_rowid, o_genre, o_albumartist, o_album, o_duplicate, o_albumtype)
+                                        delete = (track_rowid, o_genre, o_albumartist, album_id, o_duplicate, o_albumtype)
                                         logstring = "DELETE GenreAlbumartistAlbumTrack: %s" % str(delete)
                                         filelog.write_verbose_log(logstring)
-                                        cs2.execute("""delete from GenreAlbumartistAlbumTrack where track_id=? and genre=? and albumartist=? and album=? and duplicate=? and albumtype=?""", delete)
+                                        cs2.execute("""delete from GenreAlbumartistAlbumTrack where track_id=? and genre=? and albumartist=? and album_id=? and duplicate=? and albumtype=?""", delete)
                                 for o_artist in o_artistlist:
-                                    delete = (track_rowid, o_artist, o_album, o_duplicate, o_albumtype)
+                                    delete = (track_rowid, o_artist, album_id, o_duplicate, o_albumtype)
                                     logstring = "DELETE ArtistAlbumTrack:" + str(delete)
                                     filelog.write_verbose_log(logstring)
-                                    cs2.execute("""delete from ArtistAlbumTrack where track_id=? and artist=? and album=? and duplicate=? and albumtype=?""", delete)
+                                    cs2.execute("""delete from ArtistAlbumTrack where track_id=? and artist=? and album_id=? and duplicate=? and albumtype=?""", delete)
                                 for o_albumartist in o_albumartistlist:
-                                    delete = (track_rowid, o_albumartist, o_album, o_duplicate, o_albumtype)
+                                    delete = (track_rowid, o_albumartist, album_id, o_duplicate, o_albumtype)
                                     logstring = "DELETE AlbumartistAlbumTrack:" + str(delete)
                                     filelog.write_verbose_log(logstring)
-                                    cs2.execute("""delete from AlbumartistAlbumTrack where track_id=? and albumartist=? and album=? and duplicate=? and albumtype=?""", delete)
+                                    cs2.execute("""delete from AlbumartistAlbumTrack where track_id=? and albumartist=? and album_id=? and duplicate=? and albumtype=?""", delete)
                                 for o_composer in o_composerlist:
-                                    delete = (track_rowid, o_composer, o_album, o_duplicate, o_albumtype)
+                                    delete = (track_rowid, o_composer, album_id, o_duplicate, o_albumtype)
                                     logstring = "DELETE ComposerAlbumTrack:" + str(delete)
                                     filelog.write_verbose_log(logstring)
-                                    cs2.execute("""delete from ComposerAlbumTrack where track_id=? and composer=? and album=? and duplicate=? and albumtype=?""", delete)
+                                    cs2.execute("""delete from ComposerAlbumTrack where track_id=? and composer=? and album_id=? and duplicate=? and albumtype=?""", delete)
 
                             if albumtypestring == 'work' or albumtypestring == 'virtual':
 
@@ -1045,50 +1045,50 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             for album in albumlist:
                                 for genre in genrelist:
                                     for artist in artistlist:
-                                        check = (track_rowid, genre, artist, album, duplicate, albumtype)
-                                        cs2.execute("""select * from GenreArtistAlbumTrack where track_id=? and genre=? and artist=? and album=? and duplicate=? and albumtype=?""", check)
+                                        check = (track_rowid, genre, artist, album_id, duplicate, albumtype)
+                                        cs2.execute("""select * from GenreArtistAlbumTrack where track_id=? and genre=? and artist=? and album_id=? and duplicate=? and albumtype=?""", check)
                                         crow = cs2.fetchone()
                                         if not crow:
-                                            insert = check
+                                            insert = (track_rowid, genre, artist, album, album_id, duplicate, albumtype)
                                             logstring = "INSERT GenreArtistAlbumTrack: %s" % str(insert)
                                             filelog.write_verbose_log(logstring)
-                                            cs2.execute('insert into GenreArtistAlbumTrack values (?,?,?,?,?,?)', insert)
+                                            cs2.execute('insert into GenreArtistAlbumTrack values (?,?,?,?,?,?,?)', insert)
                                     for albumartist in albumartistlist:
-                                        check = (track_rowid, genre, albumartist, album, duplicate, albumtype)
-                                        cs2.execute("""select * from GenreAlbumartistAlbumTrack where track_id=? and genre=? and albumartist=? and album=? and duplicate=? and albumtype=?""", check)
+                                        check = (track_rowid, genre, albumartist, album_id, duplicate, albumtype)
+                                        cs2.execute("""select * from GenreAlbumartistAlbumTrack where track_id=? and genre=? and albumartist=? and album_id=? and duplicate=? and albumtype=?""", check)
                                         crow = cs2.fetchone()
                                         if not crow:
-                                            insert = check
+                                            insert = (track_rowid, genre, albumartist, album, album_id, duplicate, albumtype)
                                             logstring = "INSERT GenreAlbumartistAlbumTrack: %s" % str(insert)
                                             filelog.write_verbose_log(logstring)
-                                            cs2.execute('insert into GenreAlbumartistAlbumTrack values (?,?,?,?,?,?)', insert)
+                                            cs2.execute('insert into GenreAlbumartistAlbumTrack values (?,?,?,?,?,?,?)', insert)
                                 for artist in artistlist:
-                                    check = (track_rowid, artist, album, duplicate, albumtype)
-                                    cs2.execute("""select * from ArtistAlbumTrack where track_id=? and artist=? and album=? and duplicate=? and albumtype=?""", check)
+                                    check = (track_rowid, artist, album_id, duplicate, albumtype)
+                                    cs2.execute("""select * from ArtistAlbumTrack where track_id=? and artist=? and album_id=? and duplicate=? and albumtype=?""", check)
                                     crow = cs2.fetchone()
                                     if not crow:
-                                        insert = check
+                                        insert = (track_rowid, artist, album, album_id, duplicate, albumtype)
                                         logstring = "INSERT ArtistAlbumTrack:" + str(insert)
                                         filelog.write_verbose_log(logstring)
-                                        cs2.execute('insert into ArtistAlbumTrack values (?,?,?,?,?)', insert)
+                                        cs2.execute('insert into ArtistAlbumTrack values (?,?,?,?,?,?)', insert)
                                 for albumartist in albumartistlist:
-                                    check = (track_rowid, albumartist, album, duplicate, albumtype)
-                                    cs2.execute("""select * from AlbumartistAlbumTrack where track_id=? and albumartist=? and album=? and duplicate=? and albumtype=?""", check)
+                                    check = (track_rowid, albumartist, album_id, duplicate, albumtype)
+                                    cs2.execute("""select * from AlbumartistAlbumTrack where track_id=? and albumartist=? and album_id=? and duplicate=? and albumtype=?""", check)
                                     crow = cs2.fetchone()
                                     if not crow:
-                                        insert = check
+                                        insert = (track_rowid, albumartist, album, album_id, duplicate, albumtype)
                                         logstring = "INSERT AlbumartistAlbumTrack:" + str(insert)
                                         filelog.write_verbose_log(logstring)
-                                        cs2.execute('insert into AlbumartistAlbumTrack values (?,?,?,?,?)', insert)
+                                        cs2.execute('insert into AlbumartistAlbumTrack values (?,?,?,?,?,?)', insert)
                                 for composer in composerlist:
-                                    check = (track_rowid, composer, album, duplicate, albumtype)
-                                    cs2.execute("""select * from ComposerAlbumTrack where track_id=? and composer=? and album=? and duplicate=? and albumtype=?""", check)
+                                    check = (track_rowid, composer, album_id, duplicate, albumtype)
+                                    cs2.execute("""select * from ComposerAlbumTrack where track_id=? and composer=? and album_id=? and duplicate=? and albumtype=?""", check)
                                     crow = cs2.fetchone()
                                     if not crow:
-                                        insert = check
+                                        insert = (track_rowid, composer, album, album_id, duplicate, albumtype)
                                         logstring = "INSERT ComposerAlbumTrack:" + str(insert)
                                         filelog.write_verbose_log(logstring)
-                                        cs2.execute('insert into ComposerAlbumTrack values (?,?,?,?,?)', insert)
+                                        cs2.execute('insert into ComposerAlbumTrack values (?,?,?,?,?,?)', insert)
 
                             if albumtypestring == 'work' or albumtypestring == 'virtual':
 
@@ -1128,34 +1128,34 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                                         logstring = "DELETE GenreArtist:" + str(delete)
                                         filelog.write_verbose_log(logstring)
                                         cs2.execute("""delete from GenreArtist where not exists (select 1 from GenreArtistAlbum where genre=? and artist=?) and genre=? and artist=?""", delete)
-                                        delete = (o_genre, o_artist, o_album, o_duplicate, o_albumtype, album_id)
+                                        delete = (o_genre, o_artist, album_id, o_duplicate, o_albumtype, album_id)
                                         logstring = "DELETE GenreArtistAlbum:" + str(delete)
                                         filelog.write_verbose_log(logstring)
-                                        cs2.execute("""delete from GenreArtistAlbum where not exists (select 1 from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate=? and albumtype=?) and album_id=?""", delete)
+                                        cs2.execute("""delete from GenreArtistAlbum where not exists (select 1 from GenreArtistAlbumTrack where genre=? and artist=? and album_id=? and duplicate=? and albumtype=?) and album_id=?""", delete)
                                     for o_albumartist in o_albumartistlist:
                                         delete = (o_genre, o_albumartist, o_genre, o_albumartist)
                                         logstring = "DELETE GenreAlbumartist:" + str(delete)
                                         filelog.write_verbose_log(logstring)
                                         cs2.execute("""delete from GenreAlbumartist where not exists (select 1 from GenreAlbumartistAlbum where genre=? and albumartist=?) and genre=? and albumartist=?""", delete)
-                                        delete = (o_genre, o_albumartist, o_album, o_duplicate, o_albumtype, album_id)
+                                        delete = (o_genre, o_albumartist, album_id, o_duplicate, o_albumtype, album_id)
                                         logstring = "DELETE GenreAlbumartistAlbum:" + str(delete)
                                         filelog.write_verbose_log(logstring)
-                                        cs2.execute("""delete from GenreAlbumartistAlbum where not exists (select 1 from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album=? and duplicate=? and albumtype=?) and album_id=?""", delete)
+                                        cs2.execute("""delete from GenreAlbumartistAlbum where not exists (select 1 from GenreAlbumartistAlbumTrack where genre=? and albumartist=? and album_id=? and duplicate=? and albumtype=?) and album_id=?""", delete)
                                 for o_artist in o_artistlist:
-                                    delete = (o_artist, o_album, o_duplicate, o_albumtype, album_id)
+                                    delete = (o_artist, album_id, o_duplicate, o_albumtype, album_id)
                                     logstring = "DELETE ArtistAlbum:" + str(delete)
                                     filelog.write_verbose_log(logstring)
-                                    cs2.execute("""delete from ArtistAlbum where not exists (select 1 from ArtistAlbumTrack where artist=? and album=? and duplicate=? and albumtype=?) and album_id=?""", delete)
+                                    cs2.execute("""delete from ArtistAlbum where not exists (select 1 from ArtistAlbumTrack where artist=? and album_id=? and duplicate=? and albumtype=?) and album_id=?""", delete)
                                 for o_albumartist in o_albumartistlist:
-                                    delete = (o_albumartist, o_album, o_duplicate, o_albumtype, album_id)
+                                    delete = (o_albumartist, album_id, o_duplicate, o_albumtype, album_id)
                                     logstring = "DELETE AlbumartistAlbum:" + str(delete)
                                     filelog.write_verbose_log(logstring)
-                                    cs2.execute("""delete from AlbumartistAlbum where not exists (select 1 from AlbumartistAlbumTrack where albumartist=? and album=? and duplicate=? and albumtype=?) and album_id=?""", delete)
+                                    cs2.execute("""delete from AlbumartistAlbum where not exists (select 1 from AlbumartistAlbumTrack where albumartist=? and album_id=? and duplicate=? and albumtype=?) and album_id=?""", delete)
                                 for o_composer in o_composerlist:
-                                    delete = (o_composer, o_album, o_duplicate, o_albumtype, album_id)
+                                    delete = (o_composer, album_id, o_duplicate, o_albumtype, album_id)
                                     logstring = "DELETE ComposerAlbum:" + str(delete)
                                     filelog.write_verbose_log(logstring)
-                                    cs2.execute("""delete from ComposerAlbum where not exists (select 1 from ComposerAlbumTrack where composer=? and album=? and duplicate=? and albumtype=?) and album_id=?""", delete)
+                                    cs2.execute("""delete from ComposerAlbum where not exists (select 1 from ComposerAlbumTrack where composer=? and album_id=? and duplicate=? and albumtype=?) and album_id=?""", delete)
                         except sqlite3.Error, e:
                             errorstring = "Error deleting (genre)/(artist/albumartist/composer)/artist lookup details: %s" % e.args[0]
                             filelog.write_error(errorstring)
@@ -2301,12 +2301,14 @@ def create_database(database):
                                                              genre text COLLATE NOCASE, 
                                                              artist text COLLATE NOCASE, 
                                                              album text COLLATE NOCASE, 
+                                                             album_id integer,
                                                              duplicate integer, 
                                                              albumtype integer)
                       ''')
             c.execute('''create unique index inxGenreArtistAlbumTrack on GenreArtistAlbumTrack (track_id, genre, artist, album, duplicate, albumtype)''')
             c.execute('''create index inxGenreArtistAlbumTrackGenreArtistAlbum on GenreArtistAlbumTrack (genre, artist, album, albumtype)''')
             c.execute('''create index inxGenreArtistAlbumTrackGenreArtistAlbumDup on GenreArtistAlbumTrack (genre, artist, album, duplicate)''')
+            c.execute('''create index inxGenreArtistAlbumTrackGenreArtistAlbumIdDup on GenreArtistAlbumTrack (genre, artist, album_id, duplicate)''')
 
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="GenreAlbumartistAlbumTrack"')
         n, = c.fetchone()
@@ -2315,12 +2317,14 @@ def create_database(database):
                                                                   genre text COLLATE NOCASE, 
                                                                   albumartist text COLLATE NOCASE, 
                                                                   album text COLLATE NOCASE, 
+                                                                  album_id integer,
                                                                   duplicate integer, 
                                                                   albumtype integer)
                       ''')
             c.execute('''create unique index inxGenreAlbumartistAlbumTrack on GenreAlbumartistAlbumTrack (track_id, genre, albumartist, album, duplicate, albumtype)''')
             c.execute('''create index inxGenreAlbumartistAlbumTrackGenreAlbumArtistAlbum on GenreAlbumartistAlbumTrack (genre, albumartist, album, albumtype)''')
             c.execute('''create index inxGenreAlbumartistAlbumTrackGenreAlbumArtistAlbumDup on GenreAlbumartistAlbumTrack (genre, albumartist, album, duplicate)''')
+            c.execute('''create index inxGenreAlbumartistAlbumTrackGenreAlbumArtistAlbumIdDup on GenreAlbumartistAlbumTrack (genre, albumartist, album_id, duplicate)''')
 
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="ArtistAlbumTrack"')
         n, = c.fetchone()
@@ -2328,12 +2332,14 @@ def create_database(database):
             c.execute('''create table ArtistAlbumTrack (track_id integer, 
                                                         artist text COLLATE NOCASE, 
                                                         album text COLLATE NOCASE, 
+                                                        album_id integer,
                                                         duplicate integer, 
                                                         albumtype integer)
                       ''')
             c.execute('''create unique index inxArtistAlbumTrack on ArtistAlbumTrack (track_id, artist, album, duplicate, albumtype)''')
             c.execute('''create index inxArtistAlbumTrackArtistAlbum on ArtistAlbumTrack (artist, album, albumtype)''')
             c.execute('''create index inxArtistAlbumTrackArtistAlbumDup on ArtistAlbumTrack (artist, album, duplicate, albumtype)''')
+            c.execute('''create index inxArtistAlbumTrackArtistAlbumIdDup on ArtistAlbumTrack (artist, album_id, duplicate, albumtype)''')
 
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="AlbumartistAlbumTrack"')
         n, = c.fetchone()
@@ -2341,12 +2347,14 @@ def create_database(database):
             c.execute('''create table AlbumartistAlbumTrack (track_id integer, 
                                                              albumartist text COLLATE NOCASE, 
                                                              album text COLLATE NOCASE, 
+                                                             album_id integer,
                                                              duplicate integer, 
                                                              albumtype integer)
                       ''')
             c.execute('''create unique index inxAlbumArtistAlbumTrack on AlbumartistAlbumTrack (track_id, albumartist, album, duplicate, albumtype)''')
             c.execute('''create index inxAlbumArtistAlbumTrackAlbumArtistAlbum on AlbumartistAlbumTrack (albumartist, album, albumtype)''')
             c.execute('''create index inxAlbumArtistAlbumTrackAlbumArtistAlbumDup on AlbumartistAlbumTrack (albumartist, album, duplicate, albumtype)''')
+            c.execute('''create index inxAlbumArtistAlbumTrackAlbumArtistAlbumIdDup on AlbumartistAlbumTrack (albumartist, album_id, duplicate, albumtype)''')
 
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="ComposerAlbumTrack"')
         n, = c.fetchone()
@@ -2354,12 +2362,14 @@ def create_database(database):
             c.execute('''create table ComposerAlbumTrack (track_id integer, 
                                                           composer text COLLATE NOCASE, 
                                                           album text COLLATE NOCASE, 
+                                                          album_id integer,
                                                           duplicate integer, 
                                                           albumtype integer)
                       ''')
             c.execute('''create unique index inxComposerAlbumTrack on ComposerAlbumTrack (track_id, composer, album, duplicate, albumtype)''')
             c.execute('''create index inxComposerAlbumTrackComposerAlbum on ComposerAlbumTrack (composer, album, albumtype)''')
             c.execute('''create index inxComposerAlbumTrackComposerAlbumDup on ComposerAlbumTrack (composer, album, duplicate, albumtype)''')
+            c.execute('''create index inxComposerAlbumTrackComposerAlbumIdDup on ComposerAlbumTrack (composer, album_id, duplicate, albumtype)''')
 
         # work/virtual track number lookup
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="TrackNumbers"')
