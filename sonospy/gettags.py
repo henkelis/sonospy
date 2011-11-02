@@ -2009,7 +2009,10 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
                 value = line[len(key):]
                 value = value.replace('"', '\\"')
                 if value.endswith('\n'): value = value[:-1]
-                if key == 'type=' and not (value == 'work' or value == 'virtual'): value = wvtype
+                if value.endswith('\r'): value = value[:-1]
+                if key == 'type=':
+                    if not (value == 'work' or value == 'virtual'): value = wvtype
+                    wvtype = None
                 if key == 'cover=' and value != '': value = checkpath(value, wvfilepath)
                 if eval("%s==None" % workvirtualkeys[key]):
                     exec('%s=u"%s"' % (workvirtualkeys[key], value))
