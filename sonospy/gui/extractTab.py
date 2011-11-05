@@ -593,7 +593,7 @@ class ExtractPanel(wx.Panel):
                 if searchCMD != "":
                     self.LogWindow.AppendText("You cannot combine Last " + self.tc_Last.Value + " albums with other search options...")
                 else:
-                    searchCMD = "AS t WHERE t.created >= (SELECT a.created FROM albums AS a WHERE a.albumartist != 'Various Artists' ORDER BY a.created DESC LIMIT " + str(int(self.tc_Last.Value) - 1) + ",1)"
+                    searchCMD = "AS t WHERE t.created >= (SELECT a.created FROM albums AS a WHERE a.albumartistlist != 'Various Artists' ORDER BY a.created DESC LIMIT " + str(int(self.tc_Last.Value) - 1) + ",1)"
 
             if searchCMD !="":
                 searchCMD = "\"" + searchCMD + "\""
