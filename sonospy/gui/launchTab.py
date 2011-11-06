@@ -72,7 +72,7 @@ class LaunchPanel(wx.Panel):
         yIndex = 0
 
     # [0] Make Header Columns --------------------------
-        label_ProxyName = wx.StaticText(panel, label="Display Name")
+        self.label_ProxyName = wx.StaticText(panel, label="Display Name")
         self.ck_EnableAll = wxCheckBox(panel, label="Enable All ")
         help_EnableAll = "Click here to enable or disable all the databases below."
         self.ck_EnableAll.SetToolTip(wx.ToolTip(help_EnableAll))
@@ -87,7 +87,7 @@ class LaunchPanel(wx.Panel):
         self.bt_Clear.Bind(wx.EVT_BUTTON, self.bt_ClearClick, self.bt_Clear)
 
         self.ck_EnableAll.Bind(wx.EVT_CHECKBOX, self.enableAllChecks, self.ck_EnableAll)
-        sizer.Add(label_ProxyName, pos=(xIndex, 1), flag=wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        sizer.Add(self.label_ProxyName, pos=(xIndex, 1), flag=wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
         sizer.Add(self.ck_EnableAll, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
         sizer.Add(self.bt_AutoPopulate, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
         sizer.Add(self.bt_Clear, pos=(xIndex, 2), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.ALIGN_RIGHT, border=10)
@@ -733,6 +733,7 @@ class LaunchPanel(wx.Panel):
             self.ck_EnableAll.Enable()
             self.rd_Proxy.Enable()
             self.rd_Web.Enable()
+            self.label_ProxyName.Enable()
         else:
             self.ck_DB1.Disable()
             self.tc_DB1.Disable()
@@ -764,4 +765,5 @@ class LaunchPanel(wx.Panel):
             self.ck_EnableAll.Disable()
             self.rd_Proxy.Disable()
             self.rd_Web.Disable()
+            self.label_ProxyName.Disable()
 
