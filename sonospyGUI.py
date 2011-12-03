@@ -43,7 +43,7 @@ import scanTab
 import extractTab
 import launchTab
 import virtualsTab
-import scheduleTab
+# import scheduleTab
 # import nowPlayingTab
 
 # set our working directory for the rest of the functions to work right.

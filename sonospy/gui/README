@@ -42,9 +42,6 @@ TO DO
  - Minimize to tray?
  - Add Scheduler Tab to mimic cron-jobs (eventually for cross platform)
 
-[LAUNCH]
- - Hook up Show Duplicates per Blue?
-
 [SCAN]
  - Add scheduler functionality (i.e. push command to scheduler tab)
 
