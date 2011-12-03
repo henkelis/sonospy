@@ -1,0 +1,51 @@
+----------------------------------------------------------------------------
+SONOSPY GUI READ ME
+----------------------------------------------------------------------------
+
+----------------------------------------------------------------------------
+INSTALLATION
+----------------------------------------------------------------------------
+You will need to get wxPython 2.8 in order to run the GUI (http://www.wxpython.org/download.php)
+
+----------------------------------------------------------------------------
+USAGE
+----------------------------------------------------------------------------
+In general, everything has a tool tip associated with it for some attempts at clarity.
+
+Preferences are stored in gui/GUIpref.ini and can be manually edited or can be saved within
+the app on each specific tab using the SAVE DEFAULTS button.
+
+You can run this by ./sonsopyGUI.py (linux) or python sonospyGUI.py (linux/windows).  Databases created here are still stored where scan, etc. uses them.
+
+[LAUNCH TAB]
+ - Will launch and stop Sonospy.
+ - AUTO POPULATE will search for databases (extensions can be set in GUIpref.ini) and will autopopulate the databases and proxy names for you.
+
+[SCAN TAB]
+ - SCAN and REPAIR both log to the log window, but it comes through chunk at a time.  Not quite in realtime, but close enough.
+
+[EXTRACT TAB]
+ - Last <X> Albums is experimental, it gets the job done, but it's not perfect.
+
+----------------------------------------------------------------------------
+KNOWN ISSUES
+----------------------------------------------------------------------------
+ - Launch does not currently work under Windows.
+ - Loading virtuals only works with one "set".  If you store more than one virtual/work in an .SP file, it won't work.  Best to use the SP files created with the GUI until I find a solution here in terms of GUI layout.
+ - Sometimes it will report a bash error on a scan/extract to not finding scan.py -- it seems to resolve itself if you don't spam buttons super quick.  I am manually os.chdir(os.pardir) to get out of the gui folder down to where Mark's modules are.  Not sure how else to do it, but I'm still way too green to have even written this GUI, so I am sure there is a better way.
+
+----------------------------------------------------------------------------
+TO DO
+----------------------------------------------------------------------------
+[GENERAL]
+ - Look at installers for entire sonospy project (not just GUI)
+ - Minimize to tray?
+ - Add Scheduler Tab to mimic cron-jobs (eventually for cross platform)
+
+[SCAN]
+ - Add scheduler functionality (i.e. push command to scheduler tab)
+
+[EXTRACT]
+ - Scrub SQL database for valid entries to limit user error.  Blue did this, but I am of split mind on whether or not we want to limit the user this way.  In thoery, we could do "contains" on Genre to get a extract with ROCK, CLASSIC ROCK, etc. if "ROCK" is provided.
+ - Lots of error checking, I am sure, to make sure people don't enter a string when the query will expect an int.
+ - Add scheduler functionality (i.e. push command to scheduler tab)

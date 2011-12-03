@@ -1,0 +1,73 @@
+#!/bin/bash
+##########################################################################
+# askSonos Sciprt
+##########################################################################
+# A shell script to poll the Sonospy backend to get various track info.
+##########################################################################
+
+# CHECK FOR ARGUMENTS (NEEDS 2)
+if [ $# -ne 2 ]
+	then
+		echo ""
+		echo "A shell script to poll the sonospy backend to retrieve"
+		echo "now-playing information as well as some status on the "
+		echo "zone player status itself."
+		echo ""
+		echo "Please use at least the following arguments:"
+		echo ""
+		echo "arg1: zone player to poll (kitchen, living%20room"
+		echo "--------- note the %20 if there is a space in your ZP"
+		echo "--------- name. I'll fix that later."
+		echo ""
+		echo "arg2: can be one of the following:"
+		echo "track, album, artist, type, class, position, percent"
+		echo "volume, volume_fixed, mute, state, art"
+		echo ""
+		echo "note: volume, volume fixed, mute and state all seem"
+		echo "to belong to the zone player itself."
+		echo ""
+		echo "Optionally, you can indicate a third argument: lower"
+		echo "to output in lowercase."
+		echo ""
+		exit 1
+fi
+
+zonePlayer=$1
+# Get the IP address of the system
+ipaddy=$(hostname -I)
+
+# REMINDER TO ME: backticks (`) or $() run commands for you -- the sed below
+# strips the trailing space off the IP address found in hostname -I
+# above.
+curl -s -o /dev/null $(echo "http://$ipaddy:50101/data/rendererData?data=R::$1%20%28ZP%29" | sed 's/ //g') 2>&1
+INFO=$(curl -s $(echo "http://$ipaddy:50101/data/rendererPoll?data=R::$1%20%28ZP%29" | sed 's/ //g'))
+
+# Now Playing Info
+case "$2" in
+	track)		stripME="TRACK::";;
+	album)  	stripME="ALBUM::";;
+	artist)		stripME="ARTIST::";;
+	type)		stripME="TYPE::";;
+	class)		stripME="CLASS::";;
+	position)	stripME="POSITION::";;
+	percent)	stripME="PERCENT::";;
+	volume)		stripME="VOLUME::";;		# Not sure what this does...
+	volume_fixed)	stripME="VOLUME_FIXED::";;	# ..
+	mute)		stripME="MUTE::";;		# ..
+	state)		stripME="STATE::";;
+	art)		stripME="ART::";;		# Does NOT work with embedded art... :(
+	*)		exit 0;;			# No valid input from $2
+esac
+
+INFO=${INFO#*$stripME}
+OUTPUT=$(echo $INFO|cut -d \_ -f1)
+
+# set the case based on the command line argument
+if [ "$3" = "lower" ] 
+	then
+		echo $OUTPUT | tr '[A-Z]' '[a-z]'
+	else
+		echo $OUTPUT
+fi
+
+

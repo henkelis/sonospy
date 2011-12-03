@@ -714,7 +714,8 @@ class HTTPTransport(object):
         r.putheader("CONNECTION", 'close')
 
         r.putheader("Host", addr.hostname)
-        r.putheader("User-agent", 'BRISA SERVER')
+#        r.putheader("User-agent", 'BRISA SERVER')
+        r.putheader("User-agent", 'Sonospy')
         
         t = 'text/xml'
         if encoding:

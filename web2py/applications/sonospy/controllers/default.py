@@ -687,10 +687,16 @@ def getdata():
         entry = rementry.split('::')
         
         id = entry[0]
+        sid = ''
+        if '|||' in id:
+            entries = id.split('|||')
+            id = entries[0]
+            sid = entries[1]
         type = entry[1]
         menu = entry[2]
         text = entry[3]
-        
+        # TODO: fix this properly
+        ctext = text.replace('&amp;colon;', ':')
 #        s_id = entry[4]
 #        s_type = entry[5]
         
@@ -702,7 +708,7 @@ def getdata():
             newbreak = False
         
             # check whether we need to separate
-            thisletter = text[:1].upper()
+            thisletter = ctext[:1].upper()
 
             if thisletter.isalpha():
                 if thisletter != currentletter:
@@ -812,9 +818,9 @@ def getdata():
                 elif ex.startswith('art='):
                     extraart = ex[4:]
             if type == 'C':     # this works at the moment because the only container with extras is album
-                insertalbum(id, text, extracreator, extraart, item)
+                insertalbum(id, ctext, extracreator, extraart, item)
                 
-        out += '<li tree="closed"' + play + search + '><span type="' + type + '"><a id=' + atarget + ' menu="' + menu + '" type="' + type + '">' + icon + text + extras + '</a></span><span id="s' + target + '"></span><span id="' + target + '"></span>' + multipletargets + '</li>'
+        out += '<li tree="closed"' + play + search + '><span type="' + type + '"><a id=' + atarget + ' menu="' + menu + '" type="' + type + '" sid="' + sid + '">' + icon + ctext + extras + '</a></span><span id="s' + target + '"></span><span id="' + target + '"></span>' + multipletargets + '</li>'
 
         foldercount += 1
 
@@ -896,6 +902,7 @@ def calloption():
     print "paramtype: " + str(request.vars.paramtype)
     print "paramtarget: " + str(request.vars.paramtarget)
     print "paramid: " + str(request.vars.paramid)
+    print "paramsid: " + str(request.vars.paramsid)
     print "parammenuoption: " + str(request.vars.parammenuoption)
     print "parammenutype: " + str(request.vars.parammenutype)
  
@@ -903,8 +910,12 @@ def calloption():
     ptype = request.vars.paramtype
     ptarget = request.vars.paramtarget
     pid = request.vars.paramid
+    psid = request.vars.paramsid
     poption = request.vars.parammenuoption
     pmenu = request.vars.parammenutype
+    
+    if psid != '':
+        pid += '|||' + psid
     
     if ptype == "":
         pentry = pid + '::' + pmenu + '::' + ptitle + ":::" + poption

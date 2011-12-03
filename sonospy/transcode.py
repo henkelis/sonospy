@@ -1,11 +1,26 @@
 
 import subprocess
 import os
+import codecs
 from brisa.core import log
 
 transcodetable_extension = {'mp2': 'mp3', 'pc': 'wav'}
 transcodetable_resolution = {'flac': ((48000, 16, 2, 'flac'),(48000, 16, 6, 'flac'))} # tuple = samplerate, bitspersample, channels, fileextension
 
+alsa_device_file = 'alsa.device'
+alsa_device_script = os.path.join(os.getcwd(), 'getalsa.sh')
+alsa_device = ''
+
+def setalsadevice():
+    global alsa_device
+    if not os.access(alsa_device_file, os.R_OK):
+        subprocess.Popen(alsa_device_script).wait()
+    try:
+        f = codecs.open(alsa_device_file, encoding='utf-8')
+        alsa_device = f.readline().strip()
+    except:
+        pass
+        
 def checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec):
 
     transcode = False
@@ -35,8 +50,23 @@ def checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec
             
     return transcode, newtype
 
-      
+streams = ['http://', 'rtsp://']
+
+def checkstream(filename, filetype):
+
+    stream = False
+    newtype = None
+    for s in streams:
+        if filename.startswith(s):
+            stream = True
+            newtype = "%s.%s" % ('stream', filetype.lower())
+
+    return stream, newtype
+
 def transcode(inputfile, transcodetype):
+
+    log.debug(inputfile)
+    log.debug(transcodetype)
 
     devnull = file(os.devnull, 'ab')
 
@@ -58,10 +88,12 @@ def transcode(inputfile, transcodetype):
         return sub.stdout
 
     if transcodetype == 'pc.wav':
-        # parec --device=alsa_output.pci_8086_293e_sound_card_0.monitor --format=s16le --rate=44100 --channels=2 | sox --type raw -s2L --rate 44100 --channels 2 - --type wav -
+        # parec --device=alsa_output.pci-0000_00_1b.0.analog-stereo.monitor --format=s16le --rate=44100 --channels=2 | sox --type raw -s2L --rate 44100 --channels 2 - --type wav -
+        # use '''pactl list | grep -A2 'Source #' | grep 'Name: ' | cut -d" " -f2''' to get device
+        
         p1 = subprocess.Popen([
                 "parec",
-                "--device=alsa_output.pci_8086_293e_sound_card_0.monitor",
+                "--device=%s" % alsa_device,
                 "--format=s16le",
                 "--rate=44100",
                 "--channels=2"],
@@ -80,6 +112,44 @@ def transcode(inputfile, transcodetype):
                 stdout=subprocess.PIPE,
                 stderr=devnull)
         return p2.stdout
+
+    elif transcodetype.startswith('stream.'):
+        # transcode using vlc
+        
+        log.debug(inputfile)
+
+        p1 = subprocess.Popen([
+            "vlc",
+            "--quiet",
+            "--intf=dummy",
+            inputfile,
+            "--sout=file/wav:-"],
+            stdout=subprocess.PIPE,
+            stderr=devnull)
+
+        return p1.stdout
+
+        # temp testing with mplayer follows
+        # (mplayer does not seem to like redirecting to stdout)
+        #mplayer -really-quiet -vc null -vo null -ao pcm:nowaveheader:file=/dev/fd/4 - 4>&1 1>/dev/null | lame] --silent -r -x -q  - -
+        '''
+        p1 = subprocess.Popen([
+                "mplayer",
+                "-really-quiet",
+                "-nolirc",
+                "-dumpaudio",
+                "-dumpfile /dev/stdout"],
+#                "-vo null",
+#                "-msglevel all=-1",
+#                "-ao pcm:fast:file=/dev/stdout",
+#                "-ao pcm:file=/dev/stdout",
+#                inputfile],
+#                bufsize=40000,
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+
+        return p1.stdout
+        '''
 
     transcodefacets = transcodetype.split('.')
 
@@ -112,6 +182,7 @@ def transcode(inputfile, transcodetype):
                 stdout=subprocess.PIPE,
                 stderr=devnull)
 
+    # this one doesn't do anything, left as example
     elif transcodetype == '@@@@@@':
         # transcode using flac/sox/flac pipeline
         # flac <inputfile.flac> -d -c | sox -t wav - -r 48000 -2 -t wav - | flac - 

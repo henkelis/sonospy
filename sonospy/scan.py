@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-# scan
+# scan,py
 #
-# scan copyright (c) 2011 Mark Henkelis
+# scan.py copyright (c) 2011 Mark Henkelis
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ import os, sys
 import optparse
 import subprocess
 import shlex
+import filelog
 
 def process_command_line(argv):
     """
@@ -94,6 +95,8 @@ def main(argv=None):
         print usage
         return 1
     else:
+
+        filelog.clear_log_files()
     
         if os.name == 'nt':
             cmdroot = 'python '
@@ -101,7 +104,7 @@ def main(argv=None):
             cmdroot = ''
 
         # run gettags
-        cmd = cmdroot + "./gettags" + " -d " + options.database
+        cmd = cmdroot + "./gettags.py" + " -d " + options.database
         if options.extract:
             cmd += " -x " + options.extract
         if options.where:
@@ -127,9 +130,9 @@ def main(argv=None):
         else:
             # run movetags
             if options.extract:
-                cmd = cmdroot + "./movetags" + " -s " + options.extract  + " -d " + options.extract
+                cmd = cmdroot + "./movetags.py" + " -s " + options.extract  + " -d " + options.extract
             else:
-                cmd = cmdroot + "./movetags" + " -s " + options.database  + " -d " + options.database
+                cmd = cmdroot + "./movetags.py" + " -s " + options.database  + " -d " + options.database
             if options.the_processing:
                 cmd += " -t " + options.the_processing
             if options.regenerate:

@@ -178,6 +178,7 @@
 <form>
     <input type="hidden" name="paramtitle" id="paramtitle" value="nothing">
     <input type="hidden" name="paramtype" id="paramtype" value="nothing">
+    <input type="hidden" name="paramsid" id="paramsid" value="nothing">
     <input type="hidden" name="paramtarget" id="paramtarget" value="nothing">
     <input type="hidden" name="paramid" id="paramid" value="nothing">
     <input type="hidden" name="parammenuoption" id="parammenuoption" value="nothing">
@@ -767,14 +768,19 @@
         target = atarget.substring(1);
         type = $(etarget).attr('type');
         if (type == null) type = "";
+        sid = $(etarget).attr("sid");
+        if (sid == null) sid = "";
 //        title = $(etarget).text();
-        title = gettitle(etarget);
+//        title = gettitle(etarget);
+        title = gethierarchy($(etarget));
         id = target.substring(6);
         menu = $(etarget).attr('menu');
         paramtitle = document.forms[0].elements["paramtitle"];
         paramtitle.value = title;
         paramtype = document.forms[0].elements["paramtype"];
         paramtype.value = type;
+        paramsid = document.forms[0].elements["paramsid"];
+        paramsid.value = sid;
         paramtarget = document.forms[0].elements["paramtarget"];
         paramtarget.value = target;
         paramid = document.forms[0].elements["paramid"];
@@ -799,7 +805,10 @@
     };
     function processmenu(option, menuObjectTarget) {
         console.log("pm: ", option, menuObjectTarget);
-        data = $(menuObjectTarget).attr('data');
+        if (menuObjectTarget != undefined) {
+            data = $(menuObjectTarget).attr('data');
+        }
+        console.log("data: ", data);
         if (data != undefined) {
             // we have been called from a flow album
             x = document.forms[0].elements["paramx"].value;
@@ -810,10 +819,10 @@
             // normal call from accordion
             parammenuoption = document.forms[0].elements["parammenuoption"];
             parammenuoption.value = option;
-            ajax('{{=URL(r=request, f='calloption')}}', ['paramtitle', 'paramtype', 'paramtarget', 'paramid', 'parammenuoption', 'parammenutype'], ':eval');
+            console.log("pmo: ", parammenuoption);
+            ajax('{{=URL(r=request, f='calloption')}}', ['paramtitle', 'paramtype', 'paramtarget', 'paramid', 'parammenuoption', 'parammenutype', 'paramsid'], ':eval');
         }
     };        
-
 
     function processmenuflow(option, content) {
         data = $(content).attr('data');
@@ -823,7 +832,7 @@
         type = entry[1];
         menu = entry[2];
         title = entry[3];
-        params = ['paramtitle='+title, 'paramtype='+type, 'paramtarget=""', 'paramid='+id, 'parammenuoption='+option, 'parammenutype='+menu];
+        params = ['paramtitle='+title, 'paramtype='+type, 'paramtarget=""', 'paramid='+id, 'parammenuoption='+option, 'parammenutype='+menu, 'paramsid=""'];
         ajax2('{{=URL(r=request, f='calloption')}}', params, ':eval');
     };        
 
@@ -978,12 +987,17 @@
             return false;
         }        
 
-        title = gettitle($target);
+//        title = gettitle($target);
+        title = gethierarchy($target);
 
         menu = aobject.attr("menu");
         if (type == "C") {
             $target.children(".ui-icon-plus:first").addClass('clicker');
             id = target.substring(6);
+
+            sid = aobject.attr("sid");
+            if (sid != "") id = id + "|||" + sid;
+
             /*
             paramtitle = document.forms[0].elements["paramtitle"];
             paramtitle.value = title;
@@ -1051,9 +1065,10 @@
     function gettitle(target) {
         // get title - it can have extras appended to it, so need to remove those
         // TODO: must be a better way to get the title text without the extras
-        fulltitle = $(target).text();
-        extras = $(target).children().text();
-        elen = extras.length;
+        var title = ''
+        var fulltitle = $(target).text();
+        var extras = $(target).children().text();
+        var elen = extras.length;
         if (elen > 0) {
             flen = fulltitle.length;
             title = fulltitle.substring(0, flen - elen);
@@ -1065,11 +1080,28 @@
         return title;
     };
 
+    function gethierarchy(target) {
+        var hierarchy = ''
+        var atarget = target.attr('id')
+        var htitle = ''
+        while (atarget.lastIndexOf("_") != -1) {
+            htitle = gettitle($('#' + atarget));
+            console.log(atarget, htitle);
+            if (hierarchy == '') hierarchy = htitle;
+            else hierarchy = htitle + "|||" + hierarchy;
+            atarget = atarget.substring(0, atarget.lastIndexOf("_"))
+        }
+        console.log(hierarchy);
+        return hierarchy;
+    };
+
     function searchserver(type, searchtarget, searchtitle, searchmenu, searchtype2, searchobject) {
         search_string = searchobject.parent().children("input").val();
         search_operator = searchobject.parent().children("select").val();
         if (search_operator == null) search_operator = "";
         id = searchtarget.substring(6);
+        sid = $('#a'+searchtarget).attr("sid");
+        if (sid != "") id = id + "|||" + sid;
         /*
         paramtitle = document.forms[0].elements["paramtitle"];
         paramtitle.value = searchtitle;
@@ -1095,7 +1127,12 @@
             searchtypes = searchtype2.split('__');
             for (st=0;st<searchtypes.length;st++) {
                 searchkeys = searchtypes[st].split('::');
+                console.log(searchkeys)
                 id = searchkeys[0];
+                console.log(id);
+                sid = $('#atarget'+id).attr("sid");
+                if (sid != "") id = id + "|||" + sid;
+                console.log(id);
                 title = searchkeys[1];
                 target = searchtarget + '__' + (st+1);
                 searchname = $("#"+target).attr("sname");
