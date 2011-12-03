@@ -60,7 +60,7 @@ class Proxy(object):
             port = the port to listen on for proxy control messages
             mediaserver = the mediaserver device being proxied
             controlpoint = the controller device containing a webserver to utilise
-            createwebserver = False
+            createwebserver = True  # TODO: check why this has changed, do we need to set webserver to controlpoint webserver?
             webserverurl = None
         To serve an internal mediaserver, set:
             port = None
@@ -165,12 +165,13 @@ class Proxy(object):
                         error = "Unable to read track table (%s)" % e.args[0]
         if error:
             raise ValueError(error)
-        if self.db_persist_connection:
-            self.db = db
-        else:
-            self.db = None
-            db.close()
-        log.debug(self.db)
+        if self.dbspec != None:
+            if self.db_persist_connection:
+                self.db = db
+            else:
+                self.db = None
+                db.close()
+            log.debug(self.db)
         setalsadevice()
 
     def _add_root_device(self):

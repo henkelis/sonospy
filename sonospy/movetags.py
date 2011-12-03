@@ -442,12 +442,22 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                 if updatetype == 'D' or updatetype == 'U':
                 
+                    # remove redundant separators
+                    o_title = remove_sep(o_title)
+                
                     # separate out multi-entry lists and perform 'the' processing
                     o_genreliststringfull, o_genreliststring, o_genrelist = unwrap_list(o_genreliststring, multi_field_separator, include_genre, 'no')
                     o_artistliststringfull, o_artistliststring, o_artistlist = unwrap_list(o_artistliststring, multi_field_separator, include_artist, the_processing)
                     o_albumartistliststringfull, o_albumartistliststring, o_albumartistlist = unwrap_list(o_albumartistliststring, multi_field_separator, include_albumartist, the_processing)
                     o_composerliststringfull, o_composerliststring, o_composerlist = unwrap_list(o_composerliststring, multi_field_separator, include_composer, the_processing)
                     o_albumliststringfull, o_albumliststring, o_albumlist = unwrap_list(o_albumliststring, multi_field_separator, include_album, 'no')
+
+                    # TODO: allow for multiple sort entries
+#                    o_titlesort
+#                    o_albumsort
+#                    o_artistsort
+#                    o_albumartistsort
+#                    o_composersort
                         
                     # adjust various fields
                     o_tracknumber = adjust_tracknumber(o_tracknumber)
@@ -476,6 +486,9 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                 if updatetype == 'I' or updatetype == 'U':
 
+                    # remove redundant separators
+                    title = remove_sep(title)
+                
                     # separate out multi-entry lists and perform the processing
                     genreliststringfull, genreliststring, genrelist = unwrap_list(genreliststring, multi_field_separator, include_genre, 'no')
                     artistliststringfull, artistliststring, artistlist = unwrap_list(artistliststring, multi_field_separator, include_artist, the_processing)
@@ -501,9 +514,6 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         albumartistliststringfull = artistliststringfull
                         albumartistliststring = artistliststring
                         albumartistlist = artistlist
-
-#                    # create work and virtual entries if they exist
-#                    work_entries, virtual_entries = getworkvirtualentries(commentliststring, tracknumber)
 
                 # process track
 
@@ -1707,12 +1717,35 @@ def split_on_comma(string):
     splitstring = [e for e in splitstring if e != '']
     return splitstring    
 
+def remove_sep(liststring):
+    # remove multiple consecutive separators
+    liststring = re.sub('(%s)+' % MULTI_SEPARATOR, MULTI_SEPARATOR, liststring)
+    if liststring.endswith(MULTI_SEPARATOR): liststring = liststring[:-1]
+    # remove control characters (but not \n)
+    multi = liststring.split(MULTI_SEPARATOR)
+    multi = remove_ctrl(multi)
+    liststring = MULTI_SEPARATOR.join(multi)
+    return liststring
+
+cmap = dict.fromkeys(range(32))
+def remove_ctrl(liststring):
+    # remove control characters - added as one user had garbage in some tags which broke an index
+    liststring2 = []    
+    for entry in liststring:
+        entry = entry.translate(cmap)
+        if entry != '': liststring2.append(entry)
+    return liststring2
+
 def unwrap_list(liststring, multi_field_separator, include, the_processing):
     # passed string can be multiple separator separated entries within multiple separator separated entries
-    # e.g. 'artist1 \n artist2 ; artist3 \n artist4 ; artist5'
+    # e.g. 'artist1 \n artist2 ; artist3 \n artist4 ; artist5' (spaces shown only for clarity)
     #      separate artist tags separated by '\n' (MULTI_SEPARATOR)
     #      separate artists within a tag separated by ';' (multi_field_separator)
-    # first split out separate tags
+
+    # first remove multiple consecutive separators
+    liststring = re.sub('(%s)+' % MULTI_SEPARATOR, MULTI_SEPARATOR, liststring)
+    if liststring.endswith(MULTI_SEPARATOR): liststring = liststring[:-1]
+    # now split out separate tags
     multi = liststring.split(MULTI_SEPARATOR)
     # now split each tag
     if multi_field_separator == '':
@@ -1720,10 +1753,14 @@ def unwrap_list(liststring, multi_field_separator, include, the_processing):
     else:
         multilist = []
         for entry in multi:
-            entrylist = re.split('[%s]' % multi_field_separator, entry)
+            entrylist = re.split('%s' % multi_field_separator, entry)
             entrylist = [e.strip() for e in entrylist]
             entrylist = [e for e in entrylist if e != '']
             multilist.extend(entrylist)
+
+    # remove control characters
+    multilist = remove_ctrl(multilist)            
+            
     # select the entries we want
     if len(multilist) == 0:
         newlist = multilist
@@ -2211,7 +2248,7 @@ def create_database(database):
                                                    lastplayed real, 
                                                    playcount integer)
                       ''')
-            c.execute('''create unique index inxArtistAlbum on ArtistAlbum (album_id, artist, album, duplicate, albumtype)''')
+            c.execute('''create unique index inxArtistAlbum on ArtistAlbum (album_id, artist, album, duplicate, albumtype, artistsort)''')
             c.execute('''create index inxArtistAlbumArtist on ArtistAlbum (artist)''')
             c.execute('''create index inxArtistAlbumArtistsort on ArtistAlbum (artistsort)''')
             c.execute('''create index inxArtistAlbumArtistType on ArtistAlbum (artist, albumtype)''')
@@ -2230,7 +2267,7 @@ def create_database(database):
                                                         lastplayed real, 
                                                         playcount integer)
                       ''')
-            c.execute('''create unique index inxAlbumartistAlbum on AlbumartistAlbum (album_id, albumartist, album, duplicate, albumtype)''')
+            c.execute('''create unique index inxAlbumartistAlbum on AlbumartistAlbum (album_id, albumartist, album, duplicate, albumtype, albumartistsort)''')
             c.execute('''create index inxAlbumartistAlbumAlbumartist on AlbumartistAlbum (albumartist)''')
             c.execute('''create index inxAlbumartistAlbumAlbumartistsort on AlbumartistAlbum (albumartistsort)''')
             c.execute('''create index inxAlbumartistAlbumAlbumartistType on AlbumartistAlbum (albumartist, albumtype)''')
@@ -2249,7 +2286,7 @@ def create_database(database):
                                                      lastplayed real, 
                                                      playcount integer)
                       ''')
-            c.execute('''create unique index inxComposerAlbum on ComposerAlbum (album_id, composer, album, duplicate, albumtype)''')
+            c.execute('''create unique index inxComposerAlbum on ComposerAlbum (album_id, composer, album, duplicate, albumtype, composersort)''')
             c.execute('''create index inxComposerAlbumComposer on ComposerAlbum (composer)''')
             c.execute('''create index inxComposerAlbumComposersort on ComposerAlbum (composersort)''')
             c.execute('''create index inxComposerAlbumComposerType on ComposerAlbum (composer, albumtype)''')
@@ -2269,7 +2306,7 @@ def create_database(database):
                                                         lastplayed real, 
                                                         playcount integer)
                       ''')
-            c.execute('''create unique index inxArtistAlbumsonly on ArtistAlbumsonly (album_id, album, duplicate, albumtype)''')
+            c.execute('''create unique index inxArtistAlbumsonly on ArtistAlbumsonly (album_id, album, duplicate, albumtype, albumsort)''')
             c.execute('''create index inxArtistAlbumsonlyAlbumsort on ArtistAlbumsonly (albumsort)''')
             c.execute('''create index inxArtistAlbumsonlyAlbumType on ArtistAlbumsonly (album, albumtype)''')
             c.execute('''create index inxArtistAlbumsonlyLastplayed on ArtistAlbumsonly (lastplayed)''')
@@ -2287,7 +2324,7 @@ def create_database(database):
                                                              lastplayed real, 
                                                              playcount integer)
                       ''')
-            c.execute('''create unique index inxAlbumartistAlbumsonly on AlbumartistAlbumsonly (album_id, album, duplicate, albumtype)''')
+            c.execute('''create unique index inxAlbumartistAlbumsonly on AlbumartistAlbumsonly (album_id, album, duplicate, albumtype, albumsort)''')
             c.execute('''create index inxAlbumartistAlbumsonlyAlbumsort on AlbumartistAlbumsonly (albumsort)''')
             c.execute('''create index inxAlbumartistAlbumsonlyAlbumType on AlbumartistAlbumsonly (album, albumtype)''')
             c.execute('''create index inxAlbumartistAlbumsonlyLastplayed on AlbumartistAlbumsonly (lastplayed)''')

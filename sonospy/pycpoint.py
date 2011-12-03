@@ -5368,14 +5368,18 @@ Music/Rating                101     object.container
                         name = 'Proxy UPnP ' + friendly
                         proxyuuid = 'uuid:' + str(uuid.uuid4())
                         print "UPnP proxy UUID: " + str(proxyuuid)
-                        proxy = Proxy(name, 'UPnP', '', proxyuuid, self.config, self.proxy_port,
-                                      mediaserver=device_item, controlpoint=self.control_point)
-                        self.proxy_port += 1
-                        proxy.start()
-                        self.proxies.append(proxy)
-                        
-                        # save udn of original server against proxied name
-                        self.rootids[name] = device_item.udn
+                        try:
+                            proxy = Proxy(name, 'UPnP', '', proxyuuid, self.config, self.proxy_port,
+                                          mediaserver=device_item, controlpoint=self.control_point)
+                        except ValueError, e:
+                            print "Proxy. Name: %s error - %s" % (name, e.args[0])
+                        else:
+                            self.proxy_port += 1
+                            proxy.start()
+                            self.proxies.append(proxy)
+                            
+                            # save udn of original server against proxied name
+                            self.rootids[name] = device_item.udn
                         
                 if not self.wmpfound:
                     for wmpstring in self.wmpproxy:
@@ -5392,14 +5396,18 @@ Music/Rating                101     object.container
                             friendly = re.sub(r'[^a-zA-Z0-9_\- ]','', device_item.friendly_name)
                             name = 'Proxy WMP ' + friendly
                             proxyuuid = 'uuid:' + str(uuid.uuid4())
-                            proxy = Proxy(name, 'WMP', wmptrans, proxyuuid, self.config, self.wmp_proxy_port,
-                                      mediaserver=device_item, controlpoint=self.control_point)
-                            proxy.start()
-                            self.proxies.append(proxy)
-                            self.wmpfound = True
+                            try:
+                                proxy = Proxy(name, 'WMP', wmptrans, proxyuuid, self.config, self.wmp_proxy_port,
+                                              mediaserver=device_item, controlpoint=self.control_point, createwebserver=True)
+                            except ValueError, e:
+                                print "Proxy. Name: %s error - %s" % (name, e.args[0])
+                            else:
+                                proxy.start()
+                                self.proxies.append(proxy)
+                                self.wmpfound = True
 
-                            # save udn of original server against proxied name
-                            self.rootids[name] = device_item.udn
+                                # save udn of original server against proxied name
+                                self.rootids[name] = device_item.udn
                         
 
     def on_new_zone_player(self, device_object):
