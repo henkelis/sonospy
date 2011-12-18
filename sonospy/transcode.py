@@ -5,6 +5,7 @@ import codecs
 from brisa.core import log
 
 transcodetable_extension = {'mp2': 'mp3', 'pc': 'wav'}
+smapitranscodetable_extension = {'flac': 'mp3'}
 transcodetable_resolution = {'flac': ((48000, 16, 2, 'flac'),(48000, 16, 6, 'flac'))} # tuple = samplerate, bitspersample, channels, fileextension
 
 alsa_device_file = 'alsa.device'
@@ -50,6 +51,18 @@ def checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec
             
     return transcode, newtype
 
+def checksmapitranscode(filetype, bitrate, samplerate, bitspersample, channels, codec):
+
+    transcode = False
+    newtype = None
+    
+    if filetype.lower() in smapitranscodetable_extension.keys():
+    
+        transcode = True
+        newtype = "%s.%s" % (filetype.lower(), smapitranscodetable_extension[filetype.lower()])
+        
+    return transcode, newtype
+    
 streams = ['http://', 'rtsp://']
 
 def checkstream(filename, filetype):
@@ -87,7 +100,7 @@ def transcode(inputfile, transcodetype):
                 stderr=devnull)
         return sub.stdout
 
-    if transcodetype == 'pc.wav':
+    elif transcodetype == 'pc.wav':
         # parec --device=alsa_output.pci-0000_00_1b.0.analog-stereo.monitor --format=s16le --rate=44100 --channels=2 | sox --type raw -s2L --rate 44100 --channels 2 - --type wav -
         # use '''pactl list | grep -A2 'Source #' | grep 'Name: ' | cut -d" " -f2''' to get device
         
@@ -112,6 +125,40 @@ def transcode(inputfile, transcodetype):
                 stdout=subprocess.PIPE,
                 stderr=devnull)
         return p2.stdout
+
+    elif transcodetype == 'flac.mp3':
+        # transcode using vlc
+        
+        log.debug(inputfile)
+
+        p1 = subprocess.Popen([
+            "vlc",
+            "--quiet",
+            "--intf=dummy",
+            inputfile,
+            "--sout=file/mp3:-"],
+            stdout=subprocess.PIPE,
+            stderr=devnull)
+
+        return p1.stdout
+
+    elif transcodetype == 'flac.wav':
+        # transcode using sox
+        # not currently supported by streaming api
+        
+        log.debug(inputfile)
+
+        p1 = subprocess.Popen([
+                "sox",
+                inputfile,
+                "-s2L",
+                "--rate", "44100",
+                "--channels", "2",
+                "--type", "wav",
+                "-"],
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+        return p1.stdout
 
     elif transcodetype.startswith('stream.'):
         # transcode using vlc

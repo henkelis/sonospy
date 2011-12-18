@@ -22,6 +22,8 @@ import re
 
 from xml.etree import ElementTree
 
+from xml.sax.saxutils import unescape
+
 from brisa.core.network import parse_xml, parse_url
 
 from xml.dom import minidom
@@ -153,7 +155,27 @@ def build_soap_call(method, arguments, encoding=SOAP_ENCODING,
         re.append(arguments)
 
     preamble = """<?xml version="1.0" encoding="utf-8"?>"""
-    return '%s%s' % (preamble, ElementTree.tostring(envelope, 'utf-8'))
+    result = '%s%s' % (preamble, ElementTree.tostring(envelope, 'utf-8'))
+    
+    log.debug(method)
+    
+    if method in ws_methods:
+        log.debug(unescape(result))
+        return unescape(result)
+    log.debug(result)
+    return result
+
+# TEMP - don't escape WS response
+ws_methods = [
+              '{http://www.sonos.com/Services/1.1}getSessionIdResponse',
+              '{http://www.sonos.com/Services/1.1}getStreamingURIResponse',
+              '{http://www.sonos.com/Services/1.1}getMediaURIResponse',
+              '{http://www.sonos.com/Services/1.1}getScrollIndicesResponse',
+              '{http://www.sonos.com/Services/1.1}getLastUpdateResponse',
+              '{http://www.sonos.com/Services/1.1}getMetadataResponse',
+              '{http://www.sonos.com/Services/1.1}getMediaMetadataResponse',
+              '{http://www.sonos.com/Services/1.1}searchResponse',
+             ]
 
 
 def build_soap_call_file(method, arguments, encoding=SOAP_ENCODING,
@@ -395,6 +417,7 @@ def parse_soap_call(data):
     @return: 4-tuple (method_name, args, kwargs, namespace)
     @rtype: tuple
     """
+    log.debug(data)
     tree = parse_xml(data)
     body = tree.find('{http://schemas.xmlsoap.org/soap/envelope/}Body')
     method = body.getchildren()[0]
@@ -431,6 +454,7 @@ def parse_soap_call_file(data):
     @return: 4-tuple (method_name, args, kwargs, namespace)
     @rtype: tuple
     """
+    log.debug(data)
     tree = parse_xml(data)
     body = tree.find('{http://schemas.xmlsoap.org/soap/envelope/}Body')
     method = body.getchildren()[0]
@@ -737,6 +761,8 @@ class HTTPTransport(object):
         r.endheaders()
 
         log.debug('#### HTTP BEFORE r.send ################################')
+
+        log.debug(data)
 
         r.send(data)
 

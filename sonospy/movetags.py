@@ -1282,10 +1282,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             cs2.execute("""select artist from Artist where artist=?""", (artist, ))
                             crow = cs2.fetchone()
                             if not crow:
-                                artists = (artist, '', '')
+                                artists = (None, artist, '', '')
                                 logstring = "INSERT ARTIST: %s" % str(artists)
                                 filelog.write_verbose_log(logstring)
-                                cs2.execute('insert into Artist values (?,?,?)', artists)
+                                cs2.execute('insert into Artist values (?,?,?,?)', artists)
                         except sqlite3.Error, e:
                             errorstring = "Error inserting artist details: %s" % e.args[0]
                             filelog.write_error(errorstring)
@@ -1332,10 +1332,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             cs2.execute("""select albumartist from Albumartist where albumartist=?""", (albumartist, ))
                             crow = cs2.fetchone()
                             if not crow:
-                                albumartists = (albumartist, '', '')
+                                albumartists = (None, albumartist, '', '')
                                 logstring = "INSERT ALBUMARTIST: %s" % str(albumartists)
                                 filelog.write_verbose_log(logstring)
-                                cs2.execute('insert into Albumartist values (?,?,?)', albumartists)
+                                cs2.execute('insert into Albumartist values (?,?,?,?)', albumartists)
                         except sqlite3.Error, e:
                             errorstring = "Error inserting albumartist details: %s" % e.args[0]
                             filelog.write_error(errorstring)
@@ -1382,10 +1382,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             cs2.execute("""select composer from Composer where composer=?""", (composer, ))
                             crow = cs2.fetchone()
                             if not crow:
-                                composers = (composer, '', '')
+                                composers = (None, composer, '', '')
                                 logstring = "INSERT COMPOSER: %s" % str(composers)
                                 filelog.write_verbose_log(logstring)
-                                cs2.execute('insert into Composer values (?,?,?)', composers)
+                                cs2.execute('insert into Composer values (?,?,?,?)', composers)
                         except sqlite3.Error, e:
                             errorstring = "Error inserting composer details: %s" % e.args[0]
                             filelog.write_error(errorstring)
@@ -1438,10 +1438,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                             cs2.execute("""select genre from Genre where genre=?""", (genre, ))
                             crow = cs2.fetchone()
                             if not crow:
-                                genres = (genre, '', '')
+                                genres = (None, genre, '', '')
                                 logstring = "INSERT GENRE: %s" % str(genres)
                                 filelog.write_verbose_log(logstring)
-                                cs2.execute('insert into Genre values (?,?,?)', genres)
+                                cs2.execute('insert into Genre values (?,?,?,?)', genres)
                         except sqlite3.Error, e:
                             errorstring = "Error inserting genre details: %s" % e.args[0]
                             filelog.write_error(errorstring)
@@ -2112,7 +2112,8 @@ def create_database(database):
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="Artist"')
         n, = c.fetchone()
         if n == 0:
-            c.execute('''create table Artist (artist text COLLATE NOCASE,
+            c.execute('''create table Artist (id integer primary key autoincrement,
+                                              artist text COLLATE NOCASE,
                                               lastplayed real,
                                               playcount integer)
                       ''')
@@ -2120,11 +2121,16 @@ def create_database(database):
             c.execute('''create index inxArtistLastplayeds on Artist (lastplayed)''')
             c.execute('''create index inxArtistPlaycounts on Artist (playcount)''')
 
+            # seed autoincrement
+            c.execute('''insert into Artist values (100000000,'','','')''')
+            c.execute('''delete from Artist where id=100000000''')
+
         # albumartists - one entry for each unique albumartist from tracks list
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="Albumartist"')
         n, = c.fetchone()
         if n == 0:
-            c.execute('''create table Albumartist (albumartist text COLLATE NOCASE, 
+            c.execute('''create table Albumartist (id integer primary key autoincrement,
+                                                   albumartist text COLLATE NOCASE, 
                                                    lastplayed real,
                                                    playcount integer)
                       ''')
@@ -2132,11 +2138,16 @@ def create_database(database):
             c.execute('''create index inxAlbumartistLastplayeds on Albumartist (lastplayed)''')
             c.execute('''create index inxAlbumartistPlaycounts on Albumartist (playcount)''')
 
+            # seed autoincrement
+            c.execute('''insert into Albumartist values (200000000,'','','')''')
+            c.execute('''delete from Albumartist where id=200000000''')
+
         # composers - one entry for each unique composer from tracks list
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="Composer"')
         n, = c.fetchone()
         if n == 0:
-            c.execute('''create table Composer (composer text COLLATE NOCASE,
+            c.execute('''create table Composer (id integer primary key autoincrement,
+                                                composer text COLLATE NOCASE,
                                                 lastplayed real,
                                                 playcount integer)
                       ''')
@@ -2144,11 +2155,16 @@ def create_database(database):
             c.execute('''create index inxComposerLastplayeds on Composer (lastplayed)''')
             c.execute('''create index inxComposerPlaycounts on Composer (playcount)''')
 
+            # seed autoincrement
+            c.execute('''insert into Composer values (400000000,'','','')''')
+            c.execute('''delete from Composer where id=400000000''')
+
         # genres - one entry for each unique genre from tracks list
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="Genre"')
         n, = c.fetchone()
         if n == 0:
-            c.execute('''create table Genre (genre text COLLATE NOCASE,
+            c.execute('''create table Genre (id integer primary key autoincrement,
+                                             genre text COLLATE NOCASE,
                                              lastplayed real,
                                              playcount integer)
                       ''')
@@ -2156,6 +2172,10 @@ def create_database(database):
             c.execute('''create index inxGenreLastplayeds on Genre (lastplayed)''')
             c.execute('''create index inxGenrePlaycounts on Genre (playcount)''')
             
+            # seed autoincrement
+            c.execute('''insert into Genre values (500000000,'','','')''')
+            c.execute('''delete from Genre where id=500000000''')
+
         # playlists
 #        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="playlists"')
 #        n, = c.fetchone()
@@ -2209,7 +2229,7 @@ def create_database(database):
                                                         lastplayed real, 
                                                         playcount integer)
                       ''')
-            c.execute('''create unique index inxGenreArtistAlbum on GenreArtistAlbum (album_id, genre, artist, album, duplicate, albumtype)''')
+            c.execute('''create unique index inxGenreArtistAlbum on GenreArtistAlbum (album_id, genre, artist, album, duplicate, albumtype, artistsort)''')
             c.execute('''create index inxGenreArtistAlbumGenreArtist on GenreArtistAlbum (genre, artist, album, albumtype)''')
             c.execute('''create index inxGenreArtistAlbumArtist on GenreArtistAlbum (artist)''')
             c.execute('''create index inxGenreArtistAlbumArtistsort on GenreArtistAlbum (artistsort)''')
@@ -2229,7 +2249,7 @@ def create_database(database):
                                                              lastplayed real, 
                                                              playcount integer)
                       ''')
-            c.execute('''create unique index inxGenreAlbumartistAlbum on GenreAlbumartistAlbum (album_id, genre, albumartist, album, duplicate, albumtype)''')
+            c.execute('''create unique index inxGenreAlbumartistAlbum on GenreAlbumartistAlbum (album_id, genre, albumartist, album, duplicate, albumtype, albumartistsort)''')
             c.execute('''create index inxGenreAlbumartistAlbumGenreAlbumartist on GenreAlbumartistAlbum (genre, albumartist, album, albumtype)''')
             c.execute('''create index inxGenreAlbumartistAlbumAlbumartist on GenreAlbumartistAlbum (albumartist)''')
             c.execute('''create index inxGenreAlbumartistAlbumAlbumartistsort on GenreAlbumartistAlbum (albumartistsort)''')

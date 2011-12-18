@@ -497,6 +497,7 @@ Music/Rating                101     object.container
     parser.add_option("-p", "--proxyonly", action="store_true", dest="proxyonly")
     parser.add_option("-u", "--upnpproxy", action="append", type="string", dest="upnpproxies")
     parser.add_option("-w", "--wmpproxy", action="append", type="string", dest="wmpproxies")
+    parser.add_option("-s", "--service", action="store_true", dest="musicservice")
 
     (options, args) = parser.parse_args()
 
@@ -522,6 +523,8 @@ Music/Rating                101     object.container
         for w in options.wmpproxies:
             print "    WMP proxy: " + str(w)
             wmpproxy.append(w)
+    if options.musicservice:
+        print "option.musicservice: " + str(options.musicservice)
 
     __enable_webserver_logging__ = True
     __enable_events_logging__ = True
@@ -579,6 +582,7 @@ Music/Rating                101     object.container
     # get ports to use
     ws_port = 50101
     proxy_port = 50102
+    smapi_port = 50104
     wmp_proxy_port = 10243
     wmp_internal_port = 10244
     internal_proxy_udn = None
@@ -588,6 +592,10 @@ Music/Rating                101     object.container
         pass
     try:        
         proxy_port = int(config.get('INI', 'proxy_port'))
+    except ConfigParser.NoOptionError:
+        pass
+    try:        
+        smapi_port = int(config.get('INI', 'smapi_port'))
     except ConfigParser.NoOptionError:
         pass
     try:        
@@ -619,7 +627,6 @@ Music/Rating                101     object.container
     #        self.control_point.subscribe('device_event', self.on_device_event)
             self.control_point.subscribe('device_event_seq', self.on_device_event_seq)
             self.control_point.start()
-
 
         # proxy internally if it has been requested
         internal_count = 0
@@ -666,18 +673,25 @@ Music/Rating                101     object.container
                     startwmp = True
                     wmpcontroller = None
                     wmpcontroller2 = None
+                    smapi = False
+                    if self.options.musicservice:
+                        smapi = True
                 else:
                     startwmp = False
                 print "Proxy. Name: %s" % name
                 try:
                     proxy = Proxy(name, 'WMP', wmptrans, proxyuuid, self.config, None,
-                                  createwebserver=True, webserverurl=listen_url, wmpurl=serve_url, startwmp=startwmp, dbname=dbname, wmpudn=self.internal_proxy_udn, wmpcontroller=wmpcontroller, wmpcontroller2=wmpcontroller2)
+                                  createwebserver=True, webserverurl=listen_url, wmpurl=serve_url, 
+                                  startwmp=startwmp, dbname=dbname, wmpudn=self.internal_proxy_udn, 
+                                  wmpcontroller=wmpcontroller, wmpcontroller2=wmpcontroller2,
+                                  smapi=smapi)
                 except ValueError, e:
                     print "Proxy. Name: %s error - %s" % (name, e.args[0])
                 else:
                     proxy.start()
                     wmpcontroller = proxy.wmpcontroller                              
                     wmpcontroller2 = proxy.wmpcontroller2                              
+                    smapi = False
                     '''                
                     if internal_count == 0:
 
@@ -693,10 +707,6 @@ Music/Rating                101     object.container
                     self.sonospyproxies[proxyuuid[5:]] = name
                     self.wmpfound = True
                     internal_count += 1
-
-
-
-
 
         #######################################################################
         # webserver resources to serve data
