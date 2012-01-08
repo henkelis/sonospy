@@ -126,7 +126,7 @@ def transcode(inputfile, transcodetype):
                 stderr=devnull)
         return p2.stdout
 
-    elif transcodetype == 'flac.mp3':
+    elif transcodetype == 'flac.mp3.old':
         # transcode using vlc
         
         log.debug(inputfile)
@@ -142,6 +142,34 @@ def transcode(inputfile, transcodetype):
 
         return p1.stdout
 
+    elif transcodetype == 'flac.mp3':
+        # transcode using flac/lame
+        # flac <inputfile.flac> -d -c | lame -s 48 -V0 --vbr-new -h -Y -m j - -
+        
+        p1 = subprocess.Popen([
+                "flac",
+                inputfile,
+                "-d",
+                "-c"],
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+
+        p2 = subprocess.Popen([
+                "lame",
+                "-s", "48",
+                "-V", "0",
+                "--vbr-new", 
+                "-h",
+                "-Y",
+                "-m", "j",
+                "-",
+                "-"],
+                stdin=p1.stdout,
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+
+        return p2.stdout
+        
     elif transcodetype == 'flac.wav':
         # transcode using sox
         # not currently supported by streaming api

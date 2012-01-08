@@ -49,6 +49,16 @@
             <name>getScrollIndices</name>
             <argumentList>
                 <argument>
+                    <name>Controller</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>controller</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>Address</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>address</relatedStateVariable>
+                </argument>
+                <argument>
                     <name>{http://www.sonos.com/Services/1.1}id</name>
                     <direction>in</direction>
                     <relatedStateVariable>id</relatedStateVariable>
@@ -63,6 +73,16 @@
         <action>
             <name>getMediaURI</name>
             <argumentList>
+                <argument>
+                    <name>Controller</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>controller</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>Address</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>address</relatedStateVariable>
+                </argument>
                 <argument>
                     <name>{http://www.sonos.com/Services/1.1}id</name>
                     <direction>in</direction>
@@ -98,6 +118,16 @@
         <action>
             <name>getMetadata</name>
             <argumentList>
+                <argument>
+                    <name>Controller</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>controller</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>Address</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>address</relatedStateVariable>
+                </argument>
                 <argument>
                     <name>{http://www.sonos.com/Services/1.1}id</name>
                     <direction>in</direction>
@@ -149,6 +179,16 @@
             <name>getMediaMetadata</name>
             <argumentList>
                 <argument>
+                    <name>Controller</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>controller</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>Address</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>address</relatedStateVariable>
+                </argument>
+                <argument>
                     <name>{http://www.sonos.com/Services/1.1}id</name>
                     <direction>in</direction>
                     <relatedStateVariable>id</relatedStateVariable>
@@ -163,6 +203,16 @@
         <action>
             <name>search</name>
             <argumentList>
+                <argument>
+                    <name>Controller</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>controller</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>Address</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>address</relatedStateVariable>
+                </argument>
                 <argument>
                     <name>{http://www.sonos.com/Services/1.1}id</name>
                     <direction>in</direction>
@@ -187,6 +237,26 @@
                     <name>{http://www.sonos.com/Services/1.1}searchResult</name>
                     <direction>out</direction>
                     <relatedStateVariable>searchresult</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>reloadIni</name>
+            <argumentList>
+                <argument>
+                    <name>reloadIniResult</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>reloadiniresult</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>invalidateCD</name>
+            <argumentList>
+                <argument>
+                    <name>invalidateCDResult</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>invalidatecdresult</relatedStateVariable>
                 </argument>
             </argumentList>
         </action>
@@ -230,6 +300,14 @@
         </stateVariable>
         <stateVariable sendEvents="no">
             <name>id</name>
+            <dataType>string</dataType>
+        </stateVariable>
+        <stateVariable sendEvents="no">
+            <name>controller</name>
+            <dataType>string</dataType>
+        </stateVariable>
+        <stateVariable sendEvents="no">
+            <name>address</name>
             <dataType>string</dataType>
         </stateVariable>
         <stateVariable sendEvents="no">
@@ -278,6 +356,14 @@
         </stateVariable>
         <stateVariable sendEvents="no">
             <name>getmediauriresult</name>
+            <dataType>string</dataType>
+        </stateVariable>
+        <stateVariable sendEvents="no">
+            <name>reloadiniresult</name>
+            <dataType>string</dataType>
+        </stateVariable>
+        <stateVariable sendEvents="no">
+            <name>invalidatecdresult</name>
             <dataType>string</dataType>
         </stateVariable>
         <stateVariable sendEvents="yes"><name>ContainerUpdateIDs</name><dataType>ui4</dataType></stateVariable>

@@ -123,10 +123,14 @@ class ServiceController(webserver.CustomResource):
         
         newkwargs = kwargs.copy()
 
+        log.debug(method_name)
+        log.debug(function)
+        log.debug(request.env)
+
         # for requests from our webserver to our proxy, we can pass extra args across
         if 'SERVER_SOFTWARE' in request.env and request.env['SERVER_SOFTWARE'].startswith('Sonospy'):
         
-            if method_name == 'Search' or method_name == 'Browse':
+            if method_name in ['Browse', 'getMediaMetadata', 'getMediaURI', 'getMetadata', 'getScrollIndices', 'search', 'Search']:
         
                 useragent = request.env.get('HTTP_USER_AGENT', '')
                 agentlast = useragent.split('(')[-1]

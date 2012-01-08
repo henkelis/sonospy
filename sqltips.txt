@@ -1,0 +1,52 @@
+Control of displaying duplicates:
+
+    ini entry:
+
+        show_duplicates
+        
+    literals:
+    
+        for tracks (album/work/virtual):
+        
+                if self.show_duplicates:
+                    where = ""
+                else:
+                    where = "where duplicate = 0"
+
+        for albums:
+        
+            if self.show_duplicates:
+                self.album_distinct_duplicate = ' || aa.duplicate'
+                self.album_groupby_duplicate = ', aa.duplicate'
+                self.album_where_duplicate = ''
+                self.album_and_duplicate = ''
+            else:
+                self.album_distinct_duplicate = ''
+                self.album_groupby_duplicate = ''
+                self.album_where_duplicate = ' where aa.duplicate = 0'
+                self.album_and_duplicate = ' and aa.duplicate = 0'
+                
+Separate albums:
+
+    ini entry:
+
+        show_separate_albums
+        
+    literals:
+    
+        for albums:
+
+            # album ID can be in one of two ranges, showing whether it is in the albums or albumsonly table
+            if objectIDval >= self.album_parentid + self.half_id_start:
+                statement = "select albumlist, artistlist, albumartistlist, duplicate, albumtype, separated from albumsonly where id = '%s'" % (objectID)
+            else:
+                statement = "select albumlist, artistlist, albumartistlist, duplicate, albumtype, 0 from albums where id = '%s'" % (objectID)
+            log.debug("statement: %s", statement)
+            c.execute(statement)
+            albumlist, artistlist, albumartistlist, album_duplicate, album_type, separated = c.fetchone()
+
+            separate_albums = ''
+            if self.show_separate_albums: separate_albums = '||albumartist'
+            countstatement = "select count(distinct %s%s) from AlbumartistAlbumsonly aa %s" % (album_distinct, separate_albums, albumwhere)
+
+        

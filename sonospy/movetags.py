@@ -264,7 +264,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
     # process outstanding scans
     scan_count = 0
-    last_scan_stamp = 0.0
+    last_scan_stamp = 0
     for scan_row in scan_details:
 
         scan_id, scan_path = scan_row
@@ -424,10 +424,20 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                     print repr(row1)
                     continue
 
+                # integerise dates (= second accuracy)
+                o_created = makeint(o_created)
+                o_lastmodified = makeint(o_lastmodified)
+                o_inserted = makeint(o_inserted)
+                o_lastscanned = makeint(o_lastscanned)
+                created = makeint(created)
+                lastmodified = makeint(lastmodified)
+                inserted = makeint(inserted)
+                lastscanned = makeint(lastscanned)
+
                 # save latest scan time
                 this_scan_stamp = lastscanned
-                if float(this_scan_stamp) > last_scan_stamp:
-                    last_scan_stamp = float(this_scan_stamp)
+                if this_scan_stamp > last_scan_stamp:
+                    last_scan_stamp = this_scan_stamp
 
                 # update type shows how to process
                 # if 'I' is a new file
@@ -1703,6 +1713,13 @@ def process_tags(args, options, tagdatabase, trackdatabase):
     logstring = "finished"
     filelog.write_verbose_log(logstring)
 
+def makeint(number):
+    try:
+        i = int(float(number))
+    except Exception, e:
+        i = 0
+    return i
+
 def tracknumbers_cmp(a, b):
     if a == 'n' and b == 'n': return 0
     elif a == 'n': return 1
@@ -1958,8 +1975,8 @@ def create_database(database):
         n, = c.fetchone()
         if n == 0:
             c.execute('''create table params (key text,
-                                              lastmodified real, 
-                                              lastscanstamp real, 
+                                              lastmodified integer, 
+                                              lastscanstamp integer, 
                                               lastscanid integer, 
                                               use_albumartist text,
                                               show_duplicates text,
@@ -1988,7 +2005,7 @@ def create_database(database):
                                               codec text,
                                               length integer, 
                                               size integer,
-                                              created real, 
+                                              created integer, 
                                               path text, 
                                               filename text,
                                               discnumber integer, 
@@ -2000,13 +2017,13 @@ def create_database(database):
                                               bitspersample integer,
                                               channels integer, 
                                               mime text,
-                                              lastmodified real, 
+                                              lastmodified integer, 
                                               folderartid integer,
                                               trackartid integer,
-                                              inserted real,
-                                              lastplayed real,
+                                              inserted integer,
+                                              lastplayed integer,
                                               playcount integer,
-                                              lastscanned real,
+                                              lastscanned integer,
                                               titlesort text COLLATE NOCASE,
                                               albumsort text COLLATE NOCASE)
                       ''')
@@ -2044,13 +2061,13 @@ def create_database(database):
                                               duplicate integer,
                                               cover text,
                                               artid integer,
-                                              inserted real,
+                                              inserted integer,
                                               composerlist text COLLATE NOCASE,
                                               tracknumbers text,
-                                              created real,
-                                              lastmodified real,
+                                              created integer,
+                                              lastmodified integer,
                                               albumtype integer, 
-                                              lastplayed real,
+                                              lastplayed integer,
                                               playcount integer,
                                               albumsort text COLLATE NOCASE)
                       ''')
@@ -2087,13 +2104,13 @@ def create_database(database):
                                                   duplicate integer,
                                                   cover text,
                                                   artid integer,
-                                                  inserted real,
+                                                  inserted integer,
                                                   composerlist text COLLATE NOCASE,
                                                   tracknumbers text,
-                                                  created real,
-                                                  lastmodified real,
+                                                  created integer,
+                                                  lastmodified integer,
                                                   albumtype integer, 
-                                                  lastplayed real,
+                                                  lastplayed integer,
                                                   playcount integer,
                                                   albumsort text COLLATE NOCASE,
                                                   separated integer)
@@ -2114,7 +2131,7 @@ def create_database(database):
         if n == 0:
             c.execute('''create table Artist (id integer primary key autoincrement,
                                               artist text COLLATE NOCASE,
-                                              lastplayed real,
+                                              lastplayed integer,
                                               playcount integer)
                       ''')
             c.execute('''create unique index inxArtists on Artist (artist)''')
@@ -2131,7 +2148,7 @@ def create_database(database):
         if n == 0:
             c.execute('''create table Albumartist (id integer primary key autoincrement,
                                                    albumartist text COLLATE NOCASE, 
-                                                   lastplayed real,
+                                                   lastplayed integer,
                                                    playcount integer)
                       ''')
             c.execute('''create unique index inxAlbumartists on Albumartist (albumartist)''')
@@ -2148,7 +2165,7 @@ def create_database(database):
         if n == 0:
             c.execute('''create table Composer (id integer primary key autoincrement,
                                                 composer text COLLATE NOCASE,
-                                                lastplayed real,
+                                                lastplayed integer,
                                                 playcount integer)
                       ''')
             c.execute('''create unique index inxComposers on Composer (composer)''')
@@ -2165,7 +2182,7 @@ def create_database(database):
         if n == 0:
             c.execute('''create table Genre (id integer primary key autoincrement,
                                              genre text COLLATE NOCASE,
-                                             lastplayed real,
+                                             lastplayed integer,
                                              playcount integer)
                       ''')
             c.execute('''create unique index inxGenres on Genre (genre)''')
@@ -2196,7 +2213,7 @@ def create_database(database):
         if n == 0:
             c.execute('''create table GenreArtist (genre text COLLATE NOCASE,
                                                    artist text COLLATE NOCASE, 
-                                                   lastplayed real, 
+                                                   lastplayed integer, 
                                                    playcount integer)
                       ''')
             c.execute('''create unique index inxGenreArtist on GenreArtist (genre, artist)''')
@@ -2208,7 +2225,7 @@ def create_database(database):
         if n == 0:
             c.execute('''create table GenreAlbumartist (genre text COLLATE NOCASE, 
                                                         albumartist text COLLATE NOCASE, 
-                                                        lastplayed real, 
+                                                        lastplayed integer, 
                                                         playcount integer)
                       ''')
             c.execute('''create unique index inxGenreAlbumartist on GenreAlbumartist (genre, albumartist)''')
@@ -2226,7 +2243,7 @@ def create_database(database):
                                                         duplicate integer, 
                                                         albumtype integer,
                                                         artistsort text COLLATE NOCASE, 
-                                                        lastplayed real, 
+                                                        lastplayed integer, 
                                                         playcount integer)
                       ''')
             c.execute('''create unique index inxGenreArtistAlbum on GenreArtistAlbum (album_id, genre, artist, album, duplicate, albumtype, artistsort)''')
@@ -2246,7 +2263,7 @@ def create_database(database):
                                                              duplicate integer, 
                                                              albumtype integer,
                                                              albumartistsort text COLLATE NOCASE, 
-                                                             lastplayed real, 
+                                                             lastplayed integer, 
                                                              playcount integer)
                       ''')
             c.execute('''create unique index inxGenreAlbumartistAlbum on GenreAlbumartistAlbum (album_id, genre, albumartist, album, duplicate, albumtype, albumartistsort)''')
@@ -2265,7 +2282,7 @@ def create_database(database):
                                                    duplicate integer, 
                                                    albumtype integer,
                                                    artistsort text COLLATE NOCASE, 
-                                                   lastplayed real, 
+                                                   lastplayed integer, 
                                                    playcount integer)
                       ''')
             c.execute('''create unique index inxArtistAlbum on ArtistAlbum (album_id, artist, album, duplicate, albumtype, artistsort)''')
@@ -2284,7 +2301,7 @@ def create_database(database):
                                                         duplicate integer, 
                                                         albumtype integer,
                                                         albumartistsort text COLLATE NOCASE, 
-                                                        lastplayed real, 
+                                                        lastplayed integer, 
                                                         playcount integer)
                       ''')
             c.execute('''create unique index inxAlbumartistAlbum on AlbumartistAlbum (album_id, albumartist, album, duplicate, albumtype, albumartistsort)''')
@@ -2303,7 +2320,7 @@ def create_database(database):
                                                      duplicate integer, 
                                                      albumtype integer,
                                                      composersort text COLLATE NOCASE, 
-                                                     lastplayed real, 
+                                                     lastplayed integer, 
                                                      playcount integer)
                       ''')
             c.execute('''create unique index inxComposerAlbum on ComposerAlbum (album_id, composer, album, duplicate, albumtype, composersort)''')
@@ -2323,7 +2340,7 @@ def create_database(database):
                                                         duplicate integer, 
                                                         albumtype integer,
                                                         albumsort text COLLATE NOCASE, 
-                                                        lastplayed real, 
+                                                        lastplayed integer, 
                                                         playcount integer)
                       ''')
             c.execute('''create unique index inxArtistAlbumsonly on ArtistAlbumsonly (album_id, album, duplicate, albumtype, albumsort)''')
@@ -2341,7 +2358,7 @@ def create_database(database):
                                                              duplicate integer, 
                                                              albumtype integer,
                                                              albumsort text COLLATE NOCASE, 
-                                                             lastplayed real, 
+                                                             lastplayed integer, 
                                                              playcount integer)
                       ''')
             c.execute('''create unique index inxAlbumartistAlbumsonly on AlbumartistAlbumsonly (album_id, album, duplicate, albumtype, albumsort)''')

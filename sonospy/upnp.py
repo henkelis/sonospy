@@ -39,9 +39,9 @@ def get_active_ifaces():
         return [v[0] for v in net if v[1] == '00000000']    
 
 active_ifaces = get_active_ifaces()
-print active_ifaces
+print "Active interfaces: %s" % active_ifaces
 ip_address = get_ip_address(active_ifaces[0])
-print ip_address
+print "IP address: %s" % ip_address
 
 def main():
 
@@ -52,10 +52,14 @@ def main():
     
     parser.add_option("-i", "--invalidate", action="store_true", dest="invalidate", default=False)
 
+    parser.add_option("-p", "--proxy", action="store_true", dest="proxy", default=False)
+
+    parser.add_option("-s", "--smapi", action="store_true", dest="smapi", default=False)
+
     (options, args) = parser.parse_args()
 
-    print options
-    print args
+    print "Options: %s" % options
+    print "Args: %s" % args
 
     if options.debug:
         modcheck['all'] = True
@@ -92,11 +96,11 @@ def main():
 
     proxies = getrunningproxies()
     if not proxies:
-        print "pycpoint is not running"
+        print "\npycpoint is not running"
         exit(1)
-    print proxies
+    print "Proxies: %s" % proxies
     addresses = getproxyaddresses(proxies, wmp_internal_port)
-    print addresses
+    print "Available addresses: %s" % addresses
 
     if args:
         newaddresses = []
@@ -104,18 +108,39 @@ def main():
             if proxy in args:
                 newaddresses.append((proxy, port, udn))
         addresses = newaddresses
-        print addresses
+        print "Selected addresses: %s" % addresses
 
     invalidate = '%i' % options.invalidate
 
-    for (proxy, port, udn) in addresses:
-        hostName = "%s:%s" % (ip_address, port)
-        soapret = sendSOAP(hostName,
+    if not (options.proxy or options.smapi):
+        print "\nnothing to do"
+
+    if options.proxy:
+        for (proxy, port, udn) in addresses:
+            hostName = "%s:%s" % (ip_address, port)
+            soapret = sendSOAP(hostName,
                                'urn:schemas-upnp-org:service:ContentDirectory:1',
                                '/ContentDirectory/control',
                                'ReloadIni',
                                {'Invalidate': invalidate})
-        print soapret
+            print soapret
+
+    if options.smapi:
+        for (proxy, port, udn) in addresses:
+            hostName = "%s:%s" % (ip_address, port)
+            soapret = sendSOAP(hostName,
+                               'http://www.sonos.com/Services/1.1',
+                               '/smapi/control',
+                               'reloadIni',
+                               {})
+            print soapret
+            if options.invalidate:
+                soapret = sendSOAP(hostName,
+                                   'http://www.sonos.com/Services/1.1',
+                                   '/smapi/control',
+                                   'invalidateCD',
+                                   {})
+                print soapret
 
     
 def getrunningproxies():
