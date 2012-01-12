@@ -28,6 +28,7 @@ import ConfigParser
 import sqlite3
 import codecs
 import operator
+import datetime
 
 from transcode import checktranscode, checksmapitranscode, checkstream, setalsadevice
 
@@ -49,6 +50,7 @@ from brisa.core.network import parse_url, get_ip_address, parse_xml
 from brisa.utils.looping_call import LoopingCall
 
 from dateutil.parser import parse as parsedate
+from dateutil.relativedelta import relativedelta as datedelta
 
 enc = sys.getfilesystemencoding()
 
@@ -184,7 +186,8 @@ class Proxy(object):
                 self.db = None
                 db.close()
             log.debug(self.db)
-        setalsadevice()
+        if os.name != 'nt':
+            setalsadevice()
 
     def _add_root_device(self):
         """ Creates the root device object which will represent the device
@@ -1010,6 +1013,8 @@ class Smapi(Service):
 #    service_type = 'urn:schemas-upnp-org:service:smapi:1'
     scpd_xml_path = os.path.join(os.getcwd(), 'smapi-scpd.xml')
 
+    noitemsfound = 'No items found'
+    
     id_length = 100000000
     id_range = 99999999
     half_id_start = 50000000
@@ -1141,7 +1146,13 @@ class Smapi(Service):
             self.hierarchytype[entry] = static
             self.rootitems += [(str(self.containerstart[entry]), entrystring)]
 
-        self.searchitems = self.rootitems
+        # create search entries for all except user defined root entries
+        self.searchitems = []
+        for (rootstart, rootname) in self.rootitems:
+            firstindex = self.hierarchy_lookup[rootname][0]
+            if firstindex not in self.user_index_entries.keys():
+                self.searchitems += [(rootstart, rootname)]
+                
         self.containername = {}
         for k,v in self.containerstart.iteritems():
             self.containername[v] = k
@@ -1584,14 +1595,23 @@ What do we do if a result is not in alpha order?
 
         ret = ''
         count = 0
+
+        canenumerate = True
+        canplay = True
+        if total == 1 and items[0][1] == self.noitemsfound:
+            # empty index
+            canplay = False
+        
         for (id, title) in items:
             count += 1
             ret += '<ns0:mediaCollection>'
             ret += '<ns0:id>%s</ns0:id>' % (id)
             ret += '<ns0:title>%s</ns0:title>' % (title)
             ret += '<ns0:itemType>container</ns0:itemType>'
-            ret += '<ns0:canPlay>1</ns0:canPlay>'
+            ret += '<ns0:canPlay>%i</ns0:canPlay>' % (canplay)
             ret += '<ns0:canScroll>%i</ns0:canScroll>' % (canscroll)
+            if not canenumerate:
+                ret += '<ns0:canEnumerate>%i</ns0:canEnumerate>' % (canenumerate)
             ret += '</ns0:mediaCollection>'
 
         pre  = '<ns0:index>%s</ns0:index>' % (index)
@@ -1887,6 +1907,7 @@ What do we do if a result is not in alpha order?
                 
                     # set the suffix for the next index entry
                     indexsuffix = idval - containerstart
+                    title = field
 
                 else:            
 
@@ -1909,10 +1930,11 @@ What do we do if a result is not in alpha order?
             field = entry.split('_')[0]
             
             if searchcontainer:
+                # search is always at root level, so where will only contain search details
                 if field.lower() == 'year':
                     startyear, endyear = self.get_year_ordinal_range(searchstring)
                     where = 'where %s between %s and %s' % (field, startyear, endyear)
-                elif field.lower() in ['inserted', 'created', 'lastmodified']:
+                elif field.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
                     startyear, endyear = self.get_date_epoch_range(searchstring)
                     where = 'where %s between %s and %s' % (field, startyear, endyear)
                 else:
@@ -1924,8 +1946,10 @@ What do we do if a result is not in alpha order?
             # get sort data
             sorttype = '%s_%s%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1], indexsuffix)
             
-            sortorder, entryprefix, entrysuffix, albumtype, sectionalbumtypedummy, sectionalbumnamedummy = self.get_orderby(sorttype, controllername)
+            rangefield, indexrange, sortorder, entryprefix, entrysuffix, albumtype, sectionalbumtypedummy, sectionalbumnamedummy = self.get_orderby(sorttype, controllername)
             
+            log.debug(rangefield)
+            log.debug(indexrange)
             log.debug(sorttype)
             log.debug(sortorder)
             log.debug(entryprefix)
@@ -1963,6 +1987,87 @@ What do we do if a result is not in alpha order?
                     rowid += 1
 
             else:
+
+                rangestart, rangeend, units = indexrange
+                log.debug('rangestart: %s' % rangestart)
+                log.debug('rangeend: %s' % rangeend)
+                log.debug('units: %s' % units)
+                if rangestart != '' or rangeend != '':
+
+                    # have been passed a range for the index
+                    # we need to convert that to a where clause
+                    # and add it to the start of any existing where clause
+                    
+                    if units == '':
+                        # have start and end of range
+                        pass
+                    elif units in ['days', 'weeks', 'months', 'years']:
+                        # have a date
+                        if rangestart == 'last':
+                            rangelength = int(rangeend) * (-1)
+                            log.debug(rangelength)
+                            rangeenddate = datetime.datetime.now()
+                            log.debug(rangeenddate)
+                            if units == 'days':
+                                rangestartdate = rangeenddate+datedelta(days=rangelength)
+                                log.debug(rangestartdate)
+                            elif units == 'weeks':
+                                rangestartdate = rangeenddate+datedelta(weeks=rangelength)
+                            elif units == 'months':
+                                rangestartdate = rangeenddate+datedelta(months=rangelength)
+                            elif units == 'years':
+                                rangestartdate = rangeenddate+datedelta(years=rangelength)
+                        elif rangestart == 'first':
+                            # don't know first date, will have to find it with query - for now use epoch and today
+                            rangestartdate = time.gmtime(0)
+                            rangeenddate = datetime.datetime.now()
+                        else:
+                            # must be a range of dates from last (so we need to swap them round
+                            # so that they are chronological)
+                            rangestart = int(rangestart) * (-1)
+                            rangeend = int(rangeend) * (-1)
+                            now = datetime.datetime.now()
+                            if units == 'days':
+                                rangestartdate = now+datedelta(days=rangeend)
+                                rangeenddate = now+datedelta(days=rangestart)
+                            elif units == 'weeks':
+                                rangestartdate = now+datedelta(weeks=rangeend)
+                                rangeenddate = now+datedelta(weeks=rangestart)
+                            elif units == 'months':
+                                rangestartdate = now+datedelta(months=rangeend)
+                                rangeenddate = now+datedelta(months=rangestart)
+                            elif units == 'years':
+                                rangestartdate = now+datedelta(years=rangeend)
+                                rangeenddate = now+datedelta(years=rangestart)
+                        log.debug('rangestartdate: %s' % rangestartdate)
+                        log.debug('rangeenddate: %s' % rangeenddate)
+                         
+                    # now convert the input so the database understands it
+
+                    if rangefield == '': rangefield = field
+
+                    if rangefield.lower() == 'year':
+                        rangestartyear, dummy = self.get_year_ordinal_range(rangestart)
+                        dummy, rangeendyear = self.get_year_ordinal_range(rangeend)
+                        rangewhere = '%s between %s and %s' % (rangefield, rangestartyear, rangeendyear)
+                    elif rangefield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
+                        rangestartyear = int(time.mktime(rangestartdate.timetuple()))
+                        rangeendyear = int(time.mktime(rangeenddate.timetuple()))
+                        rangewhere = '%s between %s and %s' % (rangefield, rangestartyear, rangeendyear)
+                    else:
+                        rangestartstring = self.translate_dynamic_field(field, rangestart, 'in')
+                        rangeendstring = self.translate_dynamic_field(field, rangeend, 'in')
+                        rangewhere = '%s between "%s" and "%s"' % (rangefield, rangestartstring, rangeendstring)
+
+                    log.debug('rangewhere: %s' % rangewhere)
+
+                    # and add it to the start of the where clause
+
+                    if where.startswith('where'):
+                        where = 'and %s' % where[5:]
+                    where = 'where %s %s' % (rangewhere, where)
+
+                    log.debug('where: %s' % where)
                 
                 selectfield = field
                 if numprefix:
@@ -1991,7 +2096,16 @@ What do we do if a result is not in alpha order?
                 totalMatches, = c.fetchone()
                 log.debug(totalMatches)
 
-                if totalMatches != '0':
+                if totalMatches == 0:
+                
+                    itemid = containerstart + self.id_range
+                    title = self.noitemsfound
+                    itemid = ':'.join(filter(None,(itemidprefix, str(itemid))))
+                    items += [(itemid, title)]
+
+                    totalMatches = 1
+                
+                else:
 
                     idval, browsebyid, containerstart = SMAPIkeys[entry]
                     c.execute(statement, (startingIndex, requestedCount))
@@ -2225,6 +2339,8 @@ What do we do if a result is not in alpha order?
     simple_keys = [
         'smapiname=',
         'controller=',
+        'range_field=',
+        'index_range=',
         'sort_order=',
         'entry_prefix=',
         'entry_suffix=',
@@ -2240,6 +2356,8 @@ What do we do if a result is not in alpha order?
     simple_key_dict = {
         'smapiname': 'all',
         'controller': 'all',
+        'range_field': '',
+        'index_range': ('','',''),
         'sort_order': '',
         'entry_prefix': '',
         'entry_suffix': '',
@@ -2298,13 +2416,41 @@ What do we do if a result is not in alpha order?
                 for key in self.simple_keys:
                     if line.startswith(key):
                         value = line[len(key):].strip().lower()
-                        value = self.convertartist(value, ',')
-#                        log.debug("%s - %s" % (key, value))
-                        simple_keys[key[:-1]] = value.lower()
+                        if key == 'index_range=':
+                            simple_keys[key[:-1]] = self.convert_range(value)
+                        else:
+                            value = self.convertartist(value, ',')
+                            simple_keys[key[:-1]] = value.lower()
         if processing_index:
             if simple_keys != self.simple_key_dict:
                 simple_sorts.append((index, simple_keys))
         return simple_sorts
+
+    def convert_range(self, rangestring):
+        rangestring = rangestring.strip().lower()
+        rangestring = " ".join(rangestring.split())
+        rangefacets = rangestring.split(' ')
+        units = ''
+        rangestart = ''
+        rangeend = ''
+        if len(rangefacets) >= 3:
+            if rangefacets[1] == 'to':
+                # two values specified
+                rangestart = rangefacets[0]
+                rangeend = rangefacets[2]
+            elif rangefacets[2] == 'to':
+                # two values with units specified
+                if len(rangefacets) == 5:
+                    if rangefacets[1] == rangefacets[4]:
+                        units = rangefacets[1]
+                        rangestart = rangefacets[0]
+                        rangeend = rangefacets[3]
+            else:
+                # three facets
+                units = rangefacets[2]
+                rangestart = rangefacets[0]
+                rangeend = rangefacets[1]
+        return (rangestart, rangeend, units)
 
     def convertartist(self, artist, delim):
         # assumes comma separated string passed
@@ -2313,7 +2459,7 @@ What do we do if a result is not in alpha order?
         artistconversions = []
         for entry in artistentries:
             entry = entry.strip()
-            if entry.startswith(artisttypebefore):  # allow for text after the entry (e.g. desc)
+            if entry == artisttypebefore or entry.startswith('%s ' % artisttypebefore):  # allow for text after the entry (e.g. desc)
                 entry = '%s%s' % (artisttypeafter, entry[len(artisttypebefore):])
             artistconversions.append(entry)
         return delim.join(artistconversions)
@@ -2323,28 +2469,19 @@ What do we do if a result is not in alpha order?
         if self.smapi_alternative_index_sorting == 'N':
 
             at = self.cdservice.get_possible_albumtypes(sorttype)
-            return ('', '', '', at, 'dummy', '')
+            return ('', ('','',''), '', '', '', at, 'dummy', '')
 
         else:
 
             controller = controller.lower()
-
-            changedsorttype = sorttype
-#            if sorttype == 'ALBUMARTIST': changedsorttype = 'ARTIST'
-#            elif sorttype == 'ALBUMARTIST_ALBUM': changedsorttype = 'ARTIST_ALBUM'
-#            elif sorttype == 'GENRE_ALBUMARTIST_ALBUM': changedsorttype = 'GENRE_ARTIST_ALBUM'
-#            elif sorttype == 'GENRE_ALBUMARTIST': changedsorttype = 'GENRE_ARTIST'
-#            elif sorttype == 'GENRE_AA': changedsorttype = 'GENRE_A'
 
             proxyfound = False
             controllerfound = False
             bothfound = False
             foundvalues = None
             
-            # [(u'Inserted_Inserted', {'proxyname': 'all', 'controller': u'ALL', 'sort_order': u'inserted desc', 'active': 'y', 'entry_prefix': u'playcount', 'entry_suffix': u'lastplayed'}), (u'Inserted_Artist', {'proxyname': 'all', 'controller': u'ALL', 'sort_order': u'inserted desc', 'active': 'y', 'entry_prefix': u'playcount', 'entry_suffix': u'lastplayed'})]
-            
             for (index, values) in self.smapi_simple_sorts:
-                if changedsorttype == index and values['active'] == 'y':
+                if sorttype == index and values['active'] == 'y':
                     # precedence is proxy-and-controller/proxy/controller/neither
                     if values['smapiname'] == self.proxy.proxyname and controller.startswith(values['controller']) and not bothfound:
                         bothfound = True
@@ -2360,11 +2497,11 @@ What do we do if a result is not in alpha order?
                         foundvalues = values
             at = self.cdservice.get_possible_albumtypes(sorttype)
             if not foundvalues:
-                return ('', '', '', at, 'dummy', '')
+                return ('', ('','',''), '', '', '', at, 'dummy', '')
             else:
                 # convert any artist/albumartist entries
                 foundvalues = self.cdservice.convert_artist(foundvalues)
-                return (foundvalues['sort_order'], foundvalues['entry_prefix'], foundvalues['entry_suffix'], at, 'dummy', '')
+                return (foundvalues['range_field'], foundvalues['index_range'], foundvalues['sort_order'], foundvalues['entry_prefix'], foundvalues['entry_suffix'], at, 'dummy', '')
 
     def makepresuffix(self, fixes, replace, fixdata):
         outfix = ''
@@ -2372,7 +2509,7 @@ What do we do if a result is not in alpha order?
             fixcount = 0
             for fix in fixes:
                 data = fixdata[fixcount]
-                if fix in ['lastplayed', 'inserted', 'created', 'lastmodified', 'lastscanned']:
+                if fix in ['lastplayed', 'inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
                     if data == '' or data == 0:
                         data = self.cdservice.chunk_metadata_empty
                     else:
