@@ -1014,12 +1014,12 @@ class Smapi(Service):
     scpd_xml_path = os.path.join(os.getcwd(), 'smapi-scpd.xml')
 
     noitemsfound = 'No items found'
-    
+
     id_length = 100000000
     id_range = 99999999
     half_id_start = 50000000
 
-    all_parentid = 000000000
+    user_parentid = 000000000
     album_parentid = 300000000
     artist_parentid = 200000000
     composer_parentid = 400000000
@@ -1040,6 +1040,7 @@ class Smapi(Service):
                       'genre':               genre_parentid,
                       'playlist':            playlist_parentid,
                       'track':               track_parentid,
+                      'usersearch':          user_parentid,
                      }
 
     statichierarchy = {
@@ -1086,16 +1087,21 @@ class Smapi(Service):
             for k,v in data.iteritems():
                 log.debug('    %s: %s' % (k, v))
         elif isinstance(data, (list, tuple, set, frozenset)):
-            log.debug('%s: %s' % (label, data))
+            log.debug('%s:' % (label))
+            for v in data:
+                log.debug('    %s' % repr(v))
         else:
             log.debug('%s: %s' % (label, data))
 
     def load_ini(self):
 
-        # load user index data        
+        # reset user id count
+        self.next_user_id = self.user_parentid + 1
+
+        # load user index data
         self.user_index_entries = self.load_user_indexes()
         log.debug('user_index_entries: %s' % self.user_index_entries)
-        
+
         # load root and hierarchy data
         self.hierarchy_order, self.hierarchy_data, self.hierarchy_lookup, self.hierarchy_ini = self.load_hierarchy()
         self.debugout('hierarchy_order', self.hierarchy_order)
@@ -1111,14 +1117,14 @@ class Smapi(Service):
             # get hierarchy
             entrystring, hierarchy = self.hierarchy_data[entry]
             # check if hierarchy supported statically, or needs creating dynamically
-            
+
             # TODO: add list of valid fields to be set in ini
-            
+
             nextnode = None
             prevnode = None
             static = True
             for node in hierarchy:
-               
+
                 if nextnode and node != nextnode:
                     # current node is not second node of a known static hierarchy
                     if prevnode not in self.dynamichierarchy:
@@ -1134,29 +1140,39 @@ class Smapi(Service):
                     # current node is not known, must be top level node
                     static = False
                     nextnode = 'dummy'
-                    
+
                 prevnode = node
 
                 if node not in self.containerstart:
                     value = dynamic_value
                     self.containerstart[node] = value
                     dynamic_value += self.id_length
-            
+
             self.hierarchies[entry] = hierarchy
             self.hierarchytype[entry] = static
             self.rootitems += [(str(self.containerstart[entry]), entrystring)]
 
-        # create search entries for all except user defined root entries
+        # load user search data
+        self.user_search_entries, self.user_search_ini = self.load_user_searches()
+        self.debugout('user_search_entries', self.user_search_entries)
+        self.debugout('user_search_ini', self.user_search_ini)
+
+        # create search entries for user defined search entries
         self.searchitems = []
+        for searchid, (searchtype, searchname, searchroot, searchfields) in self.user_search_entries.iteritems():
+            # TODO: fix the fixed width of the format string below
+            self.searchitems += [('%09i' % searchid, searchname)]
+
+        # create further search entries for all except user defined root entries
         for (rootstart, rootname) in self.rootitems:
             firstindex = self.hierarchy_lookup[rootname][0]
             if firstindex not in self.user_index_entries.keys():
                 self.searchitems += [(rootstart, rootname)]
-                
+
         self.containername = {}
         for k,v in self.containerstart.iteritems():
             self.containername[v] = k
-        
+
         self.debugout('statichierarchy', self.statichierarchy)
         self.debugout('dynamichierarchy', self.dynamichierarchy)
         self.debugout('hierarchies', self.hierarchies)
@@ -1271,11 +1287,10 @@ What do we do if a result is not in alpha order?
             # get type of hierarchy
             static = self.hierarchytype[browsetype]
             log.debug(static)
-                                                          
+
             if not static:
 
                 # dynamic
-                scrolltype = 'Alpha%s' % browsetype             
                 ContainerID = '999'     # dummy
                 SearchCriteria = ''
                 StartingIndex = 0
@@ -1286,13 +1301,14 @@ What do we do if a result is not in alpha order?
                                            SearchCriteria=SearchCriteria,
                                            StartingIndex=StartingIndex,
                                            RequestedCount=RequestedCount,
-                                           SMAPI=scrolltype,
+                                           SMAPIalpha=browsetype,
+                                           SMAPI=None,
                                            SMAPIkeys=[],
                                            SMAPIfull=[])
-                
+
             elif not browsebyid:
 
-                scrolltype = 'Alpha%s' % browsetype             
+                scrolltype = 'Alpha%s' % browsetype
                 # create call data for CD Search and call it
                 ContainerID = '999'     # dummy
                 SearchCriteria = ''
@@ -1305,8 +1321,9 @@ What do we do if a result is not in alpha order?
                                                           StartingIndex=StartingIndex,
                                                           RequestedCount=RequestedCount,
                                                           SMAPI=scrolltype,
-                                                          SMAPIkeys='')
-                                                          
+                                                          SMAPIkeys='',
+                                                          smapiservice=self)
+
             log.debug(scrollresult)
 
             res = ''
@@ -1420,6 +1437,7 @@ What do we do if a result is not in alpha order?
             return build_soap_error(600, 'Invalid to call getMetadata for track')
 
         else:
+
             # have a list of objectIDvals - are a hierarchy of containers
             log.debug(idvals)
 
@@ -1427,24 +1445,29 @@ What do we do if a result is not in alpha order?
             lastbrowsetype, lastbrowsebyid = self.get_index(idvals[-1])
             log.debug(lastbrowsetype)
             log.debug(lastbrowsebyid)
-            if lastbrowsebyid:
+
+            if lastbrowsetype == 'usersearch':
+
+                pass
+
+            elif lastbrowsebyid:
                 # but only if it's a container
                 lastcontainerstart = self.containerstart[lastbrowsetype]
                 log.debug(lastcontainerstart)
                 if not lastcontainerstart in self.tracktypes:
                     lastcontainername = self.containername[lastcontainerstart]
                     log.debug(lastcontainername)
-                    
+
                     # get type of hierarchy
                     firstbrowsetype, firstbrowsebyid = self.get_index(idvals[0])
-                    
+
                     log.debug(firstbrowsetype)
                     log.debug(firstbrowsebyid)
                     log.debug(self.hierarchytype)
-                    
+
                     static = self.hierarchytype[firstbrowsetype]
                     log.debug(static)
-                  
+
                     if static:
                         nextcontainer = self.statichierarchy[lastcontainername]
                     else:
@@ -1482,10 +1505,11 @@ What do we do if a result is not in alpha order?
                 itemtype = 'container'
             log.debug(itemtype)
 
-            # get first item in hierarchy
-            firstbrowsetype, firstbrowsebyid = self.get_index(idvals[0])
-            static = self.hierarchytype[firstbrowsetype]
-            log.debug(static)
+            if lastbrowsetype != 'usersearch':
+                # get first item in hierarchy
+                firstbrowsetype, firstbrowsebyid = self.get_index(idvals[0])
+                static = self.hierarchytype[firstbrowsetype]
+                log.debug(static)
 
             if hierarchy in ['album:track', 'playlist:track']:
                 # currently supported by Browse
@@ -1502,15 +1526,21 @@ What do we do if a result is not in alpha order?
                                                           StartingIndex=StartingIndex,
                                                           RequestedCount=RequestedCount,
                                                           SMAPI=hierarchy,
-                                                          SMAPIkeys=idkeys)
-                                                          
-            elif not static:
+                                                          SMAPIkeys=idkeys,
+                                                          smapiservice=self)
+
+            elif lastbrowsetype == 'usersearch' or not static:
+
                 # dynamic
                 ContainerID = '999'     # dummy
-                if term: SearchCriteria = 'SEARCH::%s::%s' % (browsetype, term)   # e.g. 'Contributing Artist' or 'Artist'
+                if term: SearchCriteria = term
                 else: SearchCriteria = ''
                 StartingIndex = str(index)
                 RequestedCount = str(count)
+                if lastbrowsetype == 'usersearch':
+                    SMAPIfull = []
+                else:
+                    SMAPIfull = self.hierarchies[firstbrowsetype]
 
                 items, total = self.browse(Controller=controllername,
                                            Address=controlleraddress,
@@ -1518,14 +1548,15 @@ What do we do if a result is not in alpha order?
                                            SearchCriteria=SearchCriteria,
                                            StartingIndex=StartingIndex,
                                            RequestedCount=RequestedCount,
+                                           SMAPIalpha=None,
                                            SMAPI=hierarchy,
                                            SMAPIkeys=idkeys,
-                                           SMAPIfull=self.hierarchies[firstbrowsetype])
-                
+                                           SMAPIfull=SMAPIfull)
+
             else:
                 # create call data for CD Search and call it
                 ContainerID = '999'     # dummy
-                if term: SearchCriteria = 'SEARCH::%s::%s' % (browsetype, term)   # e.g. 'Contributing Artist' or 'Artist'
+                if term: SearchCriteria = 'SEARCH::%s::%s' % (browsetype, term)
                 else: SearchCriteria = ''
                 StartingIndex = str(index)
                 RequestedCount = str(count)
@@ -1537,7 +1568,8 @@ What do we do if a result is not in alpha order?
                                                           StartingIndex=StartingIndex,
                                                           RequestedCount=RequestedCount,
                                                           SMAPI=hierarchy,
-                                                          SMAPIkeys=idkeys)
+                                                          SMAPIkeys=idkeys,
+                                                          smapiservice=self)
             log.debug(total)
             log.debug(items)
 
@@ -1577,7 +1609,8 @@ What do we do if a result is not in alpha order?
                                                   BrowseFlag=BrowseFlag,
                                                   StartingIndex=StartingIndex,
                                                   RequestedCount=RequestedCount,
-                                                  SMAPI='Track')
+                                                  SMAPI='Track',
+                                                  smapiservice=self)
         log.debug(total)
         log.debug(items)
 
@@ -1593,26 +1626,49 @@ What do we do if a result is not in alpha order?
 
     def make_collectionresult(self, items, total, index, canscroll=True):
 
+        log.debug(items)
+        log.debug(total)
+
         ret = ''
         count = 0
 
         canenumerate = True
         canplay = True
-        if total == 1 and items[0][1] == self.noitemsfound:
+        
+        if total == 0:
+#                itemid = containerstart + self.id_range
+#                title = self.noitemsfound
+#                itemid = ':'.join(filter(None,(itemidprefix, str(itemid))))
+#                items += [(itemid, title)]
+#                totalMatches = 1
+
+            items = [('NIF', self.noitemsfound)]
+        
+#        if total == 1 and items[0][1] == self.noitemsfound:
             # empty index
             canplay = False
-        
-        for (id, title) in items:
+            total = 1
+
+        for item in items:
+            id = item[0]
+            title = item[1]
             count += 1
-            ret += '<ns0:mediaCollection>'
-            ret += '<ns0:id>%s</ns0:id>' % (id)
-            ret += '<ns0:title>%s</ns0:title>' % (title)
-            ret += '<ns0:itemType>container</ns0:itemType>'
-            ret += '<ns0:canPlay>%i</ns0:canPlay>' % (canplay)
-            ret += '<ns0:canScroll>%i</ns0:canScroll>' % (canscroll)
-            if not canenumerate:
-                ret += '<ns0:canEnumerate>%i</ns0:canEnumerate>' % (canenumerate)
-            ret += '</ns0:mediaCollection>'
+            if len(item) == 2:
+                # is a container
+                ret += '<ns0:mediaCollection>'
+                ret += '<ns0:id>%s</ns0:id>' % (id)
+                ret += '<ns0:title>%s</ns0:title>' % (title)
+                ret += '<ns0:itemType>container</ns0:itemType>'
+                ret += '<ns0:canPlay>%i</ns0:canPlay>' % (canplay)
+                ret += '<ns0:canScroll>%i</ns0:canScroll>' % (canscroll)
+                if not canenumerate:
+                    ret += '<ns0:canEnumerate>%i</ns0:canEnumerate>' % (canenumerate)
+                ret += '</ns0:mediaCollection>'
+            else:
+                # is a track
+                ret += self.make_metadataresult([item], total, index, nototal=True)
+
+        log.debug(ret)
 
         pre  = '<ns0:index>%s</ns0:index>' % (index)
         pre += '<ns0:count>%s</ns0:count>' % (count)
@@ -1734,6 +1790,79 @@ What do we do if a result is not in alpha order?
 
         return user_index_entries
 
+    def load_user_searches(self):
+
+        user_search_entries = {}
+        user_search_ini = {}
+
+        processing = False
+        for line in codecs.open('pycpoint.ini','r','utf-8'):
+            line = line.strip()
+            if line == '': continue
+            if line.startswith('#'): continue
+            if line.endswith('\n'): line = line[:-1]
+            if line == '[SMAPI user search]':
+                processing = True
+            elif processing and line.startswith('['):
+                break
+            elif processing:
+
+                # format is:
+                #    search = index_entry_name_1 , ... index_entry_field_n
+                # or
+                #    search = root_entry_name / index_entry_field
+
+                entry = ''
+                entries = line.split('=')
+                if entries[0] != '':
+                    entry = entries[0]
+                indexstring = ''
+                if len(entries) > 1:
+                    indexstring = entries[1]
+                if '/' in indexstring:
+                    # is a lower level search type
+                    indexentries = indexstring.split('/')
+                    if len(indexentries) == 2:
+                        lookuproot = indexentries[0]
+                        # first entry must be in hierarchy lookup
+                        if lookuproot in self.hierarchy_ini.keys():
+                            lookup_indexes = self.hierarchy_ini[lookuproot]
+                            lookupindex = indexentries[1]
+                            # second entry must be in that hierarchy's indexes
+                            if lookupindex in lookup_indexes:
+                                # get position in ini entry
+                                indexentrypos = lookup_indexes.index(lookupindex)
+                                # get translated index entry name
+                                indexentryname = self.hierarchy_lookup[lookuproot][indexentrypos]
+                                # get index start
+                                indexentrystart = self.containerstart[indexentryname]
+                                # save entry
+                                user_search_entries[self.next_user_id] = ('lower', entry, lookuproot, [(indexentrystart, lookupindex)])
+                                user_search_ini[entry] = (self.next_user_id, self.hierarchy_ini[lookuproot])
+                                self.next_user_id += 1
+
+                else:
+                    # is a set of search indexes to combine (could be a single one)
+                    indexentries = indexstring.split(',')
+                    if entry != '' and indexentries != []:
+                        # convert entries and get index starts
+                        convindexentries = []
+                        ini_index_entries = []
+                        for rootindex in indexentries:
+                            if rootindex in self.hierarchy_lookup.keys():
+                                indexentryname = self.hierarchy_lookup[rootindex][0]
+                                # get index start
+                                indexentrystart = self.containerstart[indexentryname]
+                                convindexentries += [(indexentrystart, indexentryname)]
+                                ini_index_entries += [self.hierarchy_ini[rootindex][0]]
+                        # save entry
+                        if convindexentries != []:
+                            user_search_entries[self.next_user_id] = ('multi', entry, '', convindexentries)
+                            user_search_ini[entry] = (self.next_user_id, ini_index_entries)
+                            self.next_user_id += 1
+
+        return user_search_entries, user_search_ini
+
     def load_hierarchy(self):
 
         hierarchy_ini = {}
@@ -1773,7 +1902,7 @@ What do we do if a result is not in alpha order?
                     # make sure root of hierarchy is unique
 #                    indexcount = 2
                     indexentry = index
-#                    while indexentry in hierarchy_order: 
+#                    while indexentry in hierarchy_order:
 #                        indexentry = '%s_%s' % (index, indexcount)
 #                        indexcount += 1
 #                    hierarchy_order += [indexentry]
@@ -1795,37 +1924,105 @@ What do we do if a result is not in alpha order?
                     hierarchy_order += [newhierarchies[0]]
 
         return hierarchy_order, hierarchy_data, hierarchy_lookup, hierarchy_ini
-        
+
+    field_names = {
+        'track': 'title'
+    }
+
+    def convert_field_name(self, field):
+        return self.field_names.get(field, field)
+
+    field_names_back = {
+        'title': 'track'
+    }
+
+    def convert_field_name_back(self, field):
+        return self.field_names_back.get(field, field)
+
+    def split_sql_fields(self, fields):
+        count = 0
+        out = ''
+        for c in fields:
+            if c == '(': count += 1
+            elif c == ')': count -= 1
+            if c == ',' and count == 0:
+                out += '_|_'
+            else:
+                out += c
+        return out.split('_|_')
+
     def browse(self, *args, **kwargs):
 
         # TODO: fix error conditions (return zero)
+
+        log.debug("start: %.3f" % time.time())
 
         controllername = kwargs.get('Controller', '')
         controlleraddress = kwargs.get('Address', '')
         log.debug('Controller: %s' % controllername)
         log.debug('Address: %s' % controlleraddress)
 
-        log.debug("start: %.3f" % time.time())
-
         containerID = kwargs['ContainerID']
         searchCriteria = kwargs['SearchCriteria']
-
         searchCriteria = self.cdservice.fixcriteria(searchCriteria)
-
         log.debug('containerID: %s' % str(containerID))
         log.debug('searchCriteria: %s' % searchCriteria.encode(enc, 'replace'))
 
+        SMAPIalpha = kwargs.get('SMAPIalpha', None)
+        log.debug('SMAPIalpha: %s' % SMAPIalpha)
         SMAPI = kwargs.get('SMAPI', '')
         log.debug('SMAPI: %s' % SMAPI)
+
+        if SMAPIalpha:
+            SMAPIhierarchy = SMAPIalpha.split(':')
+        else:
+            SMAPIhierarchy = SMAPI.split(':')
+        log.debug(SMAPIhierarchy)
+        SMAPIkeys = kwargs.get('SMAPIkeys', [])
+        log.debug(SMAPIkeys)
+        SMAPIfull = kwargs.get('SMAPIfull', [])
+        log.debug(SMAPIfull)
+
+        startingIndex = int(kwargs['StartingIndex'])
+        requestedCount = int(kwargs['RequestedCount'])
+
+        # browse can be called under the following scenarios:
+        #
+        # 1) For a root container
+        #    - SMAPIhierarchy will contain a single entry
+        # 2) For a container further down the hierarchy,
+        #    which could be a user defined container
+        #    - SMAPIhierarchy will contain a set of entries
+        # 3) For alpha keys for a root container
+        #    - SMAPIalpha populated with container to use
+        # 4) For search of a root container
+        #    - SMAPIhierarchy will contain a single entry
+        #    - searchCriteria contains the search string
+        # 5) For search of a user defined container,
+        #    which could be single or multiple containers,
+        #    or a container further down the hierarchy
+        #    - SMAPIhierarchy will contain a single entry of 'usersearch'
+        #    - id passed points to usersearch entry with container details
+        #    - searchCriteria contains the search string
+        #
+        # the table to be queried depends on the scenario. Mostly the table
+        # is tracks, but playlists and workvirtuals can also be queried.
+        # Note that for user defined indexes the table is actually a list
+        # in memory (loaded from the ini)
+
+        log.debug("SMAPI_BROWSE: %s", kwargs)
+
+        # set up return list
+
         items = []
 
-        SMAPIhierarchy = SMAPI.split(':')
-        log.debug(SMAPIhierarchy)
-        SMAPIkeys = kwargs.get('SMAPIkeys', '')
-        # SMAPIkeys[browsetype] = (idval, browsebyid, containerstart)
-        log.debug(SMAPIkeys)
-        SMAPIfull = kwargs.get('SMAPIfull', '')
-        log.debug(SMAPIfull)
+        # get the default table to query if only a single container is
+        # requested and it's not a user defined search
+
+        browsetable = self.get_table(SMAPIhierarchy[-1], SMAPIhierarchy[-1])
+        log.debug(browsetable)
+
+        # set the basis of any alpha keys call
 
         smapialphastatement = """
                                  select count(lower(substr(alpha,1,1))) as count,
@@ -1835,140 +2032,217 @@ What do we do if a result is not in alpha order?
                                  order by character
                               """
 
-        log.debug("SMAPI_BROWSE: %s", kwargs)
-
-
-
-        '''
-
-                albumwhere = self.album_where_duplicate
-
-                # get the sort sequence for this database and query
-                orderbylist = self.get_orderby('ALBUM', controllername)
-
-                    at = self.get_albumtype_where(albumtype, table='aa')
-
-                    if self.use_albumartist:
-                            separate_albums = ''
-                            if self.show_separate_albums: separate_albums = '||albumartist'
-                            countstatement = "select count(distinct %s%s) from AlbumartistAlbumsonly aa %s" % (album_distinct, separate_albums, albumwhere)
-
-
-        '''
-
-                
-                
-                
-                
-
 
         # check if search requested
         searchcontainer = None
-        if searchCriteria.startswith('SEARCH::'):
-            searchtype = searchCriteria[8:].split('::')[0]
-            searchstring = searchCriteria[10+len(searchtype):]
-            searchcontainer = searchtype
-            if searchcontainer == 'Contributing Artist': searchcontainer = 'Artist'
+        if searchCriteria != '':
+            searchtype = SMAPIhierarchy[-1]
+            log.debug(searchtype)
+            searchstring = searchCriteria
+            log.debug(searchstring)
+            searchcontainer = self.convert_field_name(searchtype)
+            log.debug(searchcontainer)
 
+        # set up cursor (note we want to refer to fields by name)
         if self.proxy.db_persist_connection:
             db = self.proxy.db
         else:
             db = sqlite3.connect(self.dbspec)
 #        log.debug(db)
-
 #        cs = db.execute("PRAGMA cache_size;")
 #        log.debug('cache_size now: %s', cs.fetchone()[0])
-
+        db.row_factory = sqlite3.Row
         c = db.cursor()
 
-        startingIndex = int(kwargs['StartingIndex'])
-        requestedCount = int(kwargs['RequestedCount'])
-
+        # default where clause
         where = ''
 
-        if SMAPI.startswith('Alpha'):
-            entry = SMAPI[5:]
-            field = entry.split('_')[0]
-            alphastatement = smapialphastatement % (field, 'tracks %s group by %s order by %s' % (where, field, field))
+        if SMAPIalpha:
+            # process alpha request
+            entry = SMAPIalpha
+            field = self.convert_field_name(entry.split('_')[0])
+            browsetable = self.get_table(field, field)
+            alphastatement = smapialphastatement % (field, '%s %s group by %s order by %s' % (browsetable, where, field, field))
             log.debug(alphastatement)
             c.execute(alphastatement)
             return c.fetchall()
 
+        # walk through items in hierarchy, getting SQL keys when id passed
         itemidprefix = None
         indexsuffix = ''
         prevtitle = ''
         for entry in SMAPIhierarchy:
             idval, browsebyid, containerstart = SMAPIkeys[entry]
-            field = entry.split('_')[0]
-            if browsebyid:
+            
+            field = self.convert_field_name(entry.split('_')[0])
+            log.debug(field)
+
+            # don't process for usersearch, and only for id's (not for containers)
+            if searchcontainer != 'usersearch' and browsebyid:
 
                 if field in self.user_index_entries.keys():
                     # is a user defined index
-                
+
                     # set the suffix for the next index entry
                     indexsuffix = idval - containerstart
                     title = field
 
-                else:            
+                else:
 
-                    keystatement = 'select %s from tracks where rowid=%s' % (field, idval - containerstart)
+                    browsetable = self.get_table(entry, field)
+
+                    keystatement = 'select %s from %s where rowid=%s' % (field, browsetable, idval - containerstart)
                     log.debug(keystatement)
                     c.execute(keystatement)
                     title, = c.fetchone()
                     log.debug(title)
+                    # add keys to where clause
                     if where == '': whereword = 'where'
                     else: whereword = 'and'
                     where = '%s%s %s="%s" ' % (where, whereword, field, title)
 
+                # save id's used
                 itemidprefix = ':'.join(filter(None,(itemidprefix, str(idval))))
 
                 # save the value of the preceding title for display
                 prevtitle = title
 
+        # process last item in hierarchy
+        
+        user_index = False
+        searchtype = ''
+        searchname = ''
         if entry.lower() != 'track':
 
-            field = entry.split('_')[0]
-            
+            field = self.convert_field_name(entry.split('_')[0])
+            log.debug(field)
+
             if searchcontainer:
-                # search is always at root level, so where will only contain search details
-                if field.lower() == 'year':
-                    startyear, endyear = self.get_year_ordinal_range(searchstring)
-                    where = 'where %s between %s and %s' % (field, startyear, endyear)
-                elif field.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
-                    startyear, endyear = self.get_date_epoch_range(searchstring)
-                    where = 'where %s between %s and %s' % (field, startyear, endyear)
+            
+                # search is always at root level, or a direct call to a lower level,
+                # so where clause will only contain search details
+
+                searchlist = []
+                searchparentlist = []
+                searchconvertlookup = {}
+                searchpositionlookup = {}
+
+                if searchcontainer == 'usersearch':
+                    # is a user defined search
+
+                    # get search details
+                    # searchtype is 'multi' for multiple containers, or 'lower' for lower level search
+                    # searchname is the name displayed in the search entry
+                    # searchfields is a list of containerid/containername tuples
+                    searchtype, searchname, searchroot, searchfields = self.user_search_entries[idval]
+                    log.debug(searchtype)
+                    log.debug(searchname)
+                    log.debug(searchroot)
+                    log.debug(searchfields)
+                    if searchtype == 'multi' or searchtype == 'lower':
+                        pos = 0
+                        for searchfieldparent, searchfield in searchfields:
+                            convertedsearchfield = self.convert_field_name(searchfield)
+                            searchlist.append(convertedsearchfield)
+                            searchparentlist.append(searchfieldparent)
+                            searchconvertlookup[convertedsearchfield] = searchfield
+                            searchpositionlookup[searchfield] = pos
+                            pos += 1
+                    # set real field for single entry
+                    field = searchlist[0]
                 else:
-                    searchstring = self.translate_dynamic_field(field, searchstring, 'in')
-                    where = 'where %s like "%s%%"' % (field, searchstring)
+                    # is a default search (so only one entry)
+                    searchlist = [field]
+                    searchparentlist = [containerstart]
 
-            # process field passed
+                # compile search where clause for user defined searches
+                searchlistwhere = []
+                for searchitem in searchlist:
 
-            # get sort data
-            sorttype = '%s_%s%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1], indexsuffix)
-            
-            rangefield, indexrange, sortorder, entryprefix, entrysuffix, albumtype, sectionalbumtypedummy, sectionalbumnamedummy = self.get_orderby(sorttype, controllername)
-            
-            log.debug(rangefield)
-            log.debug(indexrange)
-            log.debug(sorttype)
-            log.debug(sortorder)
-            log.debug(entryprefix)
-            log.debug(entrysuffix)
-            
-            numprefix = 0
-            prefixes = entryprefix.split(',')
-            if entryprefix != '': 
-                numprefix = len(prefixes)
-                prefixstart = 2
-            numsuffix = 0
-            suffixes = entrysuffix.split(',')
-            if entrysuffix != '':
-                numsuffix = len(suffixes)
-                suffixstart = 2 + numprefix
-            # TODO: albumtype
+                    if searchitem.lower() == 'year':
+                        startyear, endyear = self.get_year_ordinal_range(searchstring)
+                        whereentry = '%s between %s and %s' % (searchitem, startyear, endyear)
+                    elif searchitem.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
+                        startyear, endyear = self.get_date_epoch_range(searchstring)
+                        whereentry = '%s between %s and %s' % (searchitem, startyear, endyear)
+                    else:
+                        searchstring = self.translate_dynamic_field(searchitem, searchstring, 'in')
+                        whereentry = '%s like "%s%%"' % (searchitem, searchstring)
+                    log.debug(whereentry)
+
+                    searchlistwhere.append('where %s' % whereentry)
+                    # set where for single  entry
+                    where = 'where %s' % whereentry
+
+                # compile search where clause for default searches
+                if searchcontainer != 'usersearch':
+                    where = 'where %s' % whereentry
+
+            # process field(s) passed
+
+            if searchcontainer:
+                fieldlist = searchlist
+                parentlist = searchparentlist
+            else:
+                fieldlist = [field]
+                parentlist = [containerstart]
+
+            metadata = []
+            maxfields = 0
+            for fieldentry, containerstart in zip(fieldlist, parentlist):
+
+                origfield = self.convert_field_name_back(fieldentry)
+
+                if searchcontainer and len(searchlist) > 1:
+                    # multiple search fields
+                    sorttype = '%s_%s%s' % (idval, origfield, indexsuffix)
+                elif searchcontainer and searchtype == 'multi':
+                    sorttype = '%s_%s%s' % (idval, origfield, indexsuffix)
+                elif searchcontainer and searchtype == 'lower':
+                    sorttype = '%s_%s%s' % (idval, origfield, indexsuffix)
+                else:
+                    sorttype = '%s_%s%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1], indexsuffix)
+
+                log.debug(sorttype)
+
+                # get sort data
+                rangefield, indexrange, sortorder, entryprefix, entrysuffix, albumtype, sectionalbumtypedummy, sectionalbumnamedummy = self.get_orderby(sorttype, controllername)
+
+                log.debug(rangefield)
+                log.debug(indexrange)
+                log.debug(sortorder)
+                log.debug(entryprefix)
+                log.debug(entrysuffix)
+
+                numprefix = 0
+                prefixstart = 0
+                prefixes = self.split_sql_fields(entryprefix)
+                if entryprefix != '':
+                    numprefix = len(prefixes)
+                    prefixstart = 3
+                numsuffix = 0
+                suffixstart = 0
+                suffixes = self.split_sql_fields(entrysuffix)
+                if entrysuffix != '':
+                    numsuffix = len(suffixes)
+                    suffixstart = 3 + numprefix
+                # TODO: albumtype
+
+                if numprefix + numsuffix > maxfields:
+                    maxfields = numprefix + numsuffix
+
+                # save data for this field
+                metadata.append((rangefield, indexrange, sortorder, entryprefix, entrysuffix, containerstart,
+                                 prefixes, numprefix, prefixstart, suffixes, numsuffix, suffixstart))
+                log.debug(metadata)
+
+            log.debug(field)
 
             if field in self.user_index_entries.keys():
+            
                 # is a user defined index
+                
+                user_index = True
                 index_entries = self.user_index_entries[field]
                 totalMatches = len(index_entries)
                 rowid = 1
@@ -1979,7 +2253,7 @@ What do we do if a result is not in alpha order?
                     if numprefix:
                         prefix = self.makepresuffix([prefixes[0]], self.cdservice.replace_pre, [prevtitle])
                         if prefix: title = '%s%s' % (prefix, title)
-                    if numsuffix: 
+                    if numsuffix:
                         suffix = self.makepresuffix([suffixes[0]], self.cdservice.replace_suf, [prevtitle])
                         if suffix: title = '%s%s' % (title, suffix)
 
@@ -1988,252 +2262,508 @@ What do we do if a result is not in alpha order?
 
             else:
 
-                rangestart, rangeend, units = indexrange
-                log.debug('rangestart: %s' % rangestart)
-                log.debug('rangeend: %s' % rangeend)
-                log.debug('units: %s' % units)
-                if rangestart != '' or rangeend != '':
+                if not searchcontainer:
 
-                    # have been passed a range for the index
-                    # we need to convert that to a where clause
-                    # and add it to the start of any existing where clause
-                    
-                    if units == '':
-                        # have start and end of range
-                        pass
-                    elif units in ['days', 'weeks', 'months', 'years']:
-                        # have a date
-                        if rangestart == 'last':
-                            rangelength = int(rangeend) * (-1)
-                            log.debug(rangelength)
-                            rangeenddate = datetime.datetime.now()
-                            log.debug(rangeenddate)
-                            if units == 'days':
-                                rangestartdate = rangeenddate+datedelta(days=rangelength)
-                                log.debug(rangestartdate)
-                            elif units == 'weeks':
-                                rangestartdate = rangeenddate+datedelta(weeks=rangelength)
-                            elif units == 'months':
-                                rangestartdate = rangeenddate+datedelta(months=rangelength)
-                            elif units == 'years':
-                                rangestartdate = rangeenddate+datedelta(years=rangelength)
-                        elif rangestart == 'first':
-                            # don't know first date, will have to find it with query - for now use epoch and today
-                            rangestartdate = time.gmtime(0)
-                            rangeenddate = datetime.datetime.now()
+                    # if not search, process any range
+
+                    rangestart, rangeend, units = indexrange
+                    log.debug('rangestart: %s' % rangestart)
+                    log.debug('rangeend: %s' % rangeend)
+                    log.debug('units: %s' % units)
+                    if rangestart != '' or rangeend != '':
+
+                        # have been passed a range for the index
+                        # we need to convert that to a where clause
+                        # and add it to the start of any existing where clause
+
+                        if units == '':
+                            # have start and end of range
+                            pass
+                        elif units in ['days', 'weeks', 'months', 'years']:
+                            # have a date
+                            if rangestart == 'last':
+                                rangelength = int(rangeend) * (-1)
+                                log.debug(rangelength)
+                                rangeenddate = datetime.datetime.now()
+                                log.debug(rangeenddate)
+                                if units == 'days':
+                                    rangestartdate = rangeenddate+datedelta(days=rangelength)
+                                    log.debug(rangestartdate)
+                                elif units == 'weeks':
+                                    rangestartdate = rangeenddate+datedelta(weeks=rangelength)
+                                elif units == 'months':
+                                    rangestartdate = rangeenddate+datedelta(months=rangelength)
+                                elif units == 'years':
+                                    rangestartdate = rangeenddate+datedelta(years=rangelength)
+                            elif rangestart == 'first':
+                                # don't know first date, will have to find it with query - for now use epoch and today
+                                rangestartdate = time.gmtime(0)
+                                rangeenddate = datetime.datetime.now()
+                            else:
+                                # must be a range of dates from last (so we need to swap them round
+                                # so that they are chronological)
+                                rangestart = int(rangestart) * (-1)
+                                rangeend = int(rangeend) * (-1)
+                                now = datetime.datetime.now()
+                                if units == 'days':
+                                    rangestartdate = now+datedelta(days=rangeend)
+                                    rangeenddate = now+datedelta(days=rangestart)
+                                elif units == 'weeks':
+                                    rangestartdate = now+datedelta(weeks=rangeend)
+                                    rangeenddate = now+datedelta(weeks=rangestart)
+                                elif units == 'months':
+                                    rangestartdate = now+datedelta(months=rangeend)
+                                    rangeenddate = now+datedelta(months=rangestart)
+                                elif units == 'years':
+                                    rangestartdate = now+datedelta(years=rangeend)
+                                    rangeenddate = now+datedelta(years=rangestart)
+                            log.debug('rangestartdate: %s' % rangestartdate)
+                            log.debug('rangeenddate: %s' % rangeenddate)
+
+                        # now convert the input so the database understands it
+
+                        if rangefield == '': rangefield = field
+
+                        if rangefield.lower() == 'year':
+                            rangestartyear, dummy = self.get_year_ordinal_range(rangestart)
+                            dummy, rangeendyear = self.get_year_ordinal_range(rangeend)
+                            rangewhere = '%s between %s and %s' % (rangefield, rangestartyear, rangeendyear)
+                        elif rangefield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
+                            rangestartyear = int(time.mktime(rangestartdate.timetuple()))
+                            rangeendyear = int(time.mktime(rangeenddate.timetuple()))
+                            rangewhere = '%s between %s and %s' % (rangefield, rangestartyear, rangeendyear)
                         else:
-                            # must be a range of dates from last (so we need to swap them round
-                            # so that they are chronological)
-                            rangestart = int(rangestart) * (-1)
-                            rangeend = int(rangeend) * (-1)
-                            now = datetime.datetime.now()
-                            if units == 'days':
-                                rangestartdate = now+datedelta(days=rangeend)
-                                rangeenddate = now+datedelta(days=rangestart)
-                            elif units == 'weeks':
-                                rangestartdate = now+datedelta(weeks=rangeend)
-                                rangeenddate = now+datedelta(weeks=rangestart)
-                            elif units == 'months':
-                                rangestartdate = now+datedelta(months=rangeend)
-                                rangeenddate = now+datedelta(months=rangestart)
-                            elif units == 'years':
-                                rangestartdate = now+datedelta(years=rangeend)
-                                rangeenddate = now+datedelta(years=rangestart)
-                        log.debug('rangestartdate: %s' % rangestartdate)
-                        log.debug('rangeenddate: %s' % rangeenddate)
-                         
-                    # now convert the input so the database understands it
+                            rangestartstring = self.translate_dynamic_field(field, rangestart, 'in')
+                            rangeendstring = self.translate_dynamic_field(field, rangeend, 'in')
+                            rangewhere = '%s between "%s" and "%s"' % (rangefield, rangestartstring, rangeendstring)
 
-                    if rangefield == '': rangefield = field
+                        log.debug('rangewhere: %s' % rangewhere)
 
-                    if rangefield.lower() == 'year':
-                        rangestartyear, dummy = self.get_year_ordinal_range(rangestart)
-                        dummy, rangeendyear = self.get_year_ordinal_range(rangeend)
-                        rangewhere = '%s between %s and %s' % (rangefield, rangestartyear, rangeendyear)
-                    elif rangefield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
-                        rangestartyear = int(time.mktime(rangestartdate.timetuple()))
-                        rangeendyear = int(time.mktime(rangeenddate.timetuple()))
-                        rangewhere = '%s between %s and %s' % (rangefield, rangestartyear, rangeendyear)
-                    else:
-                        rangestartstring = self.translate_dynamic_field(field, rangestart, 'in')
-                        rangeendstring = self.translate_dynamic_field(field, rangeend, 'in')
-                        rangewhere = '%s between "%s" and "%s"' % (rangefield, rangestartstring, rangeendstring)
+                        # and add it to the start of the where clause
 
-                    log.debug('rangewhere: %s' % rangewhere)
+                        if where.startswith('where'):
+                            where = 'and %s' % where[5:]
+                        where = 'where %s %s' % (rangewhere, where)
 
-                    # and add it to the start of the where clause
+                        log.debug('where: %s' % where)
 
-                    if where.startswith('where'):
-                        where = 'and %s' % where[5:]
-                    where = 'where %s %s' % (rangewhere, where)
+                if searchcontainer and len(searchlist) > 1:
 
-                    log.debug('where: %s' % where)
-                
-                selectfield = field
-                if numprefix:
-                    selectfield += ',' + entryprefix
-                if numsuffix:
-                    selectfield += ',' + entrysuffix
+                    # multi container search
 
-                orderfield = field
-                if sortorder:
-                    orderfield = sortorder
+                    statement = None
+                    countstatement = None
+                    unioncount = 1
+                    for searchitem, searchwhere, searchmetadata in zip(searchlist, searchlistwhere, metadata):
 
-                if field.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
-                    dfield = "date(%s, 'unixepoch')" % field
-                    countstatement = "select count(distinct %s) from tracks %s" % (dfield, where)
-                    statement = "select rowid, %s from tracks %s group by %s order by %s limit ?, ?" % (selectfield, where, dfield, orderfield)
+                        field = searchitem
+                        where = searchwhere
+
+                        rangefield, indexrange, sortorder, entryprefix, entrysuffix, containerstart, \
+                        prefixes, numprefix, prefixstart, suffixes, numsuffix, suffixstart = searchmetadata
+
+                        selectfield = field
+                        if numprefix:
+                            selectfield += ',' + entryprefix
+                        if numsuffix:
+                            selectfield += ',' + entrysuffix
+
+                        # pad out to largest number of fields
+                        if numprefix + numsuffix < maxfields:
+                            paddingfields = maxfields - numprefix - numsuffix
+                            for i in range(paddingfields):
+                                selectfield += ',%s' % i
+
+                        groupfield = field
+                        if groupfield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
+                            groupfield = "date(%s, 'unixepoch')" % groupfield
+
+                        orderfield = field
+                        if sortorder:
+                            orderfield = sortorder
+
+                        browsetable = self.get_table(field, field)
+
+                        if field.lower() == 'title':
+                            singlecountstatement = "select count(*) as total from (select %s from %s %s) '%s'" % (field, browsetable, where, unioncount)
+                        else:
+                            singlecountstatement = "select count(*) as total from (select %s from %s %s group by %s) '%s'" % (field, browsetable, where, groupfield, unioncount)
+                        log.debug(singlecountstatement)
+
+                        countstatement = ' union all '.join(filter(None,(countstatement, singlecountstatement)))
+                        log.debug(countstatement)
+
+                        log.debug(field.lower())
+                        if field.lower() == 'title':
+                            singlestatement = "select 'track' as recordtype, rowid, id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid, %s from %s %s order by %s" % (selectfield, browsetable, where, orderfield)
+                        else:
+                            singlestatement = "select '%s' as recordtype, rowid, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', %s from %s %s group by %s order by %s" % (field, selectfield, browsetable, where, groupfield, orderfield)
+                        log.debug(singlestatement)
+
+                        unionblock = "select * from (%s) '%s'" % (singlestatement, unioncount)
+                        log.debug(unionblock)
+
+                        statement = ' union all '.join(filter(None,(statement, unionblock)))
+                        log.debug(statement)
+
+                        unioncount += 1
+                    statement += ' limit ?, ?'
+                    countstatement = 'select sum(total) from (%s)' % countstatement
+
                 else:
-                    countstatement = "select count(distinct %s) from tracks %s" % (field, where)
-                    statement = "select rowid, %s from tracks %s group by %s order by %s limit ?, ?" % (selectfield, where, field, orderfield)
 
-                count = 0
+                    # single container or single search
+                    
+                    log.debug(field)
+                    log.debug(searchtype)
+                    log.debug(numprefix)
+                    log.debug(numsuffix)
+                    log.debug(sortorder)
+                    
+                    selectfield = field
+                    if numprefix:
+                        selectfield += ',' + entryprefix
+                    if numsuffix:
+                        selectfield += ',' + entrysuffix
+
+                    groupfield = field
+                    if groupfield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
+                        groupfield = "date(%s, 'unixepoch')" % groupfield
+
+                    orderfield = field
+                    if sortorder:
+                        orderfield = sortorder
+
+                    if searchtype == 'multi':
+                        # multi search with single entry - root level search
+                        browsetable = self.get_table(field, field)
+                    elif searchtype == 'lower':
+                        # lower level search, find what else is in the hierarchy
+                        searchhierarchy = self.hierarchy_lookup[searchroot]
+                        log.debug(searchhierarchy)
+                        if 'playlist' in searchhierarchy and field.lower() != 'playlist':
+                            browsetable = 'playlists'
+                        elif 'work' in searchhierarchy and field.lower() != 'work':
+                            browsetable = 'workvirtuals'
+                        elif 'virtual' in searchhierarchy and field.lower() != 'virtual':
+                            browsetable = 'workvirtuals'
+                        else:
+                            browsetable = self.get_table(field, field)
+                    else:
+                        browsetable = self.get_table(field, field)
+
+                    log.debug(browsetable)
+
+                    if browsetable == 'tracks':
+
+                        if field.lower() == 'title':
+                            countstatement = "select count(%s) from %s %s" % (field, browsetable, where)
+                            statement = "select '%s' as recordtype, rowid, %s from %s %s order by %s limit ?, ?" % (field, selectfield, browsetable, where, orderfield)
+                        else:
+                            countstatement = "select count(distinct %s) from %s %s" % (groupfield, browsetable, where)
+                            statement = "select '%s' as recordtype, rowid, %s from %s %s group by %s order by %s limit ?, ?" % (field, selectfield, browsetable, where, groupfield, orderfield)
+
+                    elif browsetable == 'playlists':
+
+                        if not sortorder:
+                            orderfield = 'track,playlist'
+
+                        # playlists can contain stream entries that are not in tracks, so select with outer join
+
+                        countstatement = '''select count(*) from playlists p left outer join tracks t on t.rowid = p.track_rowid
+                                            %s
+                                         ''' % (where)
+
+                        statement = '''select 'track' as recordtype, t.rowid as rowid, t.id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid, playlist, trackfile, track, track_id, %s from playlists p left outer join tracks t on t.rowid = p.track_rowid
+                                       %s order by %s limit ?, ?
+                                    ''' % (selectfield, where, orderfield)
 
                 log.debug("count statement: %s", countstatement)
                 log.debug("statement: %s", statement)
 
-                c.execute(countstatement)
-                totalMatches, = c.fetchone()
-                log.debug(totalMatches)
+        else:
 
-                if totalMatches == 0:
-                
-                    itemid = containerstart + self.id_range
-                    title = self.noitemsfound
-                    itemid = ':'.join(filter(None,(itemidprefix, str(itemid))))
-                    items += [(itemid, title)]
+            # tracks
 
-                    totalMatches = 1
-                
-                else:
+            sorttype = '%s_%s%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1], indexsuffix)
+            log.debug(sorttype)
+            # get sort data
+            rangefield, indexrange, sortorder, entryprefix, entrysuffix, albumtype, sectionalbumtypedummy, sectionalbumnamedummy = self.get_orderby(sorttype, controllername)
+            numprefix = 0
+            prefixstart = 0
+            prefixes = self.split_sql_fields(entryprefix)
+            if entryprefix != '':
+                numprefix = len(prefixes)
+                prefixstart = 3
+            numsuffix = 0
+            suffixstart = 0
+            suffixes = self.split_sql_fields(entrysuffix)
+            if entrysuffix != '':
+                numsuffix = len(suffixes)
+                suffixstart = 3 + numprefix
 
-                    idval, browsebyid, containerstart = SMAPIkeys[entry]
-                    c.execute(statement, (startingIndex, requestedCount))
+            countstatement = "select count(title) from %s %s" % (browsetable, where)
+            statement = "select 'track' as recordtype, rowid, id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid from %s %s order by discnumber, tracknumber, title limit ?, ?" % (browsetable, where)
+            log.debug("countstatement: %s", countstatement)
+            log.debug("statement: %s", statement)
 
-                    for row in c:
-    #                    log.debug("row: %s", row)
-    #                    rowid, title = row
-                        rowid = row[0]
-                        title = row[1]
+
+#        mediafields = ['id', 'title', 'artist', 'album', 'genre', 'tracknumber', 'albumartist',
+#                       'composer', 'codec', 'length', 'path', 'filename', 'folderart', 'trackart',
+#                       'bitrate', 'samplerate', 'bitspersample', 'channels', 'mime', 'folderartid', 'trackartid']
+
+
+        if not user_index:
+
+            c.execute(countstatement)
+            totalMatches, = c.fetchone()
+            log.debug(totalMatches)
+
+            if totalMatches > 0:
+
+                c.execute(statement, (startingIndex, requestedCount))
+
+                for row in c:
+
+#                    log.debug("row: %s", row)
+
+                    recordtype = row['recordtype']
+                    log.debug(recordtype)
+                    if recordtype != 'track':
+
+                        rowid = row['rowid']
+                        log.debug(rowid)
+                        if searchcontainer and len(searchlist) > 1:
+                            title = row[23]          # field may change, position won't
+                        else:
+                            title = row[2]
+                        log.debug(title)
+
+                        if searchcontainer:
+                            searchfieldtype = recordtype
+                            
+                            if len(searchlist) > 1:
+                                field = searchconvertlookup[searchfieldtype]
+                                pos = searchpositionlookup[field]
+                                log.debug(searchfieldtype)
+                                log.debug(field)
+                                log.debug(pos)
+                            else:
+                                pos = 0
+
+                            rangefield, indexrange, sortorder, entryprefix, entrysuffix, containerstart, \
+                            prefixes, numprefix, prefixstart, suffixes, numsuffix, suffixstart = metadata[pos]
+                            log.debug(containerstart)
+
+                        log.debug(field)
+
                         title = self.translate_dynamic_field(field, title, 'out')
                         if title == '' or title == None: title = '[unknown %s]' % field
                         if not isinstance(title, basestring):
                             title = str(title)
+                        log.debug(title)
+                        log.debug(numprefix)
+                        log.debug(numsuffix)
+                        log.debug(prefixstart)
+                        log.debug(suffixstart)
+                        log.debug(row.keys())
                         if numprefix:
-                            prefixdata = list(row[prefixstart:prefixstart+numprefix])
+    #                        prefixdata = list(row[prefixstart:prefixstart+numprefix])
+                            prefixdata = []
+                            for i in range(numprefix):
+                                prefixdata.append(row[prefixstart+i])
                             prefix = self.makepresuffix(prefixes, self.cdservice.replace_pre, prefixdata)
                             if prefix: title = '%s%s' % (prefix, title)
-                        if numsuffix: 
-                            suffixdata = list(row[suffixstart:suffixstart+numsuffix])
+                        if numsuffix:
+    #                        suffixdata = list(row[suffixstart:suffixstart+numsuffix])
+                            suffixdata = []
+                            for i in range(numsuffix):
+                                suffixdata.append(row[suffixstart+i])
                             suffix = self.makepresuffix(suffixes, self.cdservice.replace_suf, suffixdata)
                             if suffix: title = '%s%s' % (title, suffix)
-                            
+
                         title = escape(title)
+                        log.debug(title)
 
                         itemid = rowid + containerstart
                         itemid = ':'.join(filter(None,(itemidprefix, str(itemid))))
                         items += [(itemid, title)]
 
-                        count += 1
+                    else:   # track
 
-        else:
-        
-            # process tracks
+#                        log.debug(row.keys())
 
-            countstatement = "select count(title) from tracks %s" % (where)
-            statement = "select * from tracks %s order by discnumber, tracknumber, title limit %d, %d" % (where, startingIndex, requestedCount)
-            log.debug("countstatement: %s", countstatement)
-            log.debug("statement: %s", statement)
+                        # field names are taken from first select in union, which varies,
+                        # so use positions
+                        id = row[2]
+                        title = row[3]
+                        artist = row[4]
+                        album = row[5]
+                        genre = row[6]
+                        tracknumber = row[7]
+                        albumartist = row[8]
+                        composer = row[9]
+                        codec = row[10]
+                        length = row[11]
+                        path = row[12]
+                        filename = row[13]
+                        folderart = row[14]
+                        trackart = row[15]
+                        bitrate = row[16]
+                        samplerate = row[17]
+                        bitspersample = row[18]
+                        channels = row[19]
+                        mime = row[20]
+                        folderartid = row[21]
+                        trackartid = row[22]
 
-            c.execute(countstatement)
-            totalMatches, = c.fetchone()
-            c.execute(statement)
-            for row in c:
-#                log.debug("row: %s", row)
-                id, id2, duplicate, title, artistshort, artist, album, genre, tracknumber, year, albumartistshort, albumartist, composershort, composer, codec, length, size, created, path, filename, discnumber, comment, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, lastmodified, folderartid, trackartid, inserted, lastplayed, playcount, lastscanned, titlesort, albumsort = row
-                cover, artid = self.cdservice.choosecover(folderart, trackart, folderartid, trackartid)
-                mime = fixMime(mime)
+                        if not id:
 
-                wsfile = filename
-                wspath = os.path.join(path, filename)
-                path = self.cdservice.convert_path(path)
-                filepath = path + filename
-                filepath = encode_path(filepath)
-                filepath = escape(filepath, escape_entities)
-                protocol = getProtocol(mime)
-                contenttype = mime
-                filetype = getFileType(filename)
+                            playlist = row[23]
+                            pl_trackfile = row[24]
+                            pl_track = row[25]
+                            pl_track_id = row[26]
 
-                if SMAPI != '':
-                    transcode, newtype = checksmapitranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
-                    if transcode:
-                        mime = 'audio/mpeg'
-                else:
-                    transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
-                if transcode:
-                    dummyfile = self.dbname + '.' + id + '.' + newtype
-                else:
-                    dummyfile = self.dbname + '.' + id + '.' + filetype
-                res = self.proxyaddress + '/WMPNSSv3/' + dummyfile
-                if transcode:
-                    log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wspath, contenttype, newtype))
-                    dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wspath, newtype, contenttype, cover=cover)
-                    self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
-                else:
-                    log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s' % (dummyfile, wsfile, wspath, contenttype))
-                    dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
-                    self.proxy.wmpcontroller.add_static_file(dummystaticfile)
+                            # playlist entry with no matching track - assume stream
+                            mime = 'audio/wav'
+                            filename = pl_trackfile
+                            path = ''
+                            length = 0
+                            title = pl_trackfile
+                            artistlist = 'Stream'
+                            albumartistlist = 'Stream'
+                            albumlist = 'Stream'
+                            id = pl_track_id
+                            titlesort = albumsort = None
 
-                if cover != '' and not cover.startswith('EMBEDDED_'):
-                    cvfile = getFile(cover)
-                    cvpath = cover
-                    coverfiletype = getFileType(cvfile)
-                    dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
-                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
-                    dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
-                    self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+                        # TODO: other variable fields
 
-                iduration = int(length)
-                duration = maketime(float(length))
+#                        log.debug(title)
+#                        log.debug(numprefix)
+#                        log.debug(numsuffix)
+#                        log.debug(prefixstart)
+#                        log.debug(suffixstart)
+#                        log.debug(row.keys())
+                        
+#                        if searchtype == 'multi':
+                        if prefixstart < 25:
+                            prefixstart += 25
+                            suffixstart += 25
+                        
+                        if numprefix:
+#                            prefixdata = list(row[prefixstart:prefixstart+numprefix])
+                            prefixdata = []
+                            for i in range(numprefix):
+                                prefixdata.append(row[prefixstart+i])
+                            prefix = self.makepresuffix(prefixes, self.cdservice.replace_pre, prefixdata)
+                            if prefix: title = '%s%s' % (prefix, title)
+                        if numsuffix:
+#                            suffixdata = list(row[suffixstart:suffixstart+numsuffix])
+                            suffixdata = []
+                            for i in range(numsuffix):
+                                suffixdata.append(row[suffixstart+i])
+                            suffix = self.makepresuffix(suffixes, self.cdservice.replace_suf, suffixdata)
+                            if suffix: title = '%s%s' % (title, suffix)
 
-                if artist == '': artist = '[unknown artist]'
-                if albumartist == '': albumartist = '[unknown albumartist]'
-                if album == '': album = '[unknown album]'
-                if title == '': title = '[unknown title]'
 
-                title = escape(title)
-                artist = escape(artist)
-                albumartist = escape(albumartist)
-                album = escape(album)
-                tracknumber = self.cdservice.convert_tracknumber(tracknumber)
 
-                if cover == '':
-                    coverres = ''
-                elif cover.startswith('EMBEDDED_'):
-                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummyfile
 
-                metadatatype = 'track'
-#                    metadata = (aristId, artist, composerId, composer, \
-#                                albumId, album, albumArtURI, albumArtistId, \
-#                                albumArtist, genreId, genre, duration)
 
-                # fix WMP urls if necessary
-                res = res.replace(self.webserverurl, self.wmpurl)
-                coverres = coverres.replace(self.webserverurl, self.wmpurl)
+                        cover, artid = self.cdservice.choosecover(folderart, trackart, folderartid, trackartid)
+                        mime = fixMime(mime)
 
-                metadata = ('', artist, '', '', \
-                            '', album, coverres, '', \
-                            albumartist, '', '', iduration)
-                items += [(id, title, mime, res, 'track', metadatatype, metadata)]
+                        wsfile = filename
+                        wspath = os.path.join(path, filename)
+                        path = self.cdservice.convert_path(path)
+                        filepath = path + filename
+                        filepath = encode_path(filepath)
+                        filepath = escape(filepath, escape_entities)
+                        protocol = getProtocol(mime)
+                        contenttype = mime
+                        filetype = getFileType(filename)
 
+                        if SMAPI != '':
+                            transcode, newtype = checksmapitranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+                            if transcode:
+                                mime = 'audio/mpeg'
+                        else:
+                            transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+                        if transcode:
+                            dummyfile = self.dbname + '.' + id + '.' + newtype
+                        else:
+                            dummyfile = self.dbname + '.' + id + '.' + filetype
+                        res = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+                        if transcode:
+                            log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wspath, contenttype, newtype))
+                            dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wspath, newtype, contenttype, cover=cover)
+                            self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+                        else:
+                            log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s' % (dummyfile, wsfile, wspath, contenttype))
+                            dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
+                            self.proxy.wmpcontroller.add_static_file(dummystaticfile)
+
+                        if cover != '' and not cover.startswith('EMBEDDED_'):
+                            cvfile = getFile(cover)
+                            cvpath = cover
+                            coverfiletype = getFileType(cvfile)
+                            dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
+                            coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                            dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
+                            self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+
+                        iduration = int(length)
+                        duration = maketime(float(length))
+
+                        if artist == '': artist = '[unknown artist]'
+                        if albumartist == '': albumartist = '[unknown albumartist]'
+                        if album == '': album = '[unknown album]'
+                        if title == '': title = '[unknown title]'
+
+                        title = escape(title)
+                        artist = escape(artist)
+                        albumartist = escape(albumartist)
+                        album = escape(album)
+                        tracknumber = self.cdservice.convert_tracknumber(tracknumber)
+
+                        if cover == '':
+                            coverres = ''
+                        elif cover.startswith('EMBEDDED_'):
+                            coverres = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+
+                        metadatatype = 'track'
+        #                    metadata = (aristId, artist, composerId, composer, \
+        #                                albumId, album, albumArtURI, albumArtistId, \
+        #                                albumArtist, genreId, genre, duration)
+
+                        # fix WMP urls if necessary
+                        res = res.replace(self.webserverurl, self.wmpurl)
+                        coverres = coverres.replace(self.webserverurl, self.wmpurl)
+
+                        metadata = ('', artist, '', '', \
+                                    '', album, coverres, '', \
+                                    albumartist, '', '', iduration)
+                        items += [(id, title, mime, res, 'track', metadatatype, metadata)]
 
         c.close()
+        db.row_factory = None
         if not self.proxy.db_persist_connection:
             db.close()
 
         log.debug("end: %.3f" % time.time())
 
         return items, totalMatches
+
+    def get_table(self, container, field):
+        # work out which table is being queried
+        if container == 'usersearch':
+            container = field
+        if container.lower() == 'playlist':
+            browsetable = 'playlists'
+        elif container.lower() in ['work', 'virtual']:
+            browsetable = 'workvirtuals'
+        else:
+            browsetable = 'tracks'
+        return browsetable
 
     def translate_dynamic_field(self, field, title, direction):
         if field.lower() == 'year':
@@ -2247,7 +2777,7 @@ What do we do if a result is not in alpha order?
             else:
                 title = self.convert_date_in(title)
         return title
-        
+
     def convert_year_out(self, ordinal):
         # convert ordinal date to year
         try:
@@ -2411,6 +2941,16 @@ What do we do if a result is not in alpha order?
                             hierarchy = self.hierarchy_lookup[indexname]
                             index = '%s_%s%s' % (hierarchy[0], hierarchy[indexentrypos], indexsuffix)
                             processing_index = True
+                    elif indexname in self.user_search_ini.keys():
+                        usersearchid, iniusersearch = self.user_search_ini[indexname]
+                        log.debug(iniusersearch)
+                        if indexentry in iniusersearch:
+                            indexsuffix = ''
+                            if indexcount != 0: indexsuffix = str(indexcount)
+                            indexentrypos = iniusersearch.index(indexentry)
+                            # get translated index entry names
+                            index = '%s_%s%s' % (usersearchid, iniusersearch[indexentrypos], indexsuffix)
+                            processing_index = True
                 continue
             if processing_index:
                 for key in self.simple_keys:
@@ -2464,12 +3004,14 @@ What do we do if a result is not in alpha order?
             artistconversions.append(entry)
         return delim.join(artistconversions)
 
-    def get_orderby(self, sorttype, controller):
+    def get_orderby(self, sorttype, controller, proxy=False):
 
         if self.smapi_alternative_index_sorting == 'N':
 
             at = self.cdservice.get_possible_albumtypes(sorttype)
-            return ('', ('','',''), '', '', '', at, 'dummy', '')
+
+            if proxy: return [(None, None, None, at, 'dummy', None)]
+            else: return ('', ('','',''), '', '', '', at, 'dummy', '')
 
         else:
 
@@ -2479,7 +3021,7 @@ What do we do if a result is not in alpha order?
             controllerfound = False
             bothfound = False
             foundvalues = None
-            
+
             for (index, values) in self.smapi_simple_sorts:
                 if sorttype == index and values['active'] == 'y':
                     # precedence is proxy-and-controller/proxy/controller/neither
@@ -2497,13 +3039,21 @@ What do we do if a result is not in alpha order?
                         foundvalues = values
             at = self.cdservice.get_possible_albumtypes(sorttype)
             if not foundvalues:
-                return ('', ('','',''), '', '', '', at, 'dummy', '')
+                if proxy: return [(None, None, None, at, 'dummy', None)]
+                else: return ('', ('','',''), '', '', '', at, 'dummy', '')
             else:
                 # convert any artist/albumartist entries
                 foundvalues = self.cdservice.convert_artist(foundvalues)
-                return (foundvalues['range_field'], foundvalues['index_range'], foundvalues['sort_order'], foundvalues['entry_prefix'], foundvalues['entry_suffix'], at, 'dummy', '')
+                if proxy:
+                    return [(foundvalues['sort_order'], foundvalues['entry_prefix'], foundvalues['entry_suffix'], at, 'dummy', None)]
+                else:
+                    return (foundvalues['range_field'], foundvalues['index_range'], foundvalues['sort_order'], foundvalues['entry_prefix'], foundvalues['entry_suffix'], at, 'dummy', '')
 
     def makepresuffix(self, fixes, replace, fixdata):
+        log.debug(fixes)
+        log.debug(replace)
+        log.debug(fixdata)
+    
         outfix = ''
         if fixes and fixes != []:
             fixcount = 0
@@ -3193,6 +3743,8 @@ class DummyContentDirectory(Service):
         # SMAPIkeys[browsetype] = (idval, browsebyid, containerstart)
         log.debug(SMAPIkeys)
 
+        smapiservice = kwargs.get('smapiservice', None)
+
         if SMAPI:
             if SMAPI != 'Track':
                 # passed ObjectID is a dummy - real one is in SMAPIkeys
@@ -3327,6 +3879,21 @@ class DummyContentDirectory(Service):
             if album_type != 10:
                 where += " and n.albumtype=%s" % album_type
 
+            if smapiservice:
+                sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+            else:
+                orderbylist = self.get_orderby('PLAYLIST', controllername)
+            log.debug(orderbylist)
+            for orderbyentry in orderbylist:
+                orderby, prefix, suffix, albumtype, table, header = orderbyentry
+                if not orderby or orderby == '':
+                    if album_type != 10:
+                        orderby = 'n.tracknumber, t.title'
+                    else:
+                        orderby = 'discnumber, tracknumber, title'
+                state_pre_suf = (orderby, prefix, suffix, albumtype, table, header)
+
             if album_type != 10:
                 # is a work or a virtual album
                 countstatement = '''
@@ -3339,9 +3906,9 @@ class DummyContentDirectory(Service):
                                 on n.track_id = t.rowid
                                 where %s
                                 group by n.tracknumber
-                                order by n.tracknumber, t.title
+                                order by %s
                                 limit %d, %d
-                            ''' % (where, startingIndex, requestedCount)
+                            ''' % (where, orderby, startingIndex, requestedCount)
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             else:
@@ -3349,7 +3916,7 @@ class DummyContentDirectory(Service):
                 countstatement = "select count(*) from tracks n where %s" % (where)
                 c.execute(countstatement)
                 totalMatches, = c.fetchone()
-                statement = "select * from tracks n where %s order by discnumber, tracknumber, title limit %d, %d" % (where, startingIndex, requestedCount)
+                statement = "select * from tracks n where %s order by %s limit %d, %d" % (where, orderby, startingIndex, requestedCount)
                 log.debug("statement: %s", statement)
                 c.execute(statement)
             for row in c:
@@ -3433,6 +4000,22 @@ class DummyContentDirectory(Service):
                     albumposition = self.get_entry_position(album, albumlist, self.now_playing_album, self.now_playing_album_combiner)
 
                 if title == '': title = '[unknown title]'
+
+                orderby, prefix, suffix, albumtype, table, header = state_pre_suf
+                p_prefix = self.makepresuffix(prefix, self.replace_pre, \
+                           {'year':year, 'lastplayed':lastplayed, 'playcount':playcount, 'created':created, \
+                            'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist, \
+                            'composer':composer, 'album':album, 'genre':genre, 'tracknumber':tracknumber, 'length':length, \
+                            'path':path, 'filename':filename, \
+                           })
+                if p_prefix: title = '%s%s' % (p_prefix, title)
+                p_suffix = self.makepresuffix(suffix, self.replace_suf,
+                           {'year':year, 'lastplayed':lastplayed, 'playcount':playcount, 'created':created,
+                            'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist,
+                            'composer':composer, 'album':album, 'genre':genre, 'tracknumber':tracknumber, 'length':length,
+                            'path':path, 'filename':filename, \
+                           })
+                if p_suffix: title = '%s%s' % (title, p_suffix)
 
                 title = escape(title)
                 artist = escape(artist)
@@ -3780,6 +4363,17 @@ class DummyContentDirectory(Service):
             if self.now_playing_album == 'selected': album_selected = True
             if self.now_playing_artist == 'selected': artist_selected = True
 
+            if smapiservice:
+                sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+            else:
+                orderbylist = self.get_orderby('PLAYLIST', controllername)
+            for orderbyentry in orderbylist:
+                orderby, prefix, suffix, albumtype, table, header = orderbyentry
+                if not orderby or orderby == '':
+                    orderby = 'p.track'
+                state_pre_suf = (orderby, prefix, suffix, albumtype, table, header)
+
             # playlists can contain stream entries that are not in tracks, so select with outer join
 
             countstatement = '''select count(*) from playlists p left outer join tracks t on t.rowid = p.track_rowid
@@ -3789,8 +4383,8 @@ class DummyContentDirectory(Service):
             totalMatches, = c.fetchone()
 
             statement = '''select t.*, p.* from playlists p left outer join tracks t on t.rowid = p.track_rowid
-                           where p.id = '%s' order by p.track limit %d, %d
-                        ''' % (plid, startingIndex, requestedCount)
+                           where p.id = '%s' order by %s limit %d, %d
+                        ''' % (plid, orderby, startingIndex, requestedCount)
             log.debug("statement: %s", statement)
             c.execute(statement)
             for row in c:
@@ -3886,12 +4480,27 @@ class DummyContentDirectory(Service):
                     album = self.get_entry(albumlist, self.now_playing_album, self.now_playing_album_combiner)
                 albumposition = self.get_entry_position(album, albumlist, self.now_playing_album, self.now_playing_album_combiner)
 
+                orderby, prefix, suffix, albumtype, table, header = state_pre_suf
+                p_prefix = self.makepresuffix(prefix, self.replace_pre, \
+                           {'year':year, 'lastplayed':lastplayed, 'playcount':playcount, 'created':created, \
+                            'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist, \
+                            'composer':composerlist, 'album':album, 'genre':genre, 'tracknumber':tracknumber, 'length':length, \
+                            'path':path, 'filename':filename, 'playlist':playlist, \
+                           })
+                if p_prefix: title = '%s%s' % (p_prefix, title)
+                p_suffix = self.makepresuffix(suffix, self.replace_suf,
+                           {'year':year, 'lastplayed':lastplayed, 'playcount':playcount, 'created':created,
+                            'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist,
+                            'composer':composerlist, 'album':album, 'genre':genre, 'tracknumber':tracknumber, 'length':length,
+                            'path':path, 'filename':filename, 'playlist':playlist, \
+                           })
+                if p_suffix: title = '%s%s' % (title, p_suffix)
+
                 title = escape(title)
                 albumartist = escape(albumartist)
                 artist = escape(artist)
                 album = escape(album)
 #                tracknumber = self.convert_tracknumber(tracknumber)
-
 
                 if SMAPI != '':
 
@@ -4010,6 +4619,8 @@ class DummyContentDirectory(Service):
         # SMAPIkeys[browsetype] = (idval, browsebyid, containerstart)
         log.debug(SMAPIkeys)
 
+        smapiservice = kwargs.get('smapiservice', None)
+
         smapialphastatement = """
                                  select count(lower(substr(alpha,1,1))) as count,
                                         lower(substr(alpha,1,1)) as character
@@ -4084,7 +4695,11 @@ class DummyContentDirectory(Service):
                         #select distinct (%s) as alpha from %s
                         alphastatement = smapialphastatement % ('albumartist', 'AlbumartistAlbum %s group by albumartist order by %%s' % albumwhere)
 
-                        orderbylist = self.get_orderby('ALBUMARTIST', controllername)
+                        if smapiservice:
+                            sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                            orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                        else:
+                            orderbylist = self.get_orderby('ALBUMARTIST', controllername)
                         for orderbyentry in orderbylist:
                             orderby, prefix, suffix, albumtype, table, header = orderbyentry
                             if not orderby or orderby == '':
@@ -4106,7 +4721,11 @@ class DummyContentDirectory(Service):
 
                         alphastatement = smapialphastatement % ('artist', 'ArtistAlbum %s group by artist order by %%s' % albumwhere)
 
-                        orderbylist = self.get_orderby('ARTIST', controllername)
+                        if smapiservice:
+                            sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                            orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                        else:
+                            orderbylist = self.get_orderby('ARTIST', controllername)
                         for orderbyentry in orderbylist:
                             orderby, prefix, suffix, albumtype, table, header = orderbyentry
                             if not orderby or orderby == '':
@@ -4125,10 +4744,14 @@ class DummyContentDirectory(Service):
 
                     countstatement = "select count(distinct artist) from ArtistAlbum %s%s" % (searchwhere, albumwhere)
                     statement = "select rowid, artist, lastplayed, playcount from ArtistAlbum %s%s group by artist order by orderby limit ?, ?" % (searchwhere, albumwhere)
-                    
+
                     alphastatement = smapialphastatement % ('artist', 'ArtistAlbum %s group by artist order by %%s' % albumwhere)
 
-                    orderbylist = self.get_orderby('CONTRIBUTINGARTIST', controllername)
+                    if smapiservice:
+                        sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                        orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                    else:
+                        orderbylist = self.get_orderby('CONTRIBUTINGARTIST', controllername)
                     for orderbyentry in orderbylist:
                         orderby, prefix, suffix, albumtype, table, header = orderbyentry
                         if not orderby or orderby == '':
@@ -4167,7 +4790,11 @@ class DummyContentDirectory(Service):
                             albumwhere = 'and %s' % self.albumartist_album_albumtype_where
                             countstatement = "select count(distinct albumartist) from GenreAlbumartistAlbum where genre=? %s" % albumwhere
                             statement = "select rowid, albumartist, lastplayed, playcount from GenreAlbumartistAlbum where genre=? %s group by albumartist order by orderby limit ?, ?" % albumwhere
-                            orderbylist = self.get_orderby('GENRE_ALBUMARTIST', controllername)
+                            if smapiservice:
+                                sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                                orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                            else:
+                                orderbylist = self.get_orderby('GENRE_ALBUMARTIST', controllername)
                             for orderbyentry in orderbylist:
                                 orderby, prefix, suffix, albumtype, table, header = orderbyentry
                                 if not orderby or orderby == '':
@@ -4179,7 +4806,11 @@ class DummyContentDirectory(Service):
                             albumwhere = 'and %s' % self.artist_album_albumtype_where
                             countstatement = "select count(distinct artist) from GenreArtistAlbum where genre=? %s" % albumwhere
                             statement = "select rowid, artist, lastplayed, playcount from GenreArtistAlbum where genre=? %s group by artist order by orderby limit ?, ?" % albumwhere
-                            orderbylist = self.get_orderby('GENRE_ARTIST', controllername)
+                            if smapiservice:
+                                sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                                orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                            else:
+                                orderbylist = self.get_orderby('GENRE_ARTIST', controllername)
                             for orderbyentry in orderbylist:
                                 orderby, prefix, suffix, albumtype, table, header = orderbyentry
                                 if not orderby or orderby == '':
@@ -4351,7 +4982,11 @@ class DummyContentDirectory(Service):
                     album_groupby = self.groupby_artist
 
                 # get the sort sequence for this database and query
-                orderbylist = self.get_orderby('ALBUM', controllername)
+                if smapiservice:
+                    sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                    orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                else:
+                    orderbylist = self.get_orderby('ALBUM', controllername)
 
                 log.debug(orderbylist)
 
@@ -4496,7 +5131,11 @@ class DummyContentDirectory(Service):
                             if composer == '[unknown composer]': composer = ''
                             log.debug('    composer: %s', composer)
                             fields.append(composer)
-                            orderbylist = self.get_orderby('COMPOSER_ALBUM', controllername)
+                            if smapiservice:
+                                sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                                orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                            else:
+                                orderbylist = self.get_orderby('COMPOSER_ALBUM', controllername)
                             for orderbyentry in orderbylist:
                                 orderby, prefix, suffix, albumtype, table, header = orderbyentry
                                 if not orderby or orderby == '':
@@ -4524,7 +5163,7 @@ class DummyContentDirectory(Service):
                             artist = '"%s"' % artist    # code expects this
                         else:
                             artist = criteria[2][1:]
-                            
+
                         if self.use_albumartist:
 #                            countstatement = "select count(distinct %s) from AlbumartistAlbum where albumartist=? and albumtypewhere %s" % (self.distinct_albumartist, self.album_and_duplicate)
 #                            statement = "select * from albums where id in (select album_id from AlbumartistAlbum where albumartist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, self.groupby_albumartist)
@@ -4558,7 +5197,11 @@ class DummyContentDirectory(Service):
                             log.debug('    artist: %s', artist)
                             fields.append(artist)
                             if self.use_albumartist:
-                                orderbylist = self.get_orderby('ALBUMARTIST_ALBUM', controllername)
+                                if smapiservice:
+                                    sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                                    orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                                else:
+                                    orderbylist = self.get_orderby('ALBUMARTIST_ALBUM', controllername)
                                 for orderbyentry in orderbylist:
                                     orderby, prefix, suffix, albumtype, table, header = orderbyentry
                                     if not orderby or orderby == '':
@@ -4566,7 +5209,11 @@ class DummyContentDirectory(Service):
                                     state_pre_suf.append((orderby, prefix, suffix, albumtype, table, header))
                                 id_pre = 'ALBUMARTIST_ALBUM__'
                             else:
-                                orderbylist = self.get_orderby('ARTIST_ALBUM', controllername)
+                                if smapiservice:
+                                    sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                                    orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                                else:
+                                    orderbylist = self.get_orderby('ARTIST_ALBUM', controllername)
                                 for orderbyentry in orderbylist:
                                     orderby, prefix, suffix, albumtype, table, header = orderbyentry
                                     if not orderby or orderby == '':
@@ -4592,7 +5239,7 @@ class DummyContentDirectory(Service):
                             artist = '"%s"' % artist    # code expects this
                         else:
                             artist = criteria[2][1:]
-                            
+
 #                        countstatement = "select count(distinct %s) from ArtistAlbum where artist=? and albumtypewhere %s" % (self.distinct_artist, self.album_and_duplicate)
 #                        statement = "select * from albums where id in (select album_id from ArtistAlbum where artist=? and albumtypewhere %s) group by %s order by orderby limit ?, ?" % (self.album_and_duplicate, self.groupby_artist)
 
@@ -4610,7 +5257,11 @@ class DummyContentDirectory(Service):
                             if artist == '[unknown artist]': artist = ''
                             log.debug('    artist: %s', artist)
                             fields.append(artist)
-                            orderbylist = self.get_orderby('CONTRIBUTINGARTIST_ALBUM', controllername)
+                            if smapiservice:
+                                sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                                orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                            else:
+                                orderbylist = self.get_orderby('CONTRIBUTINGARTIST_ALBUM', controllername)
                             for orderbyentry in orderbylist:
                                 orderby, prefix, suffix, albumtype, table, header = orderbyentry
                                 if not orderby or orderby == '':
@@ -4692,7 +5343,11 @@ class DummyContentDirectory(Service):
                                 log.debug('    artist: %s', artist)
                                 fields.append(artist)
                                 if self.use_albumartist:
-                                    orderbylist = self.get_orderby('ALBUMARTIST_ALBUM', controllername)
+                                    if smapiservice:
+                                        sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                                        orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                                    else:
+                                        orderbylist = self.get_orderby('ALBUMARTIST_ALBUM', controllername)
                                     for orderbyentry in orderbylist:
                                         orderby, prefix, suffix, albumtype, table, header = orderbyentry
                                         if not orderby or orderby == '':
@@ -4700,7 +5355,11 @@ class DummyContentDirectory(Service):
                                         state_pre_suf.append((orderby, prefix, suffix, albumtype, table, header))
                                     id_pre = 'GENRE_ALBUMARTIST_ALBUM__'
                                 else:
-                                    orderbylist = self.get_orderby('ARTIST_ALBUM', controllername)
+                                    if smapiservice:
+                                        sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                                        orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                                    else:
+                                        orderbylist = self.get_orderby('ARTIST_ALBUM', controllername)
                                     for orderbyentry in orderbylist:
                                         orderby, prefix, suffix, albumtype, table, header = orderbyentry
                                         if not orderby or orderby == '':
@@ -4974,7 +5633,11 @@ class DummyContentDirectory(Service):
 
             alphastatement = smapialphastatement % ('composer', 'ComposerAlbum %s group by composer order by %%s' % albumwhere)
 
-            orderbylist = self.get_orderby('COMPOSER', controllername)
+            if smapiservice:
+                sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+            else:
+                orderbylist = self.get_orderby('COMPOSER', controllername)
             for orderbyentry in orderbylist:
                 orderby, prefix, suffix, albumtype, table, header = orderbyentry
                 if not orderby or orderby == '':
@@ -5093,7 +5756,11 @@ class DummyContentDirectory(Service):
 
                 alphastatement = smapialphastatement % ('genre', 'GenreAlbumartistAlbum %s group by genre order by %%s' % albumwhere)
 
-                orderbylist = self.get_orderby('GENRE_AA', controllername)
+                if smapiservice:
+                    sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                    orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                else:
+                    orderbylist = self.get_orderby('GENRE_AA', controllername)
             else:
 
                 if searchwhere == '':
@@ -5109,7 +5776,11 @@ class DummyContentDirectory(Service):
 
                 alphastatement = smapialphastatement % ('genre', 'GenreArtistAlbum %s group by genre order by %%s' % albumwhere)
 
-                orderbylist = self.get_orderby('GENRE_A', controllername)
+                if smapiservice:
+                    sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                    orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                else:
+                    orderbylist = self.get_orderby('GENRE_A', controllername)
             for orderbyentry in orderbylist:
                 orderby, prefix, suffix, albumtype, table, header = orderbyentry
                 if not orderby or orderby == '':
@@ -5213,6 +5884,7 @@ class DummyContentDirectory(Service):
             artists = []
             fields = []
             tracks_type = None
+            state_pre_suf = (None, None, None, [10], 'dummy', None)  # TODO: remove (when each option contains code)
 
             if searchCriteria == 'upnp:class derivedfrom "object.item.audioItem" and @refID exists false' or \
                searchcontainer == 'Track' or \
@@ -5233,8 +5905,20 @@ class DummyContentDirectory(Service):
                     else:
                         searchwhere += ' and title like "%s%%"' % searchstring
 
+                if smapiservice:
+                    sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
+                    orderbylist = smapiservice.get_orderby(sorttype, controllername, proxy=True)
+                else:
+                    orderbylist = self.get_orderby('TRACK', controllername)
+                log.debug(orderbylist)
+                for orderbyentry in orderbylist:
+                    orderby, prefix, suffix, albumtype, table, header = orderbyentry
+                    if not orderby or orderby == '':
+                        orderby = 'title'
+                    state_pre_suf = (orderby, prefix, suffix, albumtype, table, header)
+
                 countstatement = "select count(*) from tracks %s" % searchwhere
-                statement = "select * from tracks %s order by title limit %d, %d" % (searchwhere, startingIndex, requestedCount)
+                statement = "select * from tracks %s order by %s limit %d, %d" % (searchwhere, orderby, startingIndex, requestedCount)
 
                 alphastatement = smapialphastatement % ('title', 'tracks %s order by %%s' % searchwhere)
 
@@ -5271,11 +5955,11 @@ class DummyContentDirectory(Service):
 
                         if criteria[0].endswith('microsoft:authorComposer ') or \
                            SMAPI == 'composer:track':
-                           
+
                             # tracks for composer
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:authorComposer = "A New Found Glory"
                             log.debug('tracks for composer')
-                            
+
                             if SMAPI == 'composer:track':
                                 composeridval, browsebyid, containerstart = SMAPIkeys['composer']
                                 rowid = composeridval - containerstart
@@ -5286,7 +5970,7 @@ class DummyContentDirectory(Service):
                                 composer = '"%s"' % composer    # code expects this
                             else:
                                 composer = criteria[1][1:]
-                                
+
                             field_is = 'COMPOSER'
                             countstatement = "select count(*) from ComposerAlbumTrack aa where aa.composer=? %s" % (self.album_and_duplicate)
                             statement = "select * from tracks where rowid in (select track_id from ComposerAlbumTrack aa where aa.composer=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
@@ -5301,11 +5985,11 @@ class DummyContentDirectory(Service):
 
                         elif criteria[0].endswith('microsoft:artistAlbumArtist ') or \
                              SMAPI == 'artist:track':
-                             
+
                             # tracks for artist
                             # SearchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistAlbumArtist = "30 Seconds to Mars"
                             log.debug('tracks for artist')
-                            
+
                             if SMAPI == 'artist:track':
                                 artistidval, browsebyid, containerstart = SMAPIkeys['artist']
                                 rowid = artistidval - containerstart
@@ -5319,7 +6003,7 @@ class DummyContentDirectory(Service):
                                 artist = '"%s"' % artist    # code expects this
                             else:
                                 artist = criteria[1][1:]
-                                
+
                             if self.use_albumartist:
                                 field_is = 'ALBUMARTIST'
                             else:
@@ -5357,7 +6041,7 @@ class DummyContentDirectory(Service):
                                 artist = '"%s"' % artist    # code expects this
                             else:
                                 artist = criteria[1][1:]
-                                
+
                             field_is = 'ARTIST'
                             countstatement = "select count(*) from ArtistAlbumTrack aa where aa.artist=? %s" % (self.album_and_duplicate)
                             statement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack aa where aa.artist=? %s) order by album, discnumber, tracknumber, title limit %d, %d" % (self.album_and_duplicate, startingIndex, requestedCount)
@@ -5372,7 +6056,7 @@ class DummyContentDirectory(Service):
 
                         elif criteria[0].endswith('upnp:genre ') or \
                              SMAPI == 'genre:track':
-                             
+
                             # tracks for genre
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and upnp:genre = "Alt. Pop"
                             log.debug('tracks for genre')
@@ -5387,7 +6071,7 @@ class DummyContentDirectory(Service):
                                 genre = '"%s"' % genre    # code expects this
                             else:
                                 genre = criteria[1][1:]
-                                
+
                             field_is = 'GENRE'
                             if self.use_albumartist:
                                 countstatement = "select count(*) from GenreAlbumartistAlbumTrack aa where aa.genre=? %s" % (self.album_and_duplicate)
@@ -5417,15 +6101,14 @@ class DummyContentDirectory(Service):
 
                         if criteria[0].endswith('microsoft:authorComposer ') or \
                            SMAPI == 'composer:album:track':
-                           
+
                             # tracks for composer/album
                             # SearchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:authorComposer = "A Lee" and upnp:album = "Fallen"
                             log.debug('tracks for composer/album')
-                            
+
                             if SMAPI == 'composer:album:track':
-                                composeridval, browsebyid, containerstart = SMAPIkeys['composer']
-                                rowid = composeridval - containerstart
-                                composerstatement = """select composer, album from ComposerAlbum where rowid=%s""" % rowid
+                                albumidval, browsebyid, containerstart = SMAPIkeys['album']
+                                composerstatement = """select composer, album from ComposerAlbum where album_id=%s""" % albumidval
                                 log.debug(composerstatement)
                                 c.execute(composerstatement)
                                 composer, album = c.fetchone()
@@ -5433,7 +6116,7 @@ class DummyContentDirectory(Service):
                                 smapialbum = '"%s"' % album    # code expects this
                             else:
                                 composer = criteria[1][1:-16]
-                                
+
                             artist_is = 'COMPOSER'
                             composer_options = self.removepresuf(composer, 'COMPOSER', controllername)
                             for composer in composer_options:
@@ -5473,18 +6156,17 @@ class DummyContentDirectory(Service):
 
                         elif criteria[0].endswith('microsoft:artistAlbumArtist ') or \
                              SMAPI == 'artist:album:track':
-                             
+
                             # tracks for artist/album
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistAlbumArtist = "1 Giant Leap" and upnp:album = "1 Giant Leap"
                             log.debug('tracks for artist/album')
 
                             if SMAPI == 'artist:album:track':
-                                artistidval, browsebyid, containerstart = SMAPIkeys['artist']
-                                rowid = artistidval - containerstart
+                                albumidval, browsebyid, containerstart = SMAPIkeys['album']
                                 if self.use_albumartist:
-                                    artiststatement = """select albumartist, album from AlbumartistAlbum where rowid=%s""" % rowid
+                                    artiststatement = """select albumartist, album from AlbumartistAlbum where album_id=%s""" % albumidval
                                 else:
-                                    artiststatement = """select albumartist, album from ArtistAlbum where rowid=%s""" % rowid
+                                    artiststatement = """select albumartist, album from ArtistAlbum where album_id=%s""" % albumidval
                                 log.debug(artiststatement)
                                 c.execute(artiststatement)
                                 artist, album = c.fetchone()
@@ -5492,7 +6174,7 @@ class DummyContentDirectory(Service):
                                 smapialbum = '"%s"' % album    # code expects this
                             else:
                                 artist = criteria[1][1:-16]
-                                
+
                             if self.use_albumartist:
                                 artist_is = 'ALBUMARTIST'
                             else:
@@ -5505,7 +6187,7 @@ class DummyContentDirectory(Service):
                                 log.debug(artist)
                                 if artist == '[unknown artist]': artist = ''
                                 artists.append(artist)
-                                
+
                                 if SMAPI == 'artist:album:track':
                                     album = smapialbum
                                 else:
@@ -5561,15 +6243,14 @@ class DummyContentDirectory(Service):
 
                         elif criteria[0].endswith('microsoft:artistPerformer ') or \
                              SMAPI == 'contributingartist:album:track':
-                             
+
                             # tracks for contributing artist/album
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistPerformer = "1 Giant Leap" and upnp:album = "1 Giant Leap"
                             log.debug('tracks for contributing artist/album')
-                            
+
                             if SMAPI == 'contributingartist:album:track':
-                                contributingartistidval, browsebyid, containerstart = SMAPIkeys['contributingartist']
-                                rowid = contributingartistidval - containerstart
-                                contributingartiststatement = """select artist, album from ArtistAlbum where rowid=%s""" % rowid
+                                albumidval, browsebyid, containerstart = SMAPIkeys['album']
+                                contributingartiststatement = """select artist, album from ArtistAlbum where album_id=%s""" % albumidval
                                 log.debug(contributingartiststatement)
                                 c.execute(contributingartiststatement)
                                 artist, album = c.fetchone()
@@ -5577,18 +6258,18 @@ class DummyContentDirectory(Service):
                                 smapialbum = '"%s"' % album    # code expects this
                             else:
                                 artist = criteria[1][1:-16]
-                                
+
                             artist_is = 'ARTIST'
                             artist_options = self.removepresuf(artist, 'CONTRIBUTINGARTIST', controllername)
                             for artist in artist_options:
                                 if artist == '[unknown artist]': artist = ''
                                 artists.append(artist)
-                                
+
                                 if SMAPI == 'contributingartist:album:track':
                                     album = smapialbum
                                 else:
                                     album = criteria[2][1:]
-                                    
+
                                 album_options = self.removepresuf(album, 'CONTRIBUTINGARTIST_ALBUM', controllername)
                                 for album in album_options:
                                     if album == '[unknown album]': album = ''
@@ -5617,12 +6298,12 @@ class DummyContentDirectory(Service):
 
                         elif criteria[0].endswith('upnp:genre ') or \
                              SMAPI == 'genre:artist:track':
-                             
+
                             # tracks for genre/artist
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and upnp:genre = "Alt. Rock" and microsoft:artistAlbumArtist = "Elvis Costello"
                             not_album = True
                             log.debug('tracks for genre/artist')
-                            
+
                             if SMAPI == 'genre:artist:track':
                                 genreidval, browsebyid, containerstart = SMAPIkeys['genre']
                                 rowid = genreidval
@@ -5631,7 +6312,7 @@ class DummyContentDirectory(Service):
                                 c.execute(genrestatement)
                                 genre, = c.fetchone()
                                 genre = '"%s"' % genre    # code expects this
-                                
+
                                 artistidval, browsebyid, containerstart = SMAPIkeys['artist']
                                 rowid = artistidval - containerstart
                                 if self.use_albumartist:
@@ -5644,7 +6325,7 @@ class DummyContentDirectory(Service):
                                 smapiartist = '"%s"' % artist    # code expects this
                             else:
                                 genre = criteria[1][1:-33]
-                                
+
                             if self.use_albumartist:
                                 artist_is = 'ALBUMARTIST'
                             else:
@@ -5653,12 +6334,12 @@ class DummyContentDirectory(Service):
                             for genre in genre_options:
                                 if genre == '[unknown genre]': genre = ''
                                 artists.append(genre)
-                                
+
                                 if SMAPI == 'genre:artist:track':
                                     artist = smapiartist
                                 else:
                                     artist = criteria[2][1:]
-                                
+
                                 if self.use_albumartist:
                                     artist_options = self.removepresuf(artist, 'ALBUMARTIST', controllername)
                                 else:
@@ -5686,7 +6367,7 @@ class DummyContentDirectory(Service):
                         log.debug('tracks for genre/artist/album')
                         tracks_type = 'GENRE'
                         not_album = False
-                        
+
                         if SMAPI == 'genre:artist:album:track':
                             genreidval, browsebyid, containerstart = SMAPIkeys['genre']
                             rowid = genreidval
@@ -5695,12 +6376,11 @@ class DummyContentDirectory(Service):
                             c.execute(genrestatement)
                             genre, = c.fetchone()
                             genre = '"%s"' % genre    # code expects this
-                            artistidval, browsebyid, containerstart = SMAPIkeys['artist']
-                            rowid = artistidval - containerstart
+                            albumidval, browsebyid, containerstart = SMAPIkeys['album']
                             if self.use_albumartist:
-                                artiststatement = """select albumartist, album from GenreAlbumartistAlbum where rowid=%s""" % rowid
+                                artiststatement = """select albumartist, album from GenreAlbumartistAlbum where album_id=%s""" % albumidval
                             else:
-                                artiststatement = """select albumartist, album from GenreArtistAlbum where rowid=%s""" % rowid
+                                artiststatement = """select albumartist, album from GenreArtistAlbum where album_id=%s""" % albumidval
                             log.debug(artiststatement)
                             c.execute(artiststatement)
                             artist, album = c.fetchone()
@@ -5708,7 +6388,7 @@ class DummyContentDirectory(Service):
                             smapialbum = '"%s"' % album    # code expects this
                         else:
                             genre = criteria[1][1:-33]
-                            
+
                         if self.use_albumartist:
                             artist_is = 'ALBUMARTIST'
                         else:
@@ -5717,12 +6397,12 @@ class DummyContentDirectory(Service):
                         for genre in genre_options:
                             if genre == '[unknown genre]': genre = ''
                             genres.append(genre)
-                            
+
                             if SMAPI == 'genre:artist:album:track':
                                 artist = smapiartist
                             else:
                                 artist = criteria[2][1:-16]
-                                
+
                             if self.use_albumartist:
                                 artist_options = self.removepresuf(artist, 'GENRE_ALBUMARTIST', controllername)
                             else:
@@ -5737,7 +6417,7 @@ class DummyContentDirectory(Service):
                                     album = smapialbum
                                 else:
                                     album = criteria[3][1:]
-                                    
+
                                 if self.use_albumartist:
                                     album_options = self.removepresuf(album, 'ALBUMARTIST_ALBUM', controllername)
                                 else:
@@ -6060,6 +6740,22 @@ class DummyContentDirectory(Service):
                             album = self.get_entry(albumlist, self.now_playing_album, self.now_playing_album_combiner)
                     album_entry_id = str(self.get_entry_position(album, albumlist, self.now_playing_album, self.now_playing_album_combiner))
 
+                orderby, prefix, suffix, albumtype, table, header = state_pre_suf
+                p_prefix = self.makepresuffix(prefix, self.replace_pre, \
+                           {'year':year, 'lastplayed':lastplayed, 'playcount':playcount, 'created':created, \
+                            'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist, \
+                            'composer':composerlist, 'album':album, 'genre':genre, 'tracknumber':tracknumber, 'length':length, \
+                            'path':path, 'filename':filename, \
+                           })
+                if p_prefix: title = '%s%s' % (p_prefix, title)
+                p_suffix = self.makepresuffix(suffix, self.replace_suf,
+                           {'year':year, 'lastplayed':lastplayed, 'playcount':playcount, 'created':created,
+                            'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist,
+                            'composer':composerlist, 'album':album, 'genre':genre, 'tracknumber':tracknumber, 'length':length,
+                            'path':path, 'filename':filename, \
+                           })
+                if p_suffix: title = '%s%s' % (title, p_suffix)
+
                 title = escape(title)
                 artist = escape(artist)
                 albumartist = escape(albumartist)
@@ -6141,7 +6837,7 @@ class DummyContentDirectory(Service):
             totalMatches, = c.fetchone()
 
             statement = "select rowid,* from playlists %s group by plfile order by playlist limit %d, %d" % (searchwhere, startingIndex, requestedCount)
-            
+
             alphastatement = smapialphastatement % ('playlist', 'playlists %s order by %%s' % searchwhere)
 
             if SMAPI == 'Alphaplaylist':
@@ -6158,7 +6854,7 @@ class DummyContentDirectory(Service):
                 log.debug(alphastatement)
                 c.execute(alphastatement)
                 return c.fetchall()
-            
+
             c.execute(statement)
             for row in c:
 #                log.debug("row: %s", row)
@@ -6369,18 +7065,11 @@ class DummyContentDirectory(Service):
                             except TypeError:
                                 lastmodified = self.chunk_metadata_empty
                         outfix += replace % lastmodified
-                    elif fix == 'artist':
-                        artist = fixdict['artist']
-                        if artist == '': artist = self.chunk_metadata_empty
-                        outfix += replace % artist
-                    elif fix == 'albumartist':
-                        albumartist = fixdict['albumartist']
-                        if albumartist == '': albumartist = self.chunk_metadata_empty
-                        outfix += replace % albumartist
-                    elif fix == 'composer':
-                        composer = fixdict['composer']
-                        if composer == '': composer = self.chunk_metadata_empty
-                        outfix += replace % composer
+                    else:
+                        # other tags just pass through
+                        tag = fixdict[fix]
+                        if tag == '': tag = self.chunk_metadata_empty
+                        outfix += replace % tag
         return outfix
 
     def removepresuf(self, title, sourcetable, controllername):

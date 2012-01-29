@@ -7,7 +7,7 @@ import os
 #ip = '127.0.0.1'
 ip = '0.0.0.0'
 port = 8000
-password = '<recycle>'
+password = 'sonospy'
 pid_filename = 'httpserver.pid'
 log_filename = 'httpserver.log'
 profiler_filename = None

@@ -146,19 +146,26 @@ def main():
 def getrunningproxies():
 
     devnull = file(os.devnull, 'ab')
-    p1 = subprocess.Popen(["ps", "au"],
-            stdout=subprocess.PIPE,
-            stderr=devnull)
-    p2 = subprocess.Popen(["grep", "pycpoint.py"],
-            stdin=p1.stdout,
-            stdout=subprocess.PIPE,
-            stderr=devnull)
-    p3 = subprocess.Popen(["grep", "-v", "grep"],
-            stdin=p2.stdout,
-            stdout=subprocess.PIPE,
-            stderr=devnull)
+
+    if os.name == 'nt':
+        p1 = subprocess.Popen(["tasklist /V", "au"],
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+        output = p1.stdout.read()
+    else:    
+        p1 = subprocess.Popen(["ps", "au"],
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+        p2 = subprocess.Popen(["grep", "pycpoint.py"],
+                stdin=p1.stdout,
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+        p3 = subprocess.Popen(["grep", "-v", "grep"],
+                stdin=p2.stdout,
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+        output = p3.stdout.read()
     
-    output = p3.stdout.read()
     proxies = []
     if not output: return proxies
     entries = output.split(' ')
