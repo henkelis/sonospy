@@ -1465,7 +1465,12 @@ What do we do if a result is not in alpha order?
                     log.debug(firstbrowsebyid)
                     log.debug(self.hierarchytype)
 
-                    static = self.hierarchytype[firstbrowsetype]
+                    if firstbrowsetype in self.hierarchytype:
+                        # first entry is root
+                        static = self.hierarchytype[firstbrowsetype]
+                    elif firstbrowsetype == 'usersearch':
+                        # first browse type is a user search
+                        static = False
                     log.debug(static)
 
                     if static:
@@ -1479,7 +1484,15 @@ What do we do if a result is not in alpha order?
                     log.debug(nextcontainer)
                     idvals += [self.containerstart[nextcontainer]]
             log.debug(idvals)
-
+            
+            # if recursive requested, replace last item in hierarchy
+            # with track
+            # (assumes all hierarchies end in track, or at least
+            #  that recursive will only be requested for tracks)
+            if recursive:
+                idvals[len(idvals) - 1] = self.containerstart['track']
+                log.debug(idvals)
+            
             # process ids
             idkeys = {}
             hierarchy = ''
@@ -1508,7 +1521,12 @@ What do we do if a result is not in alpha order?
             if lastbrowsetype != 'usersearch':
                 # get first item in hierarchy
                 firstbrowsetype, firstbrowsebyid = self.get_index(idvals[0])
-                static = self.hierarchytype[firstbrowsetype]
+                if firstbrowsetype in self.hierarchytype:
+                    # first entry is root
+                    static = self.hierarchytype[firstbrowsetype]
+                elif firstbrowsetype == 'usersearch':
+                    # first browse type is a user search
+                    static = False
                 log.debug(static)
 
             if hierarchy in ['album:track', 'playlist:track']:
@@ -1537,7 +1555,7 @@ What do we do if a result is not in alpha order?
                 else: SearchCriteria = ''
                 StartingIndex = str(index)
                 RequestedCount = str(count)
-                if lastbrowsetype == 'usersearch':
+                if lastbrowsetype == 'usersearch' or firstbrowsetype == 'usersearch':
                     SMAPIfull = []
                 else:
                     SMAPIfull = self.hierarchies[firstbrowsetype]
@@ -2072,7 +2090,18 @@ What do we do if a result is not in alpha order?
         indexsuffix = ''
         prevtitle = ''
         for entry in SMAPIhierarchy:
+        
             idval, browsebyid, containerstart = SMAPIkeys[entry]
+            firstbrowsetype, firstbrowsebyid = self.get_index(idval)
+            
+            if firstbrowsetype == 'usersearch':
+                # save id used
+                itemidprefix = ':'.join(filter(None,(itemidprefix, str(idval))))
+            
+            if firstbrowsetype == 'usersearch' and len(SMAPIhierarchy) != 1:
+                # don't process entry if it's a user search key
+                # and there are further entries
+                continue
             
             field = self.convert_field_name(entry.split('_')[0])
             log.debug(field)
@@ -2095,11 +2124,12 @@ What do we do if a result is not in alpha order?
                     log.debug(keystatement)
                     c.execute(keystatement)
                     title, = c.fetchone()
+                    title = title.replace("'", "''")
                     log.debug(title)
                     # add keys to where clause
                     if where == '': whereword = 'where'
                     else: whereword = 'and'
-                    where = '%s%s %s="%s" ' % (where, whereword, field, title)
+                    where = "%s%s %s='%s' " % (where, whereword, field, title)
 
                 # save id's used
                 itemidprefix = ':'.join(filter(None,(itemidprefix, str(idval))))
@@ -2167,7 +2197,8 @@ What do we do if a result is not in alpha order?
                         whereentry = '%s between %s and %s' % (searchitem, startyear, endyear)
                     else:
                         searchstring = self.translate_dynamic_field(searchitem, searchstring, 'in')
-                        whereentry = '%s like "%s%%"' % (searchitem, searchstring)
+                        newsearchstring = searchstring.replace("'", "''")
+                        whereentry = "%s like '%s%%'" % (searchitem, newsearchstring)
                     log.debug(whereentry)
 
                     searchlistwhere.append('where %s' % whereentry)
@@ -2335,7 +2366,9 @@ What do we do if a result is not in alpha order?
                         else:
                             rangestartstring = self.translate_dynamic_field(field, rangestart, 'in')
                             rangeendstring = self.translate_dynamic_field(field, rangeend, 'in')
-                            rangewhere = '%s between "%s" and "%s"' % (rangefield, rangestartstring, rangeendstring)
+                            rangestartstring = rangestartstring.replace("'", "''")
+                            rangeendstring = rangeendstring.replace("'", "''")
+                            rangewhere = "%s between '%s' and '%s'" % (rangefield, rangestartstring, rangeendstring)
 
                         log.debug('rangewhere: %s' % rangewhere)
 
@@ -2457,8 +2490,13 @@ What do we do if a result is not in alpha order?
                     if browsetable == 'tracks':
 
                         if field.lower() == 'title':
-                            countstatement = "select count(%s) from %s %s" % (field, browsetable, where)
-                            statement = "select '%s' as recordtype, rowid, %s from %s %s order by %s limit ?, ?" % (field, selectfield, browsetable, where, orderfield)
+                        
+                            if searchtype != '':
+                                countstatement = "select count(%s) from %s %s" % (field, browsetable, where)
+                                statement = "select 'track' as recordtype, rowid, id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid, %s from %s %s order by %s limit ?, ?" % (selectfield, browsetable, where, orderfield)
+                            else:
+                                countstatement = "select count(%s) from %s %s" % (field, browsetable, where)
+                                statement = "select 'track' as recordtype, rowid, %s from %s %s order by %s limit ?, ?" % (selectfield, browsetable, where, orderfield)
                         else:
                             countstatement = "select count(distinct %s) from %s %s" % (groupfield, browsetable, where)
                             statement = "select '%s' as recordtype, rowid, %s from %s %s group by %s order by %s limit ?, ?" % (field, selectfield, browsetable, where, groupfield, orderfield)
@@ -4682,7 +4720,8 @@ class DummyContentDirectory(Service):
                     if self.use_albumartist:
                         artisttype = 'albumartist'
                         if searchcontainer:
-                            searchwhere = 'where albumartist like "%s%%"' % searchstring
+                            searchstring = searchstring.replace("'", "''")
+                            searchwhere = "where albumartist like '%s%%'" % searchstring
 
                         if searchwhere == '':
                             albumwhere = 'where %s' % self.albumartist_album_albumtype_where
@@ -4709,7 +4748,8 @@ class DummyContentDirectory(Service):
                     else:
                         artisttype = 'artist'
                         if searchcontainer:
-                            searchwhere = 'where artist like "%s%%"' % searchstring
+                            searchstring = searchstring.replace("'", "''")
+                            searchwhere = "where artist like '%s%%'" % searchstring
 
                         if searchwhere == '':
                             albumwhere = 'where %s' % self.artist_album_albumtype_where
@@ -4735,7 +4775,8 @@ class DummyContentDirectory(Service):
                 else:
                     artisttype = 'contributingartist'
                     if searchcontainer:
-                        searchwhere = 'where artist like "%s%%"' % searchstring
+                        searchstring = searchstring.replace("'", "''")
+                        searchwhere = "where artist like '%s%%'" % searchstring
 
                     if searchwhere == '':
                         albumwhere = 'where %s' % self.contributingartist_album_albumtype_where
@@ -4966,10 +5007,11 @@ class DummyContentDirectory(Service):
 
                 albumwhere = self.album_where_duplicate
                 if searchcontainer:
+                    searchstring = searchstring.replace("'", "''")
                     if albumwhere == '':
-                        albumwhere = 'where album like "%s%%"' % searchstring
+                        albumwhere = "where album like '%s%%'" % searchstring
                     else:
-                        albumwhere += ' and album like "%s%%"' % searchstring
+                        albumwhere += " and album like '%s%%'" % searchstring
 
                 genres.append('dummy')     # dummy for albums
                 fields.append('dummy')     # dummy for albums
@@ -5621,7 +5663,8 @@ class DummyContentDirectory(Service):
 
             searchwhere = ''
             if searchcontainer:
-                searchwhere = 'where composer like "%s%%"' % searchstring
+                searchstring = searchstring.replace("'", "''")
+                searchwhere = "where composer like '%s%%'" % searchstring
 
             if searchwhere == '':
                 albumwhere = 'where %s' % self.composer_album_albumtype_where
@@ -5739,7 +5782,8 @@ class DummyContentDirectory(Service):
 
             searchwhere = ''
             if searchcontainer:
-                searchwhere = 'where genre like "%s%%"' % searchstring
+                searchstring = searchstring.replace("'", "''")
+                searchwhere = "where genre like '%s%%'" % searchstring
 
             if self.use_albumartist:
 
@@ -5900,10 +5944,11 @@ class DummyContentDirectory(Service):
 
                 searchwhere = where
                 if searchcontainer:
+                    searchstring = searchstring.replace("'", "''")
                     if searchwhere == '':
-                        searchwhere = 'where title like "%s%%"' % searchstring
+                        searchwhere = "where title like '%s%%'" % searchstring
                     else:
-                        searchwhere += ' and title like "%s%%"' % searchstring
+                        searchwhere += " and title like '%s%%'" % searchstring
 
                 if smapiservice:
                     sorttype = '%s_%s' % (SMAPIhierarchy[0], SMAPIhierarchy[-1])
@@ -5937,6 +5982,7 @@ class DummyContentDirectory(Service):
                 for album_loop in range(2):
 
                     log.debug('album_loop: %d' % album_loop)
+                    log.debug(SMAPI)
 
                     # Tracks for class/album or class
                     duplicate_number = '0'
@@ -5947,6 +5993,8 @@ class DummyContentDirectory(Service):
                        SMAPI == 'contributingartist:track' or \
                        SMAPI == 'genre:track' or \
                        len(criteria) == 2:
+
+                        log.debug('here')
 
                         tracks_type = 'FIELD'
                         genres.append('dummy')
@@ -6025,7 +6073,8 @@ class DummyContentDirectory(Service):
                                     break
                                 log.debug('    artist: %s', artist)
 
-                        elif criteria[0].endswith('microsoft:artistPerformer '):
+                        elif criteria[0].endswith('microsoft:artistPerformer ') or \
+                             SMAPI == 'contributingartist:track':
 
                             # tracks for contributing artist
                             # searchCriteria: upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistPerformer = "1 Giant Leap"
@@ -6088,11 +6137,11 @@ class DummyContentDirectory(Service):
                                     break
                                 log.debug('    genre: %s', genre)
 
-                    if SMAPI == 'composer:album:track' or \
-                       SMAPI == 'artist:album:track' or \
-                       SMAPI == 'contributingartist:album:track' or \
-                       SMAPI == 'genre:artist:track' or \
-                       len(criteria) == 3:
+                    elif SMAPI == 'composer:album:track' or \
+                         SMAPI == 'artist:album:track' or \
+                         SMAPI == 'contributingartist:album:track' or \
+                         SMAPI == 'genre:artist:track' or \
+                         len(criteria) == 3:
 
                         tracks_type = 'ARTIST'
                         genres.append('dummy')
@@ -6740,7 +6789,7 @@ class DummyContentDirectory(Service):
                             album = self.get_entry(albumlist, self.now_playing_album, self.now_playing_album_combiner)
                     album_entry_id = str(self.get_entry_position(album, albumlist, self.now_playing_album, self.now_playing_album_combiner))
 
-                orderby, prefix, suffix, albumtype, table, header = state_pre_suf
+                orderby, prefix, suffix, spsalbumtype, table, header = state_pre_suf
                 p_prefix = self.makepresuffix(prefix, self.replace_pre, \
                            {'year':year, 'lastplayed':lastplayed, 'playcount':playcount, 'created':created, \
                             'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist, \
@@ -6831,7 +6880,8 @@ class DummyContentDirectory(Service):
 
             searchwhere = ''
             if searchcontainer:
-                searchwhere = 'where playlist like "%s%%"' % searchstring
+                searchstring = searchstring.replace("'", "''")
+                searchwhere = "where playlist like '%s%%'" % searchstring
 
             c.execute("select count(distinct plfile) from playlists %s" % searchwhere)
             totalMatches, = c.fetchone()
