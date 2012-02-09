@@ -2124,7 +2124,7 @@ What do we do if a result is not in alpha order?
                     log.debug(keystatement)
                     c.execute(keystatement)
                     title, = c.fetchone()
-                    title = title.replace("'", "''")
+                    title = escape_sql(title)
                     log.debug(title)
                     # add keys to where clause
                     if where == '': whereword = 'where'
@@ -2197,7 +2197,7 @@ What do we do if a result is not in alpha order?
                         whereentry = '%s between %s and %s' % (searchitem, startyear, endyear)
                     else:
                         searchstring = self.translate_dynamic_field(searchitem, searchstring, 'in')
-                        newsearchstring = searchstring.replace("'", "''")
+                        newsearchstring = escape_sql(searchstring)
                         whereentry = "%s like '%s%%'" % (searchitem, newsearchstring)
                     log.debug(whereentry)
 
@@ -2366,8 +2366,8 @@ What do we do if a result is not in alpha order?
                         else:
                             rangestartstring = self.translate_dynamic_field(field, rangestart, 'in')
                             rangeendstring = self.translate_dynamic_field(field, rangeend, 'in')
-                            rangestartstring = rangestartstring.replace("'", "''")
-                            rangeendstring = rangeendstring.replace("'", "''")
+                            rangestartstring = escape_sql(rangestartstring)
+                            rangeendstring = escape_sql(rangeendstring)
                             rangewhere = "%s between '%s' and '%s'" % (rangefield, rangestartstring, rangeendstring)
 
                         log.debug('rangewhere: %s' % rangewhere)
@@ -3878,9 +3878,9 @@ class DummyContentDirectory(Service):
             c.execute(statement)
             albumlist, artistlist, albumartistlist, album_duplicate, album_type, separated = c.fetchone()
 
-            albumlist = albumlist.replace("'", "''")
-            artistlist = artistlist.replace("'", "''")
-            albumartistlist = albumartistlist.replace("'", "''")
+            albumlist = escape_sql(albumlist)
+            artistlist = escape_sql(artistlist)
+            albumartistlist = escape_sql(albumartistlist)
 
             albumentry = self.get_entry_at_position(albumposition, albumlist)
             artistentry = self.get_entry_at_position(artistposition, artistlist)
@@ -4720,7 +4720,7 @@ class DummyContentDirectory(Service):
                     if self.use_albumartist:
                         artisttype = 'albumartist'
                         if searchcontainer:
-                            searchstring = searchstring.replace("'", "''")
+                            searchstring = escape_sql(searchstring)
                             searchwhere = "where albumartist like '%s%%'" % searchstring
 
                         if searchwhere == '':
@@ -4748,7 +4748,7 @@ class DummyContentDirectory(Service):
                     else:
                         artisttype = 'artist'
                         if searchcontainer:
-                            searchstring = searchstring.replace("'", "''")
+                            searchstring = escape_sql(searchstring)
                             searchwhere = "where artist like '%s%%'" % searchstring
 
                         if searchwhere == '':
@@ -4775,7 +4775,7 @@ class DummyContentDirectory(Service):
                 else:
                     artisttype = 'contributingartist'
                     if searchcontainer:
-                        searchstring = searchstring.replace("'", "''")
+                        searchstring = escape_sql(searchstring)
                         searchwhere = "where artist like '%s%%'" % searchstring
 
                     if searchwhere == '':
@@ -5007,7 +5007,7 @@ class DummyContentDirectory(Service):
 
                 albumwhere = self.album_where_duplicate
                 if searchcontainer:
-                    searchstring = searchstring.replace("'", "''")
+                    searchstring = escape_sql(searchstring)
                     if albumwhere == '':
                         albumwhere = "where album like '%s%%'" % searchstring
                     else:
@@ -5663,7 +5663,7 @@ class DummyContentDirectory(Service):
 
             searchwhere = ''
             if searchcontainer:
-                searchstring = searchstring.replace("'", "''")
+                searchstring = escape_sql(searchstring)
                 searchwhere = "where composer like '%s%%'" % searchstring
 
             if searchwhere == '':
@@ -5782,7 +5782,7 @@ class DummyContentDirectory(Service):
 
             searchwhere = ''
             if searchcontainer:
-                searchstring = searchstring.replace("'", "''")
+                searchstring = escape_sql(searchstring)
                 searchwhere = "where genre like '%s%%'" % searchstring
 
             if self.use_albumartist:
@@ -5944,7 +5944,7 @@ class DummyContentDirectory(Service):
 
                 searchwhere = where
                 if searchcontainer:
-                    searchstring = searchstring.replace("'", "''")
+                    searchstring = escape_sql(searchstring)
                     if searchwhere == '':
                         searchwhere = "where title like '%s%%'" % searchstring
                     else:
@@ -6880,7 +6880,7 @@ class DummyContentDirectory(Service):
 
             searchwhere = ''
             if searchcontainer:
-                searchstring = searchstring.replace("'", "''")
+                searchstring = escape_sql(searchstring)
                 searchwhere = "where playlist like '%s%%'" % searchstring
 
             c.execute("select count(distinct plfile) from playlists %s" % searchwhere)
@@ -7904,6 +7904,11 @@ def getFileType(filename):
 
 def getFile(path):
     return path.split(os.sep)[-1]
+
+def escape_sql(sql):
+    if isinstance(sql, basestring):
+        sql = sql.replace("'", "''")
+    return sql
 
 escape_entities = {'"' : '&quot;', "'" : '&apos;', " " : '%20'}
 escape_entities_quotepos = {'"' : '&quot;', "'" : '&apos;'}
