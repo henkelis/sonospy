@@ -23,7 +23,6 @@
 # scan.py Author: Mark Henkelis <mark.henkelis@tesco.net>
 ###############################################################################
 # TODO:
-# - Add scheduler functionality (i.e. push command to scheduler tab)
 ###############################################################################
 
 import wx

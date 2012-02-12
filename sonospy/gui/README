@@ -40,10 +40,6 @@ TO DO
 [GENERAL]
  - Look at installers for entire sonospy project (not just GUI)
  - Minimize to tray?
- - Add Scheduler Tab to mimic cron-jobs (eventually for cross platform)
-
-[SCAN]
- - Add scheduler functionality (i.e. push command to scheduler tab)
 
 [EXTRACT]
  - Scrub SQL database for valid entries to limit user error.  Blue did this, but I am of split mind on whether or not we want to limit the user this way.  In thoery, we could do "contains" on Genre to get a extract with ROCK, CLASSIC ROCK, etc. if "ROCK" is provided.

@@ -24,7 +24,6 @@
 # TODO:
 # - Look at installers for entire sonospy project (not just GUI)
 # - Minimize to tray?
-# - Add Scheduler Tab (check for time and run scans/extracts)
 ###############################################################################
 import wx
 from wxPython.wx import *

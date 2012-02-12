@@ -30,7 +30,6 @@
 #        cur.execute('SELECT DISTINCT genre FROM tags')
 #        for row in cur:
 #            a.append(row)
-# - Add scheduler functionality (i.e. push command to scheduler tab)
 ###############################################################################
 
 import wx
@@ -369,18 +368,18 @@ class ExtractPanel(wx.Panel):
         self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
 
         # ADD TO SCHEDULER TAB
-        self.bt_AddSched = wx.Button(panel, label="+ Schedule")
-        help_AddSched = "NOT IMPLEMENTED YET.  Add current settings to Schedule tab."
-        self.bt_AddSched.SetToolTip(wx.ToolTip(help_AddSched))
-        self.bt_AddSched.Bind(wx.EVT_BUTTON, self.bt_AddSchedClick, self.bt_AddSched)
-        self.bt_AddSched.Disable()
+        #self.bt_AddSched = wx.Button(panel, label="+ Schedule")
+        #help_AddSched = "NOT IMPLEMENTED YET.  Add current settings to Schedule tab."
+        #self.bt_AddSched.SetToolTip(wx.ToolTip(help_AddSched))
+        #self.bt_AddSched.Bind(wx.EVT_BUTTON, self.bt_AddSchedClick, self.bt_AddSched)
+        #self.bt_AddSched.Disable()
 
         sizer.Add(self.bt_Extract, pos=(sizerIndexX,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_SaveLog, pos=(sizerIndexX,1), flag=wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, border=10)
         sizer.Add(self.ck_ExtractVerbose, pos=(sizerIndexX,2), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.ck_OverwriteExisting, pos=(sizerIndexX,3), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_SaveDefaults, pos=(sizerIndexX,4), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_AddSched, pos=(sizerIndexX,5), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.bt_SaveDefaults, pos=(sizerIndexX,5), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_RIGHT, border=10)
+        #sizer.Add(self.bt_AddSched, pos=(sizerIndexX,5), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
     # --------------------------------------------------------------------------
     # [4] Separator line ------------------------------------------------------
