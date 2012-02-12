@@ -33,7 +33,7 @@ import sys
 import subprocess
 from wx.lib.pubsub import Publisher
 ################################################################################
-# This is to house sonospyGUI.py in the root with the rest of the sonospy 
+# This is to house sonospyGUI.py in the root with the rest of the sonospy
 # 'executables'.
 cmd_folder = os.path.dirname(os.path.abspath(__file__))
 cmd_folder = os.path.join(cmd_folder, "sonospy", "gui")
@@ -91,7 +91,7 @@ class SonospyFrame(wx.Frame):
     #----------------------------------------------------------------------
     def __init__(self):
         """Constructor"""
-        wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(630,645))
+        wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(710,750))
         panel = wx.Panel(self)
 
 
@@ -128,12 +128,12 @@ class SonospyFrame(wx.Frame):
         owd = os.getcwd()
         os.chdir(os.pardir)
         os.chdir(os.pardir)
-        
+
         if os.name == 'nt':
             cmdroot = 'python '
         else:
             cmdroot = './'
-        
+
         launchCMD = cmdroot + "sonospy_stop"
 
         # check if service is running...

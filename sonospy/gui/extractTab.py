@@ -147,9 +147,9 @@ class ExtractPanel(wx.Panel):
 
         # Create the options
         logicList = ['<', '<=', '=', '>', '>=']
-        
+
         optSizerIndexX = 0
-        
+
         # Created
         label_OptionsCreated = wx.StaticText(panel, label="Created:")
         help_Created = "Extract files to the Target Database based on the CREATION DATE of the music files in the Source Database."
@@ -202,7 +202,7 @@ class ExtractPanel(wx.Panel):
         self.tc_DaysAgoInserted = wx.TextCtrl(panel)
         self.tc_DaysAgoInserted.SetToolTip(wx.ToolTip(help_Inserted))
         self.tc_DaysAgoInserted.Value = guiFunctions.configMe("extract", "insertedVal")
-        
+
         label_DaysAgoInserted = wx.StaticText(panel, label="days ago")
         label_DaysAgoInserted.SetToolTip(wx.ToolTip(help_Inserted))
 
@@ -390,7 +390,7 @@ class ExtractPanel(wx.Panel):
     # --------------------------------------------------------------------------
     # [5] Output/Log Box -------------------------------------------------------
         sizerIndexX += 1
-        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 225), style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 310), style=wx.TE_MULTILINE|wx.TE_READONLY)
         LogFont = wx.Font(7.5, wx.SWISS, wx.NORMAL, wx.NORMAL, False)
         self.LogWindow.SetFont(LogFont)
         help_LogWindow = "Results of a extract will appear here."
@@ -450,7 +450,7 @@ class ExtractPanel(wx.Panel):
                 self.tc_MainDatabase.Value = selection
                 guiFunctions.statusText(self, "Main Database: " + selection + " selected...")
         dialog.Destroy()
-        
+
 
         # set back to original working directory
         os.chdir(owd)
@@ -458,11 +458,11 @@ class ExtractPanel(wx.Panel):
     def bt_TargetDatabaseClick(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-        
+
         # back up to the folder below our current one.  save cwd in variable
         owd = os.getcwd()
         os.chdir(os.pardir)
-        
+
         dialog = wx.FileDialog ( None, message = 'Select Target Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN )
 
         # Open Dialog Box and get Selection
@@ -472,7 +472,7 @@ class ExtractPanel(wx.Panel):
                 self.tc_TargetDatabase.Value = selection
                 guiFunctions.statusText(self, "Target Database: " + selection + " selected...")
         dialog.Destroy()
-        
+
 
         # set back to original working directory
         os.chdir(owd)
@@ -620,7 +620,7 @@ class ExtractPanel(wx.Panel):
                 guiFunctions.statusText(self, "Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "...")
 
 
-                
+
 # DEBUG ------------------------------------------------------------------------
 #                self.LogWindow.AppendText(scanCMD)
 # ------------------------------------------------------------------------------

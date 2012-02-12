@@ -89,7 +89,7 @@ import os
 def scrubDB(path, ext=False):
     asps = []
     filters = ext
-    
+
     for file in os.listdir(path):
         basename, extension = os.path.splitext(file)
         extension = "*" + extension
