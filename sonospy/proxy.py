@@ -1490,7 +1490,20 @@ What do we do if a result is not in alpha order?
             # (assumes all hierarchies end in track, or at least
             #  that recursive will only be requested for tracks)
             if recursive:
-                idvals[len(idvals) - 1] = self.containerstart['track']
+            
+                # if last entry has a user defined index as a parent,
+                # append rather than replace as we need to take account
+                # of any range in the user defined index
+                append = False
+                if len(idvals) > 1:
+                    containeridval = idvals[-2]
+                    parentidval = self.get_parent(containeridval)
+                    if self.containername[parentidval] in self.user_index_entries.keys():
+                        append = True
+                if append:
+                    idvals += [self.containerstart['track']]
+                else:
+                    idvals[len(idvals) - 1] = self.containerstart['track']
                 log.debug(idvals)
             
             # process ids
@@ -2049,7 +2062,6 @@ What do we do if a result is not in alpha order?
                                  group by character
                                  order by character
                               """
-
 
         # check if search requested
         searchcontainer = None
@@ -7341,24 +7353,24 @@ class DummyContentDirectory(Service):
         for line in codecs.open('pycpoint.ini','r','utf-8'):
             line == line.strip().lower()
             if line.endswith('\n'): line = line[:-1]
-            if line.startswith('[') and line.endswith(' sort index]'):
-#                log.debug(line)
+            if line.startswith('['):
+                log.debug(line)
                 if processing_index:
                     if simple_keys != self.simple_key_dict:
                         simple_sorts.append((index[:-1], simple_keys))
                         simple_keys = self.simple_key_dict.copy()
-                index = line[1:-12].strip()
-#                log.debug(index)
-                if index in self.indexes:
-                    processing_index = True
-                else:
-                    processing_index = False
+                processing_index = False
+                if line.endswith(' sort index]') and not line.startswith('[SMAPI'):
+                    index = line[1:-12].strip()
+                    log.debug(index)
+                    if index in self.indexes:
+                        processing_index = True
                 continue
             if processing_index:
                 for key in self.simple_keys:
                     if line.startswith(key):
                         value = line[len(key):].strip()
-#                        log.debug("%s - %s" % (key, value))
+                        log.debug("%s - %s" % (key, value))
                         simple_keys[key[:-1]] = value
         if processing_index:
             if simple_keys != self.simple_key_dict:
