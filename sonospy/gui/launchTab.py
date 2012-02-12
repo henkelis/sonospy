@@ -60,20 +60,20 @@ class LaunchPanel(wx.Panel):
 
         super(LaunchPanel, self)
         self.initialize()
-        
+
     def initialize(self):
 
         global sizer
-        
+
         panel = self
-        sizer = wx.GridBagSizer(11, 3)
-        
+        sizer = wx.GridBagSizer(13, 3)
+
         xIndex = 0
         yIndex = 0
 
     # [0] Make Header Columns --------------------------
         self.label_ProxyName = wx.StaticText(panel, label="Display Name")
-        self.ck_EnableAll = wxCheckBox(panel, label="Enable All ")
+        self.ck_EnableAll = wxCheckBox(panel, label="Enable All")
         help_EnableAll = "Click here to enable or disable all the databases below."
         self.ck_EnableAll.SetToolTip(wx.ToolTip(help_EnableAll))
         self.bt_AutoPopulate = wx.Button(panel, label="Auto Populate")
@@ -87,18 +87,17 @@ class LaunchPanel(wx.Panel):
         self.bt_Clear.Bind(wx.EVT_BUTTON, self.bt_ClearClick, self.bt_Clear)
 
         self.ck_EnableAll.Bind(wx.EVT_CHECKBOX, self.enableAllChecks, self.ck_EnableAll)
-        sizer.Add(self.label_ProxyName, pos=(xIndex, 1), flag=wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
         sizer.Add(self.ck_EnableAll, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-        sizer.Add(self.bt_AutoPopulate, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        sizer.Add(self.label_ProxyName, pos=(xIndex, 1), flag=wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
         sizer.Add(self.bt_Clear, pos=(xIndex, 2), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.ALIGN_RIGHT, border=10)
-
+        sizer.Add(self.bt_AutoPopulate, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
 
         xIndex +=1
     # --------------------------------------------------------------------------
     # [1] Separator line ------------------------------------------------------
 
         hl_SepLine1 = wx.StaticLine(panel, 0, (250, 50), (300,1))
-        sizer.Add(hl_SepLine1, pos=(xIndex, 0), span=(1, 3), flag=wx.EXPAND)
+        sizer.Add(hl_SepLine1, pos=(xIndex, 0), span=(1, 4), flag=wx.EXPAND)
         xIndex +=1
 
     # --------------------------------------------------------------------------
@@ -106,7 +105,7 @@ class LaunchPanel(wx.Panel):
     #   [2]
         self.ck_DB1 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB1.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
-        
+
         self.tc_DB1 = wx.TextCtrl(panel)
         self.tc_DB1.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
 
@@ -396,8 +395,9 @@ class LaunchPanel(wx.Panel):
     # [12] Separator line ------------------------------------------------------
 
         hl_SepLine1 = wx.StaticLine(panel, 0, (250, 50), (300,1))
-        sizer.Add(hl_SepLine1, pos=(10, 0), span=(1, 3), flag=wx.EXPAND)
+        sizer.Add(hl_SepLine1, pos=(xIndex, 0), span=(1, 4), flag=wx.EXPAND)
 
+        xIndex +=1
     # --------------------------------------------------------------------------
     # [13] Create and add a launch button and radios for Proxy vs. Web
     # Eventually add "Use Sorts" and "Remove Dupes"
@@ -426,15 +426,26 @@ class LaunchPanel(wx.Panel):
         self.bt_SaveDefaults.SetToolTip(wx.ToolTip(help_SaveDefaults))
         self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
 
-        sizer.Add(self.bt_Launch, pos=(11,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.rd_Proxy, pos=(11,1), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.rd_Web, pos=(11,2), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_SaveDefaults, pos=(11,3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.bt_Launch, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.rd_Proxy, pos=(xIndex,1), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.rd_Web, pos=(xIndex,2), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.bt_SaveDefaults, pos=(xIndex,3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+
+        xIndex +=1
+
+        self.ck_ServicesMode = wx.CheckBox(self, -1, "Run in Services Mode")
+        help_ServicesMode = "(EXPERIMENTAL) Run in Music Services section of the controller.  Eliminates the need for multiple databases -- for the most part."
+        self.ck_ServicesMode.SetToolTip(wx.ToolTip(help_ServicesMode))
+        self.ck_ServicesMode.Value = guiFunctions.configMe("launch", "services_mode", bool=True)
+        self.ck_ServicesMode.Bind(wx.EVT_CHECKBOX, self.enableServices, self.ck_ServicesMode)
+        sizer.Add(self.ck_ServicesMode, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+
+        xIndex +=1
 
     # --------------------------------------------------------------------------
     # [13] Create Scratch Pad
 
-        self.sb_Scratchpad = wx.StaticBox(panel, label="Scratchpad:", size=(200, 140))
+        self.sb_Scratchpad = wx.StaticBox(panel, label="Scratchpad:", size=(200, 160))
         help_Scratchpad = "You can cut and paste this into a command/shell window..."
         scratchpadSizer = wx.StaticBoxSizer(self.sb_Scratchpad, wx.VERTICAL)
         self.tc_Scratchpad = wx.TextCtrl(panel, -1,"",size=(300, 130), style=wx.TE_MULTILINE|wx.TE_READONLY)
@@ -444,7 +455,7 @@ class LaunchPanel(wx.Panel):
         self.tc_Scratchpad.SetFont(LogFont)
 
         scratchpadSizer.Add(self.tc_Scratchpad, flag=wx.EXPAND)
-        sizer.Add(scratchpadSizer, pos=(12, 0), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.BOTTOM|wx.ALIGN_BOTTOM, border=10)
+        sizer.Add(scratchpadSizer, pos=(xIndex, 0), span=(1,4), flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.BOTTOM|wx.ALIGN_BOTTOM, border=10)
 
         # Bind a text event to autoupdate the scratchpad if the user decides
         # to edit the proxy name manually.
@@ -461,7 +472,7 @@ class LaunchPanel(wx.Panel):
 
         panel.Refresh()
         panel.Update()
-        
+
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
@@ -473,11 +484,11 @@ class LaunchPanel(wx.Panel):
             self.Disable()
         else:
             self.Enable()
-            
+
     def browseDB(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-        
+
         # back up to the folder below our current one.  save cwd in variable
         owd = os.getcwd()
         os.chdir(os.pardir)
@@ -517,6 +528,9 @@ class LaunchPanel(wx.Panel):
         for item in range(len(list_checkboxID)):
             if wx.FindWindowById(list_checkboxID[item]).Label != "<add database>":
                 wx.FindWindowById(list_checkboxID[item]).Value = self.ck_EnableAll.Value
+        self.buildLaunch()
+
+    def enableServices(self, event):
         self.buildLaunch()
 
     def bt_LaunchClick(self, event):
@@ -578,6 +592,7 @@ class LaunchPanel(wx.Panel):
         guiFunctions.configWrite(section, "db8_check", self.ck_DB8.Value)
         guiFunctions.configWrite(section, "db8_dbname", self.ck_DB8.Label)
         guiFunctions.configWrite(section, "db8_proxyname", self.tc_DB8.Value)
+        guiFunctions.configWrite(section, "services_mode", self.ck_ServicesMode.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
 
@@ -634,7 +649,7 @@ class LaunchPanel(wx.Panel):
                 ck.Value = True
 
             curCount +=1
-            
+
 #            #-------------------------------------------------------
 #            # Save references to the widgets created dynamically
 #                list_checkboxID.append(check.GetId())
@@ -648,7 +663,7 @@ class LaunchPanel(wx.Panel):
         self.buildLaunch()
         # set back to original working directory
         os.chdir(owd)
-    
+
     def bt_ClearClick(self, event):
         for item in range(len(list_checkboxID)):
             wxFindWindowById(list_txtctrlID[item]).Value = ""
@@ -695,6 +710,9 @@ class LaunchPanel(wx.Panel):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
                     launchME += "-wSonospy=" + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
 
+        if self.ck_ServicesMode.Value == True:
+            launchME = launchME + " -s"
+
         self.tc_Scratchpad.Value = launchME
         return launchME
 
@@ -734,6 +752,7 @@ class LaunchPanel(wx.Panel):
             self.rd_Proxy.Enable()
             self.rd_Web.Enable()
             self.label_ProxyName.Enable()
+            self.ck_ServicesMode.Enable()
         else:
             self.ck_DB1.Disable()
             self.tc_DB1.Disable()
@@ -766,4 +785,5 @@ class LaunchPanel(wx.Panel):
             self.rd_Proxy.Disable()
             self.rd_Web.Disable()
             self.label_ProxyName.Disable()
+            self.ck_ServicesMode.Disable()
 

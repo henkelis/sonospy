@@ -23,7 +23,6 @@
 # scan.py Author: Mark Henkelis <mark.henkelis@tesco.net>
 ###############################################################################
 # TODO:
-# - Add scheduler functionality (i.e. push command to scheduler tab)
 ###############################################################################
 
 import wx
@@ -124,7 +123,7 @@ class ScanPanel(wx.Panel):
         self.sb_FoldersToScan = wx.StaticBox(panel, label="Folders to Scan:", size=(200, 100))
         help_FoldersToScan = "Folders you will scan for music files are listed here. Click ADD to browse for a *top-level* folder. Scan will search all sub-folders for valid music."
         folderBoxSizer = wx.StaticBoxSizer(self.sb_FoldersToScan, wx.VERTICAL)
-        self.multiText = wx.TextCtrl(panel, -1,"",size=(300, 100), style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.multiText = wx.TextCtrl(panel, -1,"",size=(300, 186), style=wx.TE_MULTILINE|wx.TE_READONLY)
         self.multiText.SetToolTip(wx.ToolTip(help_FoldersToScan))
         self.multiText.SetInsertionPoint(0)
         self.multiText.Value = guiFunctions.configMe("scan", "folder", parse=True)
@@ -247,7 +246,7 @@ class ScanPanel(wx.Panel):
     def bt_ScanRepairClick(self, event):
         global scanCMD
         global startTime
-        
+
         # Set Original Working Directory so we can get back to here.
         owd = os.getcwd()
         os.chdir(os.pardir)
@@ -286,11 +285,11 @@ class ScanPanel(wx.Panel):
     def bt_MainDatabaseClick(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-        
+
         # back up to the folder below our current one.  save cwd in variable
         owd = os.getcwd()
         os.chdir(os.pardir)
-        
+
         dialog = wx.FileDialog ( None, message = 'Select Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN)
 
         # Open Dialog Box and get Selection
@@ -402,7 +401,7 @@ class ScanPanel(wx.Panel):
 
             getOpts = ""
             iniOverride = ""
-            
+
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
 #            if self.tc_INI.Value != "":
@@ -455,7 +454,7 @@ class ScanPanel(wx.Panel):
 
         # INI Setting
 #        guiFunctions.configWrite(section, "inioverride", self.tc_INI.Value)
-        
+
         # Folder setting, comma delineate multiple folder entries
         folders = ""
         numLines = 0
