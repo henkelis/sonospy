@@ -2794,49 +2794,6 @@ Music/Rating                101     object.container
             '''
             self.AvailableServiceListVersion = service_result['AvailableServiceListVersion']
 
-        # if current server is a zone player, append any third party media servers
-        current_server = self.control_point.get_current_server()
-        if current_server.udn in self.known_zone_players:
-            zt_sid = self.control_point.get_zt_service(current_server).event_sid
-
-            # TODO: check whether this can occur
-            if self.thirdpartymediaservers == {}:
-                return
-
-#            print "~~~~~~~~~~~~~~~~~~~~~~~~~"
-#            print "third party media servers"
-            
-            mediaservers = self.thirdpartymediaservers[zt_sid]
-            xml = [None, None]    # nothing to play at this level
-
-            for num, mediaserver in mediaservers.items():
-
-#                print "MS: " + str(mediaserver['Name'])
-
-                if mediaserver['UDN'] in self.sonospyproxies.keys():
-                    type = 'SonospyMediaServer_ROOT'
-                else:
-                    if mediaserver['Name'].find('Windows Media') != -1:
-                        type = 'MSMediaServer_ROOT'
-                    else:
-                        type = 'ThirdPartyMediaServer_ROOT'
-                self.update_rootdata(mediaserver['Name'], mediaserver['UDN'], type)
-
-#                print mediaserver['Name']
-#                print mediaserver['UDN']
-#                print type
-#                print
-
-                # save udn's of third party media servers, unless already set from device discovery
-                if not mediaserver['Name'] in self.rootids:
-                    self.rootids[mediaserver['Name']] = mediaserver['UDN']
-
-                # save udn's of MS media servers
-                if type == 'MSMediaServer_ROOT':
-                    self.msrootids[mediaserver['UDN']] = mediaserver['Name']
-
-#            print "~~~~~~~~~~~~~~~~~~~~~~~~~"
-
         # if current server is a zone player, append any line in
         current_server = self.control_point.get_current_server()
         if current_server.udn in self.known_zone_players:
@@ -2847,7 +2804,49 @@ Music/Rating                101     object.container
             li_type = "LineIn_ROOT"
             self.update_rootdata(li_title, li_id, li_type)
 
-       
+        # if current server is a zone player, append any third party media servers
+        current_server = self.control_point.get_current_server()
+        if current_server.udn in self.known_zone_players:
+            zt_sid = self.control_point.get_zt_service(current_server).event_sid
+
+            # TODO: check whether this can occur
+            if self.thirdpartymediaservers != {}:
+
+    #            print "~~~~~~~~~~~~~~~~~~~~~~~~~"
+    #            print "third party media servers"
+                
+                mediaservers = self.thirdpartymediaservers[zt_sid]
+                xml = [None, None]    # nothing to play at this level
+
+                for num, mediaserver in mediaservers.items():
+
+    #                print "MS: " + str(mediaserver['Name'])
+
+                    if mediaserver['UDN'] in self.sonospyproxies.keys():
+                        type = 'SonospyMediaServer_ROOT'
+                    else:
+                        if mediaserver['Name'].find('Windows Media') != -1:
+                            type = 'MSMediaServer_ROOT'
+                        else:
+                            type = 'ThirdPartyMediaServer_ROOT'
+                    self.update_rootdata(mediaserver['Name'], mediaserver['UDN'], type)
+
+    #                print mediaserver['Name']
+    #                print mediaserver['UDN']
+    #                print type
+    #                print
+
+                    # save udn's of third party media servers, unless already set from device discovery
+                    if not mediaserver['Name'] in self.rootids:
+                        self.rootids[mediaserver['Name']] = mediaserver['UDN']
+
+                    # save udn's of MS media servers
+                    if type == 'MSMediaServer_ROOT':
+                        self.msrootids[mediaserver['UDN']] = mediaserver['Name']
+
+    #            print "~~~~~~~~~~~~~~~~~~~~~~~~~"
+
+      
 
     def browse_media_server(self, id, root=None, searchstring='', searchoperator='', setkey=''):
         '''
