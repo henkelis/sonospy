@@ -2799,10 +2799,11 @@ Music/Rating                101     object.container
         if current_server.udn in self.known_zone_players:
             linein_result = self.control_point.get_audio_in()
             log.debug("get_audio_in result: %s", linein_result)
-            li_title = linein_result['CurrentName']
-            li_id = "AI:"
-            li_type = "LineIn_ROOT"
-            self.update_rootdata(li_title, li_id, li_type)
+            if linein_result:
+                li_title = linein_result['CurrentName']
+                li_id = "AI:"
+                li_type = "LineIn_ROOT"
+                self.update_rootdata(li_title, li_id, li_type)
 
         # if current server is a zone player, append any third party media servers
         current_server = self.control_point.get_current_server()

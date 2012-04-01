@@ -420,8 +420,12 @@ class ControlPointSonos(ControlPointAV):
         """
         """
         service = self.get_ai_service()
-        service_response = service.GetAudioInputAttributes()
 
+        if service:
+            service_response = service.GetAudioInputAttributes()
+        else:
+            service_response = None
+        
         log.debug(service_response)
 
         return service_response        
