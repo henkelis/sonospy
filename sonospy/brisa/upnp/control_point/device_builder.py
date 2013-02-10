@@ -154,6 +154,12 @@ class DeviceAssembler(object):
 #            import traceback        
 #            traceback.print_stack()
 
+        # HACK - get 401's from these
+        if ':49153' in self.location:
+            log.debug("Sky HD device discovered, ignore")
+            self.callback(self.cargo, None)
+            return
+        
         if self.filename is None:
             run_async_call(url_fetch,
                            success_callback=self.mount_device_async_gotdata,

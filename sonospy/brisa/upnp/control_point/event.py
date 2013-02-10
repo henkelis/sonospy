@@ -24,7 +24,7 @@ def read_notify_message_body(body_data):
         log.debug('Event XML invalid: %s', body_data)
         tree = None
 
-    if tree:
+    if tree != None:
         for prop1 in tree.findall('{%s}property' %
                                   'urn:schemas-upnp-org:event-1-0'):
             # prop1 = <e:property> <Ble> cont </Ble> </e:property>

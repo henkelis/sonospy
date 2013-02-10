@@ -337,6 +337,9 @@ class HTTPRequest(object):
         
         try:
             method, path, req_protocol = request_line.strip().split(" ", 2)
+            # fix issue with protocol containing an extra space at start
+            # (later on code assumes absolute position of version characters)
+            req_protocol = req_protocol.strip()
         except ValueError:
             self.simple_response(400, "Malformed Request-Line")
             return

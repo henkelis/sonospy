@@ -80,6 +80,7 @@ import uuid
 import ConfigParser
 import StringIO
 import codecs
+import urllib
 
 from data import ListDataController, GetDataController, PlayController, GetDeviceController, SetRendererController, PollRendererController, ActionRendererController, PollServerController, PollQueueController
 
@@ -393,6 +394,7 @@ class ControlPointWeb(object):
                              '101' : '',         # dummy, entries are manually created
                             }
 
+    '''
     sonospy_search_lookup_item = {
                                   '6' : '107',
                                   '100' : '100',
@@ -401,6 +403,17 @@ class ControlPointWeb(object):
                                   '5' : '0',
                                   '99' : '0',
                                   'F' : '0',
+                                 }
+    '''
+    # testing - don't translate
+    sonospy_search_lookup_item = {
+                                  '6' : '6',
+                                  '100' : '100',
+                                  '7' : '7',
+                                  '108' : '108',
+                                  '5' : '5',
+                                  '99' : '99',
+                                  'F' : 'F',
                                  }
     sonospy_search_lookup_item2 = {
                                    'ARTIST' : '0',
@@ -826,6 +839,10 @@ Music/Rating                101     object.container
     def getrootdata(self, param):
         # param will be in utf-8, whereas data is stored in unicode
         param = param.decode('utf-8', 'replace')
+
+        # param may contain percent escaped chars
+        param = urllib.unquote(param)
+        
         # param may contain escaped chars
         param = unescape(param)
 
@@ -887,6 +904,10 @@ Music/Rating                101     object.container
     def getdata(self, param):
         # param will be in utf-8, whereas data is stored in unicode
         param = param.decode('utf-8', 'replace')
+
+        # param may contain percent escaped chars
+        param = urllib.unquote(param)
+        
         # param may contain escaped chars
         param = unescape(param)
         # param will contain an equals, but can contain more than one (if the operator includes one)
@@ -1079,6 +1100,10 @@ Music/Rating                101     object.container
 
         # param will be in utf-8, whereas data is stored in unicode
         param = param.decode('utf-8', 'replace')
+
+        # param may contain percent escaped chars
+        param = urllib.unquote(param)
+        
         # param may contain escaped chars
         param = unescape(param)
         # param will contain an equals, but can contain more than one (if the operator includes one)
@@ -1241,6 +1266,10 @@ Music/Rating                101     object.container
     def setrenderer(self, param):
         # param will be in utf-8, whereas data is stored in unicode
         param = param.decode('utf-8', 'replace')
+
+        # param may contain percent escaped chars
+        param = urllib.unquote(param)
+        
         # param may contain escaped chars
         param = unescape(param)
 
@@ -1285,6 +1314,10 @@ Music/Rating                101     object.container
     def pollrenderer(self, param):
         # param will be in utf-8, whereas data is stored in unicode
         param = param.decode('utf-8', 'replace')
+
+        # param may contain percent escaped chars
+        param = urllib.unquote(param)
+        
         # param may contain escaped chars
         param = unescape(param)
 
@@ -1304,6 +1337,10 @@ Music/Rating                101     object.container
     def actionrenderer(self, param):
         # param will be in utf-8, whereas data is stored in unicode
         param = param.decode('utf-8', 'replace')
+
+        # param may contain percent escaped chars
+        param = urllib.unquote(param)
+        
         # param may contain escaped chars
         param = unescape(param)
 
@@ -1335,6 +1372,10 @@ Music/Rating                101     object.container
     def pollserver(self, param):
         # param will be in utf-8, whereas data is stored in unicode
         param = param.decode('utf-8', 'replace')
+
+        # param may contain percent escaped chars
+        param = urllib.unquote(param)
+        
         # param may contain escaped chars
         param = unescape(param)
 
@@ -1353,6 +1394,10 @@ Music/Rating                101     object.container
     def pollqueue(self, param):
         # param will be in utf-8, whereas data is stored in unicode
         param = param.decode('utf-8', 'replace')
+
+        # param may contain percent escaped chars
+        param = urllib.unquote(param)
+        
         # param may contain escaped chars
         param = unescape(param)
 #        print "pollqueue: " + str(param)
@@ -1450,13 +1495,17 @@ Music/Rating                101     object.container
     def playdata(self, param):
         # param will be in utf-8, whereas data is stored in unicode
         param = param.decode('utf-8', 'replace')
+
+        # param may contain percent escaped chars
+        param = urllib.unquote(param)
+        
         # param may contain escaped chars
         param = unescape(param)
 
         query = param.split('=')
         request = query[1]
 
-        print "request: %s" % request
+#        print "request: %s" % request
 
         # check for multi
         if request[0:5] == 'MULTI':
@@ -1506,21 +1555,21 @@ Music/Rating                101     object.container
 
             if type == 'SONOSCURRENTQUEUE':
                 entry = '::'.join(entries[0:4])
-            print "entry: " + str(entry)
+#            print "entry: " + str(entry)
 
             if type == 'SONOSPYMEDIASERVER' or type == 'SonospyMediaServer_ROOT' or type == 'SonospyServerSearch_ROOT':
                 id = entrysid
             else:
                 id, type = self.gdatakeys[entry]
-            print "id: " + str(id)
-            print "type: " + str(type)
+#            print "id: " + str(id)
+#            print "type: " + str(type)
             if entry in self.gdatatracks.keys():
                 res, xml = self.gdatatracks[entry]
             else:
                 res = ''
                 xml = ''
-            print "res: " + str(res)
-            print "xml: " + str(xml)
+#            print "res: " + str(res)
+#            print "xml: " + str(xml)
             self.current_media_id = res
             self.current_media_xml = xml
             self.current_media_type = type
@@ -4066,7 +4115,8 @@ Music/Rating                101     object.container
         elif '__' in id:
 
             # separate out the type
-            idstart = id.split('__')[0]
+            idfacets = id.split('__')
+            idstart = idfacets[0]
 
             # need to construct the search string
             if idstart in self.sonospy_search_lookup_item3.keys():
@@ -4081,7 +4131,13 @@ Music/Rating                101     object.container
 
             # HACK: replace id with value Sonos uses for search
             if idstart in self.sonospy_search_lookup_item2.keys():
-                id_param = self.sonospy_search_lookup_item2[idstart]
+#                id_param = self.sonospy_search_lookup_item2[idstart]
+                if len(idfacets) > 2:
+                    # there must exist entry data, so retain it
+                    id_param = id
+                else:                
+                    id_param = id.split('__')[1]
+                pass
             else:
                 action = 'BROWSE'
 
@@ -4100,7 +4156,11 @@ Music/Rating                101     object.container
         if action == 'SEARCH':
             log.debug("Searchcriteria: %s" % searchcriteria)
             log.debug("Container: %s" % id_param)
-            browse_result = self.control_point.searchtpms(name, device, id_param, searchcriteria, 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, '+dc:title')
+
+####            browse_result = self.control_point.searchtpms(name, device, id_param, searchcriteria, 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, '+dc:title')
+            sortcriteria = ''
+            browse_result = self.control_point.browsetpms(name, device, id_param, 'BrowseMetadata', 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, sortcriteria)
+
         else:
             sortcriteria = ''
             browse_result = self.control_point.browsetpms(name, device, id_param, 'BrowseDirectChildren', 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, sortcriteria)
@@ -4238,7 +4298,9 @@ Music/Rating                101     object.container
 
             # HACK: replace id with value Sonos uses for search
             if idstart in self.sonospy_search_lookup_item2.keys():
-                id = self.sonospy_search_lookup_item2[idstart]
+                id_param = id.split('__')[1]
+                pass
+#                id = self.sonospy_search_lookup_item2[idstart]
             else:
                 action = 'BROWSE'
 
