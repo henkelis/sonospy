@@ -393,31 +393,6 @@ class Proxy(object):
         if not self.db_persist_connection:
             db.close()
 
-    def get_delim(self, delimname, default, special, when=None, section=None):
-        delimsection = 'index entry extras'
-        if section: delimsection = section
-        delim = default
-        try:
-            delim = self.config.get(delimsection, delimname)
-        except ConfigParser.NoSectionError:
-            pass
-        except ConfigParser.NoOptionError:
-            pass
-        if delim.startswith("'") and delim.endswith("'"):
-            delim = delim[1:-1]
-        delim = unicode(delim)
-        delim = delim.replace(' ', special)
-        if when:
-            if when == 'before':
-                if delim[0] != special:
-                    delim = '%s%s' % (special, delim)
-            elif when == 'after':
-                if delim[-1] != special:
-                    delim = '%s%s' % (delim, special)
-        delim2 = re.escape(delim)
-        return delim2, delim
-
-
 class ProxyServerController(webserver.SonosResource):
 
     def __init__(self, proxy, res):
@@ -1501,12 +1476,12 @@ class DummyContentDirectory(Service):
         # check what structure we should use
         self.load_ini()
 
-        if self.use_browse_for_WMP and not self.use_SMAPI_indexes_for_WMP and self.proxy.smapi:
+        if self.use_browse_for_WMP and not self.use_SMAPI_indexes_for_WMP:
 
             # create MediaServer with default SMAPI structure
             self.mediaServer = MediaServer(self.proxy, self.dbspec, 'HIERARCHY_DEFAULT', self.proxyaddress, self.webserverurl, self.wmpurl)
 
-        elif self.use_SMAPI_indexes_for_WMP and self.proxy.smapi:
+        elif self.use_SMAPI_indexes_for_WMP:
 
             # create MediaServer with user defined SMAPI structure
             self.mediaServer = MediaServer(self.proxy, self.dbspec, 'HIERARCHY', self.proxyaddress, self.webserverurl, self.wmpurl)
@@ -1566,33 +1541,6 @@ class DummyContentDirectory(Service):
         except ConfigParser.NoOptionError:
             self.use_SMAPI_indexes_for_WMP = False
             
-
-    '''
-    def get_delim(self, delimname, default, special, when=None, section=None):
-        delimsection = 'index entry extras'
-        if section: delimsection = section
-        delim = default
-        try:
-            delim = self.proxy.config.get(delimsection, delimname)
-        except ConfigParser.NoSectionError:
-            pass
-        except ConfigParser.NoOptionError:
-            pass
-        if delim.startswith("'") and delim.endswith("'"):
-            delim = delim[1:-1]
-        delim = unicode(delim)
-        delim = delim.replace(' ', special)
-        if when:
-            if when == 'before':
-                if delim[0] != special:
-                    delim = '%s%s' % (special, delim)
-            elif when == 'after':
-                if delim[-1] != special:
-                    delim = '%s%s' % (delim, special)
-        delim2 = re.escape(delim)
-        return delim2, delim
-    '''
-
     ###################
     # DCD soap services
     ###################
@@ -1656,9 +1604,8 @@ class DummyContentDirectory(Service):
 
         log.debug("self.use_browse_for_WMP: %s", self.use_browse_for_WMP)
         log.debug("self.use_SMAPI_indexes_for_WMP: %s", self.use_SMAPI_indexes_for_WMP)
-        log.debug("self.proxy.smapi: %s", self.proxy.smapi)
 
-        if (self.use_SMAPI_indexes_for_WMP or self.use_browse_for_WMP)and self.proxy.smapi:
+        if (self.use_SMAPI_indexes_for_WMP or self.use_browse_for_WMP):
             structure = 'HIERARCHY'
         else:
             structure = 'FLAT'

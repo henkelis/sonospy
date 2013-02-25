@@ -429,24 +429,46 @@ class MediaServer(object):
         self.suffix_sep = u'\u007f'
 
         # get chunk metadata characters
-        prefix_start, self.chunk_metadata_delimiter_prefix_start = self.proxy.get_delim('entry_prefix_start_separator', '[', self.prefix_sep)
-        prefix_end, self.chunk_metadata_delimiter_prefix_end = self.proxy.get_delim('entry_prefix_end_separator', ']', self.prefix_sep, 'after')
+        prefix_start, self.chunk_metadata_delimiter_prefix_start = self.get_delim('entry_prefix_start_separator', '[', self.prefix_sep)
+        prefix_end, self.chunk_metadata_delimiter_prefix_end = self.get_delim('entry_prefix_end_separator', ']', self.prefix_sep, 'after')
 
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.proxy.get_delim('entry_prefix_start_separator', '[', 'before', u'\u0092')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.proxy.get_delim('entry_prefix_start_separator', '[', 'before', u'\u200B\u034F\u0082\u0083\u0091\u0092\u2007\u2060\uFEFF\uFE00')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.proxy.get_delim('entry_prefix_start_separator', '[', 'before', u'\u2029\u2028\u202f\u2061\u2062\u2063\uE000\uE001')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.proxy.get_delim('entry_prefix_start_separator', '[', 'before', u'1 \uF7002 \uF7013 \uF85D4 \uF85C5 \uF8D76 \u000a7 \u000d')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.proxy.get_delim('entry_prefix_start_separator', '[', 'before', u'1 \u000d')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.proxy.get_delim('entry_prefix_start_separator', '[', 'before', u'\u007f')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.proxy.get_delim('entry_prefix_start_separator', '[', 'before', u'\u0f0c')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.proxy.get_delim('entry_prefix_start_separator', '[', 'before', u'\u007f \u232b \u0080 \u000a \u000d \u001b \u009f')
-#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.proxy.get_delim('entry_prefix_start_separator', '[')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u0092')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u200B\u034F\u0082\u0083\u0091\u0092\u2007\u2060\uFEFF\uFE00')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u2029\u2028\u202f\u2061\u2062\u2063\uE000\uE001')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'1 \uF7002 \uF7013 \uF85D4 \uF85C5 \uF8D76 \u000a7 \u000d')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'1 \u000d')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u007f')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u0f0c')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[', 'before', u'\u007f \u232b \u0080 \u000a \u000d \u001b \u009f')
+#        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_prefix_start_separator', '[')
 
-        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.proxy.get_delim('entry_suffix_start_separator', '[', self.suffix_sep, 'before')
-        suffix_end, self.chunk_metadata_delimiter_suffix_end = self.proxy.get_delim('entry_suffix_end_separator', ']', self.suffix_sep)
+        suffix_start, self.chunk_metadata_delimiter_suffix_start = self.get_delim('entry_suffix_start_separator', '[', self.suffix_sep, 'before')
+        suffix_end, self.chunk_metadata_delimiter_suffix_end = self.get_delim('entry_suffix_end_separator', ']', self.suffix_sep)
 
-        missing, self.chunk_metadata_empty = self.proxy.get_delim('entry_extras_empty', '_', self.prefix_sep)
-        dateformat, self.chunk_metadata_date_format = self.proxy.get_delim('entry_extras_date_format', '%d/%m/%Y', self.prefix_sep)
+        missing, self.chunk_metadata_empty = self.get_delim('entry_extras_empty', '_', self.prefix_sep)
+
+        self.dont_display_separator_for_empty_prefix = False
+        try:
+            ini_dont_display_separator_for_empty_prefix = self.proxy.config.get('index section headers', 'dont_display_separator_for_empty_prefix')
+            if ini_dont_display_separator_for_empty_prefix.lower() == 'y':
+                self.dont_display_separator_for_empty_prefix = True
+        except ConfigParser.NoSectionError:
+            self.dont_display_separator_for_empty_prefix = False
+        except ConfigParser.NoOptionError:
+            self.dont_display_separator_for_empty_prefix = False
+
+        self.dont_display_separator_for_empty_suffix = False
+        try:
+            ini_dont_display_separator_for_empty_suffix = self.proxy.config.get('index section headers', 'dont_display_separator_for_empty_suffix')
+            if ini_dont_display_separator_for_empty_suffix.lower() == 'y':
+                self.dont_display_separator_for_empty_suffix = True
+        except ConfigParser.NoSectionError:
+            self.dont_display_separator_for_empty_suffix = False
+        except ConfigParser.NoOptionError:
+            self.dont_display_separator_for_empty_suffix = False
+
+
+        dateformat, self.chunk_metadata_date_format = self.get_delim('entry_extras_date_format', '%d/%m/%Y', self.prefix_sep)
 
         self.searchre_pre = '%s[^%s]*%s' % (prefix_start, prefix_end, prefix_end)
         if not suffix_end:
@@ -638,7 +660,7 @@ class MediaServer(object):
         self.debugout('rootitems', self.rootitems)
         self.debugout('searchitems', self.searchitems)
 
-        dummy, self.smapi_date_format = self.proxy.get_delim('smapi_date_format', '%Y/%m/%d', ' ', section='SMAPI formats')
+        dummy, self.smapi_date_format = self.get_delim('smapi_date_format', '%Y/%m/%d', ' ', section='SMAPI formats')
 
         # get sorts setting
         ini_alternative_index_sorting = 'N'
@@ -786,7 +808,7 @@ class MediaServer(object):
         self.debugout('rootitems', self.rootitems)
         self.debugout('searchitems', self.searchitems)
 
-        dummy, self.smapi_date_format = self.proxy.get_delim('smapi_date_format', '%Y/%m/%d', ' ', section='SMAPI formats')
+        dummy, self.smapi_date_format = self.get_delim('smapi_date_format', '%Y/%m/%d', ' ', section='SMAPI formats')
 
         # get sorts setting
         ais = 'N'
@@ -1166,8 +1188,6 @@ class MediaServer(object):
         #     a playlist
         #     a list of IDs (a track or a playlist should be the last entry in a list and not alone)
         
-        # TODO: support for playlists?
-        
         items = None
         track = False
         playlist = False
@@ -1515,6 +1535,10 @@ class MediaServer(object):
 
         smapiservice = kwargs.get('smapiservice', False)
 
+        searchCriteria = kwargs.get('SearchCriteria', '')
+        searchCriteria = self.fixcriteria(searchCriteria)
+        log.debug('searchCriteria: %s' % searchCriteria.encode(enc, 'replace'))
+
         # query ID is a dummy for SMAPI
         # check SMAPI special cases for browse
         if SMAPI:
@@ -1528,12 +1552,16 @@ class MediaServer(object):
         objectEntry = None
         track = False
         playlist = False
+        search = False
         if len(queryID) == 32 and not ':' in queryID and not '_' in queryID:
             # track id is 32 hex chars
             track = True
         elif len(queryID) == 8 and not ':' in queryID and not '_' in queryID:
             # playlist id is 8 hex chars, everything else will be 9 or more
             playlist = True
+        elif searchCriteria.startswith('SEARCH::'):
+            # search requested
+            search = True
         else:
             if '__' in queryID:
                 objectfacets = queryID.split('__')
@@ -1592,6 +1620,8 @@ class MediaServer(object):
                 browsetype = 'Track'
             elif playlist:
                 browsetype = 'Playlist'
+            elif search:
+                browsetype = 'Search'
             else:
                 browsetype = 'Track'
 
@@ -4959,9 +4989,6 @@ class MediaServer(object):
 
 
 
-###########################################################################################################################
-###########################################################################################################################
-###########################################################################################################################
 
 
 
@@ -5281,10 +5308,10 @@ class MediaServer(object):
                     itemid = ':'.join(filter(None,(itemidprefix, str(itemid))))
 
                     if numprefix:
-                        prefix = self.smapi_makepresuffix([prefixes[0]], self.replace_pre, [prevtitle])
+                        prefix = self.smapi_makepresuffix([prefixes[0]], self.replace_pre, [prevtitle], 'P')
                         if prefix: title = '%s%s' % (prefix, title)
                     if numsuffix:
-                        suffix = self.smapi_makepresuffix([suffixes[0]], self.replace_suf, [prevtitle])
+                        suffix = self.smapi_makepresuffix([suffixes[0]], self.replace_suf, [prevtitle], 'S')
                         if suffix: title = '%s%s' % (title, suffix)
 
                     items += [(itemid, escape(title))]
@@ -5609,14 +5636,14 @@ class MediaServer(object):
                             prefixdata = []
                             for i in range(numprefix):
                                 prefixdata.append(row[prefixstart+i])
-                            prefix = self.smapi_makepresuffix(prefixes, self.replace_pre, prefixdata)
+                            prefix = self.smapi_makepresuffix(prefixes, self.replace_pre, prefixdata, 'P')
                             if prefix: title = '%s%s' % (prefix, title)
                         if numsuffix:
     #                        suffixdata = list(row[suffixstart:suffixstart+numsuffix])
                             suffixdata = []
                             for i in range(numsuffix):
                                 suffixdata.append(row[suffixstart+i])
-                            suffix = self.smapi_makepresuffix(suffixes, self.replace_suf, suffixdata)
+                            suffix = self.smapi_makepresuffix(suffixes, self.replace_suf, suffixdata, 'S')
                             if suffix: title = '%s%s' % (title, suffix)
 
                         title = escape(title)
@@ -5692,14 +5719,14 @@ class MediaServer(object):
                             prefixdata = []
                             for i in range(numprefix):
                                 prefixdata.append(row[prefixstart+i])
-                            prefix = self.smapi_makepresuffix(prefixes, self.replace_pre, prefixdata)
+                            prefix = self.smapi_makepresuffix(prefixes, self.replace_pre, prefixdata, 'P')
                             if prefix: title = '%s%s' % (prefix, title)
                         if numsuffix:
 #                            suffixdata = list(row[suffixstart:suffixstart+numsuffix])
                             suffixdata = []
                             for i in range(numsuffix):
                                 suffixdata.append(row[suffixstart+i])
-                            suffix = self.smapi_makepresuffix(suffixes, self.replace_suf, suffixdata)
+                            suffix = self.smapi_makepresuffix(suffixes, self.replace_suf, suffixdata, 'S')
                             if suffix: title = '%s%s' % (title, suffix)
 
 
@@ -5833,7 +5860,8 @@ class MediaServer(object):
 
             ret += '</DIDL-Lite>'
             count = len(items)
-            totalMatches = len(items)
+            
+            if count == 0: ret = ''
 
             return ret, count, totalMatches
 
@@ -6699,11 +6727,12 @@ class MediaServer(object):
                 else:
                     return (foundvalues['range_field'], foundvalues['index_range'], foundvalues['sort_order'], foundvalues['entry_prefix'], foundvalues['entry_suffix'], at, 'dummy', '')
 
-    def smapi_makepresuffix(self, fixes, replace, fixdata):
+    def smapi_makepresuffix(self, fixes, replace, fixdata, ps):
         log.debug(fixes)
         log.debug(replace)
         log.debug(fixdata)
     
+        EMPTY = '__EMPTY__'
         outfix = ''
         if fixes and fixes != []:
             fixcount = 0
@@ -6711,28 +6740,32 @@ class MediaServer(object):
                 data = fixdata[fixcount]
                 if fix in ['lastplayed', 'inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
                     if data == '' or data == 0:
-                        data = self.chunk_metadata_empty
+                        data = EMPTY
                     else:
                         try:
                             data = float(data)
                             data = time.strftime(self.chunk_metadata_date_format, time.gmtime(data))
                         except TypeError:
-                            data = self.chunk_metadata_empty
-                    outfix += replace % data
+                            data = EMPTY
                 elif fix == 'playcount':
                     if data == '': data = '0'
-                    outfix += replace % data
                 elif fix == 'year':
                     if data == '':
-                        data = self.chunk_metadata_empty
+                        data = EMPTY
                     else:
                         try:
                             data = datetime.date.fromordinal(data).strftime(self.chunk_metadata_date_format)
                         except TypeError:
-                            data = self.chunk_metadata_empty
-                    outfix += replace % data
+                            data = EMPTY
                 else:
-                    if data == '': data = self.chunk_metadata_empty
+                    if data == '': data = EMPTY
+
+                if data == EMPTY and ps == 'P' and self.dont_display_separator_for_empty_prefix == False:
+                    pass
+                elif data == EMPTY and ps == 'S' and self.dont_display_separator_for_empty_suffix == False:
+                    pass
+                else:
+                    if data == EMPTY: data = self.chunk_metadata_empty
                     outfix += replace % data
                 fixcount += 1
         return outfix
@@ -6885,6 +6918,30 @@ class MediaServer(object):
         enddate = time.mktime(edate.timetuple()) + 86399
 
         return int(startdate), int(enddate)
+
+    def get_delim(self, delimname, default, special, when=None, section=None):
+        delimsection = 'index entry extras'
+        if section: delimsection = section
+        delim = default
+        try:
+            delim = self.proxy.config.get(delimsection, delimname)
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
+        if delim.startswith("'") and delim.endswith("'"):
+            delim = delim[1:-1]
+        delim = unicode(delim)
+        delim = delim.replace(' ', special)
+        if when:
+            if when == 'before':
+                if delim[0] != special:
+                    delim = '%s%s' % (special, delim)
+            elif when == 'after':
+                if delim[-1] != special:
+                    delim = '%s%s' % (delim, special)
+        delim2 = re.escape(delim)
+        return delim2, delim
 
     def debugout(self, label, data):
         if isinstance(data, dict):

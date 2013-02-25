@@ -325,6 +325,9 @@ class ControlPointWeb(object):
         'upnp:rating' : 'contains,exists,<,<=,>=,>,=,!=,derivedfrom,doesnotContain' ,
         'upnp:toc' : 'contains,exists,<,<=,>=,>,=,!=,derivedfrom,doesnotContain' ,
         'upnp:userAnnotation' : 'contains,exists,<,<=,>=,>,=,!=,derivedfrom,doesnotContain' ,
+        'upnp:channelName' : 'contains,exists,<,<=,>=,>,=,!=,derivedfrom,doesnotContain' ,
+        'upnp:longDescription' : 'contains,exists,<,<=,>=,>,=,!=,derivedfrom,doesnotContain' ,
+        'upnp:programTitle' : 'contains,exists,<,<=,>=,>,=,!=,derivedfrom,doesnotContain' ,
         # Twonky specific
         '@protocolInfo' : '=,contains,!=,doesNotContain' ,      # move to ini
         }
@@ -4157,9 +4160,10 @@ Music/Rating                101     object.container
             log.debug("Searchcriteria: %s" % searchcriteria)
             log.debug("Container: %s" % id_param)
 
-####            browse_result = self.control_point.searchtpms(name, device, id_param, searchcriteria, 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, '+dc:title')
-            sortcriteria = ''
-            browse_result = self.control_point.browsetpms(name, device, id_param, 'BrowseMetadata', 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, sortcriteria)
+#####            browse_result = self.control_point.searchtpms(name, device, id_param, searchcriteria, 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, '+dc:title')
+#            sortcriteria = ''
+#            browse_result = self.control_point.browsetpms(name, device, id_param, 'BrowseMetadata', 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, sortcriteria)
+            browse_result = self.control_point.searchtpms(name, device, id_param, searchcriteria, 'dc:title,res,res@duration,upnp:artist,upnp:artist@role,upnp:album,upnp:originalTrackNumber', start, count, '+dc:title')
 
         else:
             sortcriteria = ''
@@ -5431,6 +5435,9 @@ Music/Rating                101     object.container
             elif 'MediaRenderer' in t:
                 newmediarenderer = self.on_new_media_renderer(device_item)
 
+            # remove any colons as we use that as a delimiter in the GUI
+            device_item.friendly_name = device_item.friendly_name.replace(':','')
+            
             log.debug('new device fn: %s' % str(device_item.friendly_name))                                    
 
             if newmediaserver == True and not device_item.friendly_name.startswith('Proxy'):
