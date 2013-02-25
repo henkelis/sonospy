@@ -28,6 +28,7 @@ import sqlite3
 import codecs
 import operator
 import datetime
+import string
 
 from brisa.core import log
 from brisa.core import webserver
@@ -1087,12 +1088,14 @@ class MediaServer(object):
             if processing_index:
                 for key in self.smapi_simple_keys:
                     if line.startswith(key):
-                        value = line[len(key):].strip().lower()
+#                        value = line[len(key):].strip().lower()
+                        value = line[len(key):].strip()
                         if key == 'index_range=':
                             simple_keys[key[:-1]] = self.convert_range(value)
                         else:
                             value = self.convertartist(value, ',')
-                            simple_keys[key[:-1]] = value.lower()
+#                            simple_keys[key[:-1]] = value.lower()
+                            simple_keys[key[:-1]] = value
         if processing_index:
             if simple_keys != self.smapi_simple_key_dict:
                 simple_sorts.append((index, simple_keys))
@@ -6437,19 +6440,20 @@ class MediaServer(object):
         for key, value in valuedict.iteritems():
             if key.lower() in ['sort_order', 'entry_prefix', 'entry_suffix']:
                 entries = value.split(',')
-                entries = [s.strip().lower() for s in entries]
+                entries = [s.strip() for s in entries]
+                entrieslower = map(string.lower, entries)
                 if self.use_albumartist:
-                    if 'artist' in entries:
+                    if 'artist' in entrieslower:
                         newentries = []
                         for e in entries:
-                            if e == 'artist': e = 'albumartist'
+                            if e.lower() == 'artist': e = 'albumartist'
                             newentries += [e]
                         value = ','.join(newentries)
                 else:
-                    if 'albumartist' in entries:
+                    if 'albumartist' in entrieslower:
                         newentries = []
                         for e in entries:
-                            if e == 'albumartist': e = 'artist'
+                            if e.lower() == 'albumartist': e = 'artist'
                             newentries += [e]
                         value = ','.join(newentries)
             newvaluedict[key] = value
