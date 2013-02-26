@@ -426,8 +426,8 @@ class MediaServer(object):
         except ConfigParser.NoOptionError:
             pass
 
-        self.prefix_sep = u'\u00a0'
-        self.suffix_sep = u'\u007f'
+        self.prefix_sep = u'\u00a0'     # non-breaking space
+        self.suffix_sep = u'\u007f'     # delete
 
         # get chunk metadata characters
         prefix_start, self.chunk_metadata_delimiter_prefix_start = self.get_delim('entry_prefix_start_separator', '[', self.prefix_sep)
@@ -6732,9 +6732,9 @@ class MediaServer(object):
                     return (foundvalues['range_field'], foundvalues['index_range'], foundvalues['sort_order'], foundvalues['entry_prefix'], foundvalues['entry_suffix'], at, 'dummy', '')
 
     def smapi_makepresuffix(self, fixes, replace, fixdata, ps):
-        log.debug(fixes)
-        log.debug(replace)
-        log.debug(fixdata)
+#        log.debug(fixes)
+#        log.debug(replace)
+#        log.debug(fixdata)
     
         EMPTY = '__EMPTY__'
         outfix = ''
@@ -6938,12 +6938,14 @@ class MediaServer(object):
         delim = unicode(delim)
         delim = delim.replace(' ', special)
         if when:
-            if when == 'before':
-                if delim[0] != special:
-                    delim = '%s%s' % (special, delim)
-            elif when == 'after':
-                if delim[-1] != special:
-                    delim = '%s%s' % (delim, special)
+            if delim == '': delim = special
+            else:
+                if when == 'before':
+                    if delim[0] != special:
+                        delim = '%s%s' % (special, delim)
+                elif when == 'after':
+                    if delim[-1] != special:
+                        delim = '%s%s' % (delim, special)
         delim2 = re.escape(delim)
         return delim2, delim
 
