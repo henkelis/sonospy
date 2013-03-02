@@ -1,9 +1,9 @@
 ###############################################################################
 # Scan Tab for use with sonospyGUI.py
 ###############################################################################
-# scanTab.py copyright (c) 2010-2011 John Chowanec
+# scanTab.py copyright (c) 2010-2013 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
-# Sonospy Project copyright (c) 2010-2011 Mark Henkelis
+# Sonospy Project copyright (c) 2010-2013 Mark Henkelis
 #   (specifics for this file: scan.py)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -419,7 +419,10 @@ class ScanPanel(wx.Panel):
                 self.LogWindow.AppendText("ERROR\tNo folder selected to scan!\n")
             else:
                 startTime = datetime.now()
-                self.LogWindow.AppendText("[ Starting Scan ] (" + startTime.strftime("%T") + ")\n")
+                if os.name == 'nt':
+                    self.LogWindow.AppendText("[ Starting Scan ]\n")
+                else:
+                    self.LogWindow.AppendText("[ Starting Scan ] (" + startTime.strftime("%T") + ")\n")
 
 
                 guiFunctions.statusText(self, "Running Scan...")
@@ -429,6 +432,8 @@ class ScanPanel(wx.Panel):
                         line = line.replace("\\", "\\\\")
                         line = line.replace(" ", "\ ")
                         scanCMD += "\"" + line + "\" "
+                        print("[D] COMMAND " + scanCMD)
+                        print("[D] WORKING DIR " + owd)
                     else:
                         scanCMD += "\"" + str(self.multiText.GetLineText(numLines)).replace(" ", "\ ") + "\" "
 

@@ -1,9 +1,9 @@
 ###############################################################################
 # Virtuals Tab for use with sonospyGUI.py
 ###############################################################################
-# virtualsTab.py copyright (c) 2010-2011 John Chowanec
+# virtualsTab.py copyright (c) 2010-2013 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
-# Sonospy Project copyright (c) 2010-2011 Mark Henkelis
+# Sonospy Project copyright (c) 2010-2013 Mark Henkelis
 #   (specifics for this file: scan.py)
 #
 # This program is free software: you can redistribute it and/or modify
