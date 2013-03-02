@@ -40,6 +40,7 @@ import os
 import subprocess
 import guiFunctions
 from wx.lib.pubsub import Publisher
+from subprocess import Popen
 
 list_checkboxID = []
 list_checkboxLabel = []
@@ -559,8 +560,9 @@ class LaunchPanel(wx.Panel):
                 self.buildLaunch()
                 self.setButtons(False)
         else:
+            print os.getcwd()
+            print launchCMD
             proc = subprocess.Popen(launchCMD, shell=True)
-
         # set back to original working directory
         os.chdir(owd)
 

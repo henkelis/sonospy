@@ -255,7 +255,7 @@ class ScanPanel(wx.Panel):
         iniOverride = ""
 
         if os.name == 'nt':
-            cmdroot = 'python '
+            cmdroot = 'python.exe '
         else:
             cmdroot = './'
 
@@ -430,10 +430,8 @@ class ScanPanel(wx.Panel):
                     if os.name == "nt":
                         line = str(self.multiText.GetLineText(numLines))
                         line = line.replace("\\", "\\\\")
-                        line = line.replace(" ", "\ ")
+                        #line = line.replace(" ", "\ ")
                         scanCMD += "\"" + line + "\" "
-                        print("[D] COMMAND " + scanCMD)
-                        print("[D] WORKING DIR " + owd)
                     else:
                         scanCMD += "\"" + str(self.multiText.GetLineText(numLines)).replace(" ", "\ ") + "\" "
 
