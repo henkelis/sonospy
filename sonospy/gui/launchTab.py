@@ -433,12 +433,12 @@ class LaunchPanel(wx.Panel):
 
         xIndex +=1
 
-        self.ck_ServicesMode = wx.CheckBox(self, -1, "Run in Services Mode")
-        help_ServicesMode = "(EXPERIMENTAL) Run in Music Services section of the controller.  Eliminates the need for multiple databases -- for the most part."
-        self.ck_ServicesMode.SetToolTip(wx.ToolTip(help_ServicesMode))
-        self.ck_ServicesMode.Value = guiFunctions.configMe("launch", "services_mode", bool=True)
-        self.ck_ServicesMode.Bind(wx.EVT_CHECKBOX, self.enableServices, self.ck_ServicesMode)
-        sizer.Add(self.ck_ServicesMode, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+#        self.ck_ServicesMode = wx.CheckBox(self, -1, "Run in Services Mode")
+#        help_ServicesMode = "(EXPERIMENTAL) Run in Music Services section of the controller.  Eliminates the need for multiple databases -- for the most part."
+#        self.ck_ServicesMode.SetToolTip(wx.ToolTip(help_ServicesMode))
+#        self.ck_ServicesMode.Value = guiFunctions.configMe("launch", "services_mode", bool=True)
+#        self.ck_ServicesMode.Bind(wx.EVT_CHECKBOX, self.enableServices, self.ck_ServicesMode)
+#        sizer.Add(self.ck_ServicesMode, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
         xIndex +=1
 
@@ -710,8 +710,8 @@ class LaunchPanel(wx.Panel):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
                     launchME += "-wSonospy=" + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
 
-        if self.ck_ServicesMode.Value == True:
-            launchME = launchME + " -s"
+#        if self.ck_ServicesMode.Value == True:
+#            launchME = launchME + " -s"
 
         self.tc_Scratchpad.Value = launchME
         return launchME

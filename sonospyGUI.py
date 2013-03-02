@@ -59,7 +59,7 @@ class SonospyNotebook(wx.Notebook):
 
         self.AddPage(launchTab.LaunchPanel(self), "Launch")
         self.AddPage(scanTab.ScanPanel(self), "Scan")
-        self.AddPage(extractTab.ExtractPanel(self), "Extract")
+#        self.AddPage(extractTab.ExtractPanel(self), "Extract")
         self.AddPage(virtualsTab.VirtualsPanel(self), "Virtuals")
 #        self.AddPage(scheduleTab.SchedulePanel(self), "Batch")
 
