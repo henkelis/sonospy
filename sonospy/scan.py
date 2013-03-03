@@ -122,6 +122,10 @@ def main(argv=None):
         if args:
             for arg in args:
                 cmd += " " + arg
+        
+        if os.name == 'nt':
+            cmd = cmd.replace("./", "")
+            
         print cmd
         args = shlex.split(cmd)
         sub = subprocess.Popen(args).wait()
@@ -145,6 +149,10 @@ def main(argv=None):
                 cmd += " -q"
             if options.verbose:
                 cmd += " -v"
+
+            if os.name == 'nt':
+                cmd = cmd.replace("./", "")
+            
             print cmd
             args = shlex.split(cmd)
             sub = subprocess.Popen(args).wait()

@@ -271,7 +271,11 @@ class ScanPanel(wx.Panel):
 
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -r"
             startTime = datetime.now()
-            self.LogWindow.AppendText("[ Starting Repair ] (" + startTime.strftime("%T") + ")\n\n")
+            if os.name == 'nt':
+                self.LogWindow.AppendText("[ Starting Repair ] \n")
+            else:
+                self.LogWindow.AppendText("[ Starting Repair ] (" + startTime.strftime("%T") + ")\n\n")
+                
             guiFunctions.statusText(self, "[ Repair Started ]")
 
             if not self.worker:
@@ -430,7 +434,6 @@ class ScanPanel(wx.Panel):
                     if os.name == "nt":
                         line = str(self.multiText.GetLineText(numLines))
                         line = line.replace("\\", "\\\\")
-                        #line = line.replace(" ", "\ ")
                         scanCMD += "\"" + line + "\" "
                     else:
                         scanCMD += "\"" + str(self.multiText.GetLineText(numLines)).replace(" ", "\ ") + "\" "

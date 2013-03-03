@@ -41,12 +41,14 @@ import subprocess
 import guiFunctions
 from wx.lib.pubsub import Publisher
 from subprocess import Popen
+killcmd = ''
 
 list_checkboxID = []
 list_checkboxLabel = []
 list_txtctrlID = []
 list_txtctrlLabel = []
 list_buttonID = []
+
 
 class LaunchPanel(wx.Panel):
     """
@@ -547,22 +549,24 @@ class LaunchPanel(wx.Panel):
 # ------------------------------------------------------------------------------
         if os.name != 'nt':
             proc = subprocess.Popen([launchCMD],shell=True)
-            if self.bt_Launch.Label == "Stop":
-                self.bt_Launch.Label = "Launch"
-                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
-                guiFunctions.statusText(self, "Sonospy Service Stopped...")
-                self.buildLaunch()
-                self.setButtons(True)
-            else:
-                self.bt_Launch.Label = "Stop"
-                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
-                guiFunctions.statusText(self, "Sonospy Service Started...")
-                self.buildLaunch()
-                self.setButtons(False)
         else:
-            print os.getcwd()
-            print launchCMD
+            global killcmd
             proc = subprocess.Popen(launchCMD, shell=True)
+            killcmd = "taskkill /F /T /PID %i"%proc.pid
+
+        if self.bt_Launch.Label == "Stop":
+            self.bt_Launch.Label = "Launch"
+            self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
+            guiFunctions.statusText(self, "Sonospy Service Stopped...")
+            self.buildLaunch()
+            self.setButtons(True)
+        else:
+            self.bt_Launch.Label = "Stop"
+            self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
+            guiFunctions.statusText(self, "Sonospy Service Started...")
+            self.buildLaunch()
+            self.setButtons(False)
+
         # set back to original working directory
         os.chdir(owd)
 
@@ -594,7 +598,7 @@ class LaunchPanel(wx.Panel):
         guiFunctions.configWrite(section, "db8_check", self.ck_DB8.Value)
         guiFunctions.configWrite(section, "db8_dbname", self.ck_DB8.Label)
         guiFunctions.configWrite(section, "db8_proxyname", self.tc_DB8.Value)
-        guiFunctions.configWrite(section, "services_mode", self.ck_ServicesMode.Value)
+#        guiFunctions.configWrite(section, "services_mode", self.ck_ServicesMode.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
 
@@ -707,6 +711,12 @@ class LaunchPanel(wx.Panel):
         if self.bt_Launch.Label == "Stop":
             if os.name != 'nt':
                 launchME = cmdroot + "sonospy_stop"
+            if os.name == 'nt':
+                global killcmd
+                launchME = killcmd 
+            
+            print ("[D] " + launchME)
+                
         else:
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
@@ -754,7 +764,7 @@ class LaunchPanel(wx.Panel):
             self.rd_Proxy.Enable()
             self.rd_Web.Enable()
             self.label_ProxyName.Enable()
-            self.ck_ServicesMode.Enable()
+#            self.ck_ServicesMode.Enable()
         else:
             self.ck_DB1.Disable()
             self.tc_DB1.Disable()
@@ -787,5 +797,5 @@ class LaunchPanel(wx.Panel):
             self.rd_Proxy.Disable()
             self.rd_Web.Disable()
             self.label_ProxyName.Disable()
-            self.ck_ServicesMode.Disable()
+#            self.ck_ServicesMode.Disable()
 
