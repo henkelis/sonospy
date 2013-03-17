@@ -1,0 +1,80 @@
+ rootitems: is list of root IDs to root titles
+ 
+     ('R1', u'Albums')
+     ('R2', u'Albums 2')
+     ('R3', u'Artists')
+     ('R4', u'Artists by alpha')
+     ('R5', u'Recent rips')
+     ('R6', u'Playlists')
+     ('R7', u'Tracks')
+
+ hierarchies: is dictionary of index tables for each index
+ 
+     R4: [u'albumartist-alpha', u'albumartist', u'album', u'track']
+     R5: [u'recent-entries', u'artist', u'album', u'track']
+     R6: [u'playlist', u'track']
+     R7: [u'track']
+     R1: [u'album', u'track']
+     R2: [u'album', u'track']
+     R3: [u'albumartist', u'album', u'track']
+
+ index_types: is dictionary of query types for each index
+
+     R4: ['DYNAMIC', 'STATIC', 'STATIC', 'LEAF']
+     R5: ['DYNAMIC', 'STATIC', 'STATIC', 'LEAF']
+     R6: ['STATIC', 'LEAF']
+     R7: ['LEAF']
+     R1: ['STATIC', 'LEAF']
+     R2: ['STATIC', 'LEAF']
+     R3: ['STATIC', 'STATIC', 'LEAF']
+
+ index_ids: is dictionary of parent IDs for each index
+ 
+     R4: [1100000000, 200000000, 300000000, 700000000]
+     R5: [1200000000, 100000000, 300000000, 700000000]
+     R6: [800000000, 700000000]
+     R7: [700000000]
+     R1: [300000000, 700000000]
+     R2: [300000000, 700000000]
+     R3: [200000000, 300000000, 700000000]
+     
+ index_settings: is dictionary of index settings for each index - note key includes any path key at before level of index
+ 
+     R4_albumartist-alpha: {'range_field': '', 'index_range': ('', '', ''), 'entry_prefix': '', 'entry_suffix': '', 'proxyname': 'all', 'controller': 'all', 'servicename': 'all', 'active': 'y', 'sort_order': ''}
+     R5_P5_artist: {'range_field': u'inserted', 'index_range': (u'2', u'3', u'months'), 'entry_prefix': '', 'entry_suffix': '', 'proxyname': 'all', 'controller': 'all', 'servicename': 'all', 'active': 'y', 'sort_order': u'inserted desc'}
+     R5_P3_artist: {'range_field': u'inserted', 'index_range': (u'last', u'1', u'month'), 'entry_prefix': u'inserted', 'entry_suffix': '', 'proxyname': 'all', 'controller': 'all', 'servicename': 'all', 'active': 'y', 'sort_order': u'inserted desc'}
+     R5_P4_artist: {'range_field': u'inserted', 'index_range': (u'1', u'2', u'months'), 'entry_prefix': u"cast(round(julianday('now') - julianday(date(inserted, 'unixepoch'))) as integer) || ' days'", 'entry_suffix': '', 'proxyname': 'all', 'controller': 'all', 'servicename': 'all', 'active': 'y', 'sort_order': u'inserted desc'}
+     R2_album: {'range_field': '', 'index_range': (u'first', u'10', u'records'), 'entry_prefix': '', 'entry_suffix': '', 'proxyname': 'all', 'controller': 'all', 'servicename': 'all', 'active': 'y', 'sort_order': ''}
+     R4_P2_albumartist: {'range_field': u'albumartist', 'index_range': (u'n', u'zzzzzzz', ''), 'entry_prefix': '', 'entry_suffix': '', 'proxyname': 'all', 'controller': 'all', 'servicename': 'all', 'active': 'y', 'sort_order': ''}
+     R4_P1_albumartist: {'range_field': u'albumartist', 'index_range': (u'!', u'mzzzzzz', ''), 'entry_prefix': '', 'entry_suffix': '', 'proxyname': 'all', 'controller': 'all', 'servicename': 'all', 'active': 'y', 'sort_order': ''}
+     R5_recent-entries: {'range_field': '', 'index_range': ('', '', ''), 'entry_prefix': '', 'entry_suffix': '', 'proxyname': 'all', 'controller': 'all', 'servicename': 'all', 'active': 'y', 'sort_order': ''}
+     R5_P3_album: {'range_field': '', 'index_range': ('', '', ''), 'entry_prefix': u'inserted', 'entry_suffix': '', 'proxyname': 'all', 'controller': 'all', 'servicename': 'all', 'active': 'y', 'sort_order': u'inserted desc'}
+     
+ path_index_entries:
+ 
+     R4_albumartist-alpha: [('P1', u'A-M'), ('P2', u'N-Z')]
+     R5_recent-entries: [('P3', u'Last month'), ('P4', u'1-2 months'), ('P5', u'2-3 months')]
+
+ statichierarchy: is list of indexes supported statically, used on ini load to set index_types
+
+     album: track
+     playlist: track
+     artist: album
+     track: leaf
+     albumartist: album
+     composer: album
+     genre: albumartist
+
+ dynamichierarchy:
+     not needed
+
+ containerstart:
+     not needed
+
+ hierarchytype:
+     not needed
+
+ containername:
+     not needed
+
+

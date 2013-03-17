@@ -2,7 +2,7 @@
 
 # gettags.py
 #
-# gettags.py copyright (c) 2010-2011 Mark Henkelis
+# gettags.py copyright (c) 2010-2013 Mark Henkelis
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -42,6 +42,8 @@ from mutagen.asf import ASFUnicodeAttribute     # seems to be an issue with mult
 
 from scanfuncs import adjust_tracknumber, truncate_number
 import filelog
+
+from movetags import empty_database
 
 import errors
 errors.catch_errors()
@@ -1707,10 +1709,15 @@ def generate_subset(options, sourcedatabase, targetdatabase, where):
     logstring = "Generating change data"
     filelog.write_log(logstring)
 
+    # create new record for this scan
     c.execute('''insert into scans values (?,?)''', (None, "generated"))
     scannumber = c.lastrowid
     logstring = "Scannumber: %d" % scannumber
     filelog.write_log(logstring)
+
+    if options.regenerate:
+        # delete any old outstanding scan records
+        c.execute('''delete from scans where id < ?''', (scannumber, ))
 
     lastscanned = time.time()
 
@@ -2455,6 +2462,21 @@ def delete_updates(database):
     c.close()
     logstring = "Outstanding updates deleted"
     filelog.write_log(logstring)
+
+def reorganise(database):
+    logstring = "Reorganising"
+    filelog.write_log(logstring)
+    db = sqlite3.connect(database)
+    c = db.cursor()
+    try:
+        c.execute('''vacuum''')
+    except sqlite3.Error, e:
+        errorstring = "Error vacuuming: %s" % (e)
+        filelog.write_error(errorstring)
+    db.commit()
+    c.close()
+    logstring = "Reorganise complete"
+    filelog.write_log(logstring)
     
 def process_command_line(argv):
     """
@@ -2513,7 +2535,11 @@ def main(argv=None):
             logstring = "Database: %s" % database
             filelog.write_log(logstring)
         if options.regenerate:
+            # NOTE: running empty_database here assumes the tracks data is in the same database as tags
+            # (otherwise we'd have to pass -S to this module)
+            empty_database(database)
             delete_updates(database)
+            reorganise(database)
             generate_subset(options, database, database, '')
         elif options.extract and options.where:
             newdatabase = check_database_exists(options.extract)
