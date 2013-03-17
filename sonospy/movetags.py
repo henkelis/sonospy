@@ -2,7 +2,7 @@
 
 # movetags.py
 #
-# movetags.py copyright (c) 2010-2011 Mark Henkelis
+# movetags.py copyright (c) 2010-2013 Mark Henkelis
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -187,8 +187,8 @@ def process_tags(args, options, tagdatabase, trackdatabase):
     # names
     album_work_name_structure = '"%s - %s - %s" % (composer, work, artist)'
     composer_album_work_name_structure = '"%s - %s - %s" % (genre, work, artist)'
+    albumartist_album_work_name_structure = '"%s - %s - %s" % (composer, genre, work)'
     artist_album_work_name_structure = '"%s - %s - %s" % (composer, genre, work)'
-    contributingartist_album_work_name_structure = '"%s - %s - %s" % (composer, genre, work)'
     work_name_structures = []
     try:        
         work_name_structures = config.items('work name format')
@@ -205,14 +205,13 @@ def process_tags(args, options, tagdatabase, trackdatabase):
             work_name_dict[k] = v
     album_work = work_name_dict.get('ALBUM', album_work_name_structure)
     composer_album_work = work_name_dict.get('COMPOSER_ALBUM', composer_album_work_name_structure)
+    albumartist_album_work = work_name_dict.get('ALBUMARTIST_ALBUM', albumartist_album_work_name_structure)
     artist_album_work = work_name_dict.get('ARTIST_ALBUM', artist_album_work_name_structure)
-    albumartist_album_work = artist_album_work
-    contributingartist_album_work = work_name_dict.get('CONTRIBUTINGARTIST_ALBUM', contributingartist_album_work_name_structure)
 
     album_virtual_name_structure = '"%s" % (virtual)'
     composer_album_virtual_name_structure = '"%s" % (virtual)'
+    albumartist_album_virtual_name_structure = '"%s" % (virtual)'
     artist_album_virtual_name_structure = '"%s" % (virtual)'
-    contributingartist_album_virtual_name_structure = '"%s" % (virtual)'
     virtual_name_structures = []
     try:        
         virtual_name_structures = config.items('virtual name format')
@@ -229,14 +228,13 @@ def process_tags(args, options, tagdatabase, trackdatabase):
             virtual_name_dict[k] = v
     album_virtual = virtual_name_dict.get('ALBUM', album_virtual_name_structure)
     composer_album_virtual = virtual_name_dict.get('COMPOSER_ALBUM', composer_album_virtual_name_structure)
+    albumartist_album_virtual = virtual_name_dict.get('ALBUMARTIST_ALBUM', albumartist_album_virtual_name_structure)
     artist_album_virtual = virtual_name_dict.get('ARTIST_ALBUM', artist_album_virtual_name_structure)
-    albumartist_album_virtual = artist_album_virtual
-    contributingartist_album_virtual = virtual_name_dict.get('CONTRIBUTINGARTIST_ALBUM', contributingartist_album_virtual_name_structure)
 
     # convert user defined fields and create old and new structures
-    workstructurelist = [('album_work', album_work), ('composer_album_work', composer_album_work), ('artist_album_work', artist_album_work), ('albumartist_album_work', albumartist_album_work), ('contributingartist_album_work', contributingartist_album_work)]
+    workstructurelist = [('album_work', album_work), ('composer_album_work', composer_album_work), ('artist_album_work', artist_album_work), ('albumartist_album_work', albumartist_album_work), ('artist_album_work', artist_album_work)]
     old_structures_work, new_structures_work = convertstructure(workstructurelist, lookup_name_dict)
-    virtualstructurelist = [('album_virtual', album_virtual), ('composer_album_virtual', composer_album_virtual), ('artist_album_virtual', artist_album_virtual), ('albumartist_album_virtual', albumartist_album_virtual), ('contributingartist_album_virtual', contributingartist_album_virtual)]
+    virtualstructurelist = [('album_virtual', album_virtual), ('composer_album_virtual', composer_album_virtual), ('artist_album_virtual', artist_album_virtual), ('albumartist_album_virtual', albumartist_album_virtual), ('artist_album_virtual', artist_album_virtual)]
     old_structures_virtual, new_structures_virtual = convertstructure(virtualstructurelist, lookup_name_dict)
 
     # get outstanding scan details
@@ -1874,24 +1872,20 @@ def translatealbumtype(albumtype):
 def translatestructuretype(structuretype):
     if structuretype == 'album_virtual':
         return 1
-    elif structuretype == 'artist_album_virtual':
-        return 2
     elif structuretype == 'albumartist_album_virtual':
+        return 2
+    elif structuretype == 'artist_album_virtual':
         return 3
-    elif structuretype == 'contributingartist_album_virtual':
-        return 4
     elif structuretype == 'composer_album_virtual':
-        return 5
+        return 4
     elif structuretype == 'album_work':
         return 1
-    elif structuretype == 'artist_album_work':
-        return 2
     elif structuretype == 'albumartist_album_work':
+        return 2
+    elif structuretype == 'artist_album_work':
         return 3
-    elif structuretype == 'contributingartist_album_work':
-        return 4
     elif structuretype == 'composer_album_work':
-        return 5
+        return 4
 
 def convertstructure(structurelist, lookup_name_dict):
     old_structures = []
@@ -2477,45 +2471,53 @@ def create_database(database):
     c.close()
 
 def empty_database(database):
+
+    # check whether there are any track tables (check for last table in delete list below)
     db = sqlite3.connect(database)
     c = db.cursor()
-    try:
-        c.execute('''drop table if exists params''')
-        c.execute('''drop table if exists tracks''')
-        c.execute('''drop table if exists albums''')
-        c.execute('''drop table if exists albumsonly''')
+    c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="TrackNumbers"')
+    n, = c.fetchone()
+    if n != 0:
+        logstring = "Deleting tracks data"
+        filelog.write_log(logstring)
+        try:
+            c.execute('''drop table if exists params''')
+            c.execute('''drop table if exists tracks''')
+            c.execute('''drop table if exists albums''')
+            c.execute('''drop table if exists albumsonly''')
 
-        # to be removed
-        c.execute('''drop table if exists artists''')
-        c.execute('''drop table if exists albumartists''')
-        c.execute('''drop table if exists composers''')
-        c.execute('''drop table if exists genres''')
+            # to be removed from this list - are tables from an old schema
+            c.execute('''drop table if exists artists''')
+            c.execute('''drop table if exists albumartists''')
+            c.execute('''drop table if exists composers''')
+            c.execute('''drop table if exists genres''')
 
-        c.execute('''drop table if exists Artist''')
-        c.execute('''drop table if exists Albumartist''')
-        c.execute('''drop table if exists Composer''')
-        c.execute('''drop table if exists Genre''')
-#        c.execute('''drop table if exists playlists''')
-        c.execute('''drop table if exists GenreArtist''')
-        c.execute('''drop table if exists GenreAlbumartist''')
-        c.execute('''drop table if exists GenreArtistAlbum''')
-        c.execute('''drop table if exists GenreAlbumartistAlbum''')
-        c.execute('''drop table if exists ArtistAlbum''')
-        c.execute('''drop table if exists AlbumartistAlbum''')
-        c.execute('''drop table if exists ComposerAlbum''')
-        c.execute('''drop table if exists ArtistAlbumsonly''')
-        c.execute('''drop table if exists AlbumartistAlbumsonly''')
-        c.execute('''drop table if exists GenreArtistAlbumTrack''')
-        c.execute('''drop table if exists GenreAlbumartistAlbumTrack''')
-        c.execute('''drop table if exists ArtistAlbumTrack''')
-        c.execute('''drop table if exists AlbumartistAlbumTrack''')
-        c.execute('''drop table if exists ComposerAlbumTrack''')
-        c.execute('''drop table if exists TrackNumbers''')
-    except sqlite3.Error, e:
-        errorstring = "Error dropping table: %s, %s" % (table, e)
-        filelog.write_error(errorstring)
-    db.commit()
-    c.close()
+            c.execute('''drop table if exists Artist''')
+            c.execute('''drop table if exists Albumartist''')
+            c.execute('''drop table if exists Composer''')
+            c.execute('''drop table if exists Genre''')
+            c.execute('''drop table if exists GenreArtist''')
+            c.execute('''drop table if exists GenreAlbumartist''')
+            c.execute('''drop table if exists GenreArtistAlbum''')
+            c.execute('''drop table if exists GenreAlbumartistAlbum''')
+            c.execute('''drop table if exists ArtistAlbum''')
+            c.execute('''drop table if exists AlbumartistAlbum''')
+            c.execute('''drop table if exists ComposerAlbum''')
+            c.execute('''drop table if exists ArtistAlbumsonly''')
+            c.execute('''drop table if exists AlbumartistAlbumsonly''')
+            c.execute('''drop table if exists GenreArtistAlbumTrack''')
+            c.execute('''drop table if exists GenreAlbumartistAlbumTrack''')
+            c.execute('''drop table if exists ArtistAlbumTrack''')
+            c.execute('''drop table if exists AlbumartistAlbumTrack''')
+            c.execute('''drop table if exists ComposerAlbumTrack''')
+            c.execute('''drop table if exists TrackNumbers''')
+        except sqlite3.Error, e:
+            errorstring = "Error dropping table: %s, %s" % (table, e)
+            filelog.write_error(errorstring)
+        db.commit()
+        c.close()
+        logstring = "Tracks data deleted"
+        filelog.write_log(logstring)
 
 def process_command_line(argv):
     """

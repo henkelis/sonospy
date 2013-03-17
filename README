@@ -1,5 +1,7 @@
 sonospy
 =======
+
+Developed using Wingware Python IDE - http://wingware.com
             
 Python Control Point is a UPnP control point for audio files and streams.
 
@@ -128,50 +130,34 @@ To start the UPnP controlpoint as a proxy only, run:
     
 from the directory you installed the source into.
 
-You should select the appropriate parameters from the following list:
+Parameters can include:
 
-    -u<upnpstring>    proxies the UPnP server that contains <upnpstring> in its friendly name
-                      as a Rhapsody UPnP server (upnpstring is case sensitive)
-                      
-    -w<upnpstring>    proxies the UPnP server that contains <upnpstring> in its friendly name
-                      as a WMP server on port 10243 (note this won't work if WMP is using that
-                      port on that machine) (upnpstring is case sensitive). Only one UPnP server
-                      can be proxied as WMP due to the single port available (the first one found)
-                      
-    -w<upnpstring>=<inistring>      as -w option above, but searches pycpoint.ini file for
-                                    configuration mappings for <inistring> server (see below)
-                                    
-    -wSonospy=<name>,<database>     special case that implements an internal WMP server on port 10243 (note
-                                    that won't work if WMP is using that port on that machine). If this 
-                                    option is used, -w<upnpstring> can't be used as only one WMP server can
-                                    be proxied due to the single port available. Multiple -wSonospy options
-                                    can be used. Note that you need to generate the database beforehand for
-                                    this option to work (see "Internal WMP Database" below for further 
-                                    information)
+    -wSonospy=<name>,<database>[,<ini>]   implements an internal WMP server on port 10243 (note
+                                          that won't work if WMP is using that port on that machine). 
+                                          Multiple -wSonospy options can be used. Note that you need 
+                                          to generate the database beforehand for this option to work
+                                          (see "Internal WMP Database" below for further information)
+
+    -- todo --
+    -s
 
 Example parameters:
 
-    -uTwonky            proxies Twonky as a Rhapsody UPnP server (will show up on CR100)
-    
-    -wAsset             proxies Asset as a WMP server, allowing generic browsing (will show up
-                        on CR100/CR200/iTouch etc)
-    
-    -wTwonky=Twonky     proxies Twonky as a WMP server, using the config entries in the 
-                        Twonky section of pycpoint.ini (will show up on CR100/CR200/iTouch etc)
-
-    -wSonospy=music,sonos.sqlite    implements the internal WMP server, serving content described in
-                                    sonos.sqlite via a media server named music (will show up on the
+    -wSonospy=Music,sonos.sqlite    implements the internal WMP server, serving content described in
+                                    sonos.sqlite via a media server named Music (will show up on the
                                     CR100/CR200/iTouch etc)
+
+    -wSonospy=Music,sonos.sqlite,index.ini    implements the internal WMP server, serving content described in
+                                              sonos.sqlite via a media server named Music, with index settings
+                                              read from index.ini
 
 Example calls:
                         
     For linux:
 
-        ./sonospy_proxy -wTwonky=Twonky
+        ./sonospy_proxy -wSonospy=Music,sonos.sqlite
 
-        ./sonospy_proxy -wSonospy=music,sonos.sqlite
-
-        ./sonospy_proxy -wSonospy=Peter,peter.sqlite -wSonospy=Leanne,leanne.sqlite
+        ./sonospy_proxy -wSonospy=Peter,peter.sqlite,peter.ini -wSonospy=Leanne,leanne.sqlite,leanne.ini
         
     For Windows:
     
@@ -179,17 +165,14 @@ Example calls:
         -- for now use the following --
         
         cd sonospy
-        pythonw pycpoint.py -p -wTwonky=Twonky
-
-        cd sonospy
-        pythonw pycpoint.py -p -wSonospy=music,sonos.sqlite
+        pythonw pycpoint.py -p -wSonospy=Music,sonos.sqlite
 
 You can also use the parameters above with the web browser, so for example to start the control 
-point with Twonky proxied and available to both the web browser and Sonos controllers run:
+point with a local mediaserver proxied and available to both the web browser and Sonos controllers run:
 
     For linux:
     
-        ./sonospy_web -wTwonky=Twonky
+        ./sonospy_web -wSonospy=Music,sonos.sqlite
         
     For Windows:
     
@@ -197,7 +180,7 @@ point with Twonky proxied and available to both the web browser and Sonos contro
         -- for now use the following --
         
         cd sonospy
-        pythonw pycpoint.py -p -wTwonky=Twonky
+        pythonw pycpoint.py -p -wSonospy=Music,sonos.sqlite
         cd ..
         pythonw web2py/web2py.py -L options.py
 
@@ -422,8 +405,6 @@ You can also set some controller/proxy settings in the ini file in the [ini] sec
 New features in 0.7
 -------------------
 *) Music served from Sonos can now be rendered locally via BRisa renderer.
-*) Twonky support added. Non-Sonos UPnP servers are wrapped in proxies so that Sonos (and control 
-point) can see them.
 *) Context sensitive right click.
 *) Control point can run as proxy only without a GUI.
 *) Support for sending IR commands over IP added.
@@ -453,9 +434,7 @@ displayed on browsing a ZP but they can't be accessed.
 *) There is currently no persistence for browse - all browses use HTTP calls to get music data from the 
 server they are querying. Calls are chunked to avoid flooding the network/server.
 *) UPnP servers served on the localhost address are not queried correctly.
-*) Twonky v4 does not return track duration when proxied.
 *) Album track listings on the reverse of album covers in Flow view do not work in IE.
-*) Search on proxied Twonky as a ZP service does not work.
 *) When rendering locally on gmediarender, you need to connect to the music source first if it is
 remote (e.g. if music is stored on a NAS, connect to the NAS on the PC before rendering).
 *) Browser on iPAQ does not obey mobile resizing with ?M=P.

@@ -1,7 +1,7 @@
 #
 # proxy
 #
-# Copyright (c) 2009 Mark Henkelis
+# Copyright (c) 2009-2013 Mark Henkelis
 # Portions Copyright Brisa Team <brisa-develop@garage.maemo.org>
 #
 # This program is free software: you can redistribute it and/or modify
@@ -61,20 +61,18 @@ from dateutil.relativedelta import relativedelta as datedelta
 
 enc = sys.getfilesystemencoding()
 
+################################
+# Proxy for internal mediaserver
+################################
+
 class Proxy(object):
 
     def __init__(self, proxyname, proxytype, proxytrans, udn, config, port,
                  mediaserver=None, controlpoint=None, createwebserver=False,
-                 webserverurl=None, wmpurl=None, startwmp=False, dbname=None,
+                 webserverurl=None, wmpurl=None, startwmp=False, dbname=None, ininame=None,
                  wmpudn=None, wmpcontroller=None, wmpcontroller2=None,
                  smapi=False):
         '''
-        To proxy an external mediaserver, set:
-            port = the port to listen on for proxy control messages
-            mediaserver = the mediaserver device being proxied
-            controlpoint = the controller device containing a webserver to utilise
-            createwebserver = True  # TODO: check why this has changed, do we need to set webserver to controlpoint webserver?
-            webserverurl = None
         To serve an internal mediaserver, set:
             port = None
             mediaserver = None
@@ -110,6 +108,10 @@ class Proxy(object):
             if self.dbname == '':
                 self.dbname = 'sonospy.sqlite'
                 self.dbspec = os.path.join(os.getcwd(), self.dbname)
+        if ininame == None:
+            self.ininame = None
+        else:
+            self.ininame = ininame
         self.wmpudn = wmpudn
         self.wmpwebserver = None
         self.wmpcontroller = wmpcontroller
@@ -125,7 +127,7 @@ class Proxy(object):
         # get db cache size
         self.db_cache_size = 2000
         try:
-            db_cache_size_option = self.config.get('INI', 'db_cache_size')
+            db_cache_size_option = self.config.get('database', 'db_cache_size')
             try:
                 cache = int(db_cache_size_option)
                 if cache > self.db_cache_size:
@@ -140,7 +142,7 @@ class Proxy(object):
         # get connection persistence
         self.db_persist_connection = False
         try:
-            db_persist_connection_option = self.config.get('INI', 'db_persist_connection')
+            db_persist_connection_option = self.config.get('database', 'db_persist_connection')
             if db_persist_connection_option:
                 if db_persist_connection_option.lower() == 'y':
                     self.db_persist_connection = True
@@ -226,24 +228,23 @@ class Proxy(object):
         # TODO: investigate why an error in creating the ContentDirectory
         #       causes the controlpoint to receive a duplicate _new_device_event_impl
         #       for the device being proxied
-        if self.mediaserver == None:
-
+        try:
             if self.smapi:
                 self.smapiservice = Smapi(self.root_device.location, self, self.webserverurl, self.wmpurl, self.dbspec, self.wmpudn)
                 self.root_device.add_service(self.smapiservice)
 
-            self.cdservice = DummyContentDirectory(self.root_device.location, self, self.webserverurl, self.wmpurl, self.dbspec, self.wmpudn)
+            self.cdservice = ContentDirectory(self.root_device.location, self, self.webserverurl, self.wmpurl, self.dbspec, self.wmpudn, self.ininame)
             self.root_device.add_service(self.cdservice)
-            self.cmservice = DummyConnectionManager()
+            self.cmservice = ConnectionManager()
             self.root_device.add_service(self.cmservice)
-
-        else:
-            self.cdservice = ContentDirectory(self.controlpoint, self.mediaserver, self.root_device.location, self)
-            self.root_device.add_service(self.cdservice)
-            self.cmservice = ConnectionManager(self.controlpoint, self.mediaserver)
-            self.root_device.add_service(self.cmservice)
-        self.mrservice = X_MS_MediaReceiverRegistrar()
-        self.root_device.add_service(self.mrservice)
+            self.mrservice = X_MS_MediaReceiverRegistrar()
+            self.root_device.add_service(self.mrservice)
+        except: # catch *all* exceptions
+            e = sys.exc_info()[0]
+            log.debug(e)
+            import traceback
+            tb = traceback.format_exc()
+            log.debug(tb)
 
     def _create_webserver(self, wmpurl):
         p = network.parse_url(wmpurl)
@@ -398,608 +399,6 @@ class ProxyServerController(webserver.SonosResource):
     def __init__(self, proxy, res):
         webserver.SonosResource.__init__(self, res, proxy)
 
-##########################
-##########################
-# ContentDirectory service
-##########################
-##########################
-
-class ContentDirectory(Service):
-
-    service_name = 'ContentDirectory'
-    service_type = 'urn:schemas-upnp-org:service:ContentDirectory:1'
-    scpd_xml_path = os.path.join(os.getcwd(), 'content-directory-scpd.xml')
-
-    searchArtists = {}
-    searchContributing = {}
-    searchAlbums = {}
-    searchComposers = {}
-    searchGenres = {}
-    searchTracks = {}
-    searchPlaylists = {}
-
-    dictmapping = {'Artist'                 : searchArtists,
-                   'Contributing Artists'   : searchContributing,
-                   'Album'                  : searchAlbums,
-                   'Composer'               : searchComposers,
-                   'Genre'                  : searchGenres,
-                   'Tracks'                 : searchTracks,
-                   'Playlists'              : searchPlaylists }
-
-    decaches = {'microsoft:artistAlbumArtist'   : searchArtists,
-# should not be needed as replace is performed later                'upnp:artist'     : searchArtists,  # TODO: create this automatically from mapping
-                'microsoft:artistPerformer'     : searchContributing,
-                'upnp:album'                    : searchAlbums,
-                'microsoft:authorComposer'      : searchComposers,
-# should not be needed as replace is performed later                'upnp:author'      : searchComposers,  # TODO: create this automatically from mapping
-                'upnp:genre'                    : searchGenres,
-                'NOT_NEEDED'                    : searchTracks,
-                'ug'                            : searchPlaylists }
-
-    # TODO: fix playlists
-
-    defaultcaches = {'107' + ' - ' + 'upnp:class = "object.container.person.musicArtist"' : searchArtists,
-                     '100' + ' - ' + 'upnp:class = "object.container.person.musicArtist"' : searchContributing,
-                     '0'   + ' - ' + 'upnp:class = "object.container.album.musicAlbum"'   : searchAlbums,
-                     '108' + ' - ' + 'upnp:class = "object.container.person.musicArtist"' : searchComposers,
-                     '0'   + ' - ' + 'upnp:class = "object.container.genre.musicGenre"'   : searchGenres,
-                     '0'   + ' - ' + 'upnp:class derivedfrom "object.item.audioItem"'     : searchTracks,
-                     '0'   + ' - ' + 'upnp:class = "object.container.playlistContainer"'  : searchPlaylists }
-    defaultop = '='
-
-    def __init__(self, controlpoint, mediaserver, proxyaddress, proxy):
-        self.controlpoint = controlpoint
-        self.mediaserver = mediaserver
-        self.destscheme = mediaserver.scheme
-        self.destip = mediaserver.ip
-        self.proxyaddress = proxyaddress
-        self.destmusicaddress = None
-        self.proxy = proxy
-        self.translate = 0
-        self.subtranslate = ''
-        self.caches = {}
-        self.sonos_containers = {}
-        self.sonos_decache = {}
-        self.proxy_decache = {}
-        self.containers = {}
-        self.container_mappings = {}
-        self.attribute_mappings = {}
-        self.operators = [self.defaultop]
-
-        Service.__init__(self, self.service_name, self.service_type, url_base='', scpd_xml_filepath=self.scpd_xml_path)
-
-        # TODO: add error processing for ini file entries
-
-        if self.proxy.proxytrans == '':
-            self.translate = 'Through'
-        else:
-            try:
-                self.translate = self.proxy.config.get('WMP Translators', self.proxy.proxytrans)
-                if ',' in self.translate:
-                    valuestring = self.translate.split(',')
-                    self.translate = valuestring[0]
-                    self.subtranslate = valuestring[1]
-            except ConfigParser.NoSectionError:
-                self.translate = '0'
-            except ConfigParser.NoOptionError:
-                self.translate = '0'
-
-            if self.translate != '0':
-                # set defaults
-                self.caches = self.defaultcaches.copy()
-                # load Sonos container mapping
-                try:
-                    self.conts = self.proxy.config.items('Sonos Containers')
-                    self.sonos_containers = fixcolonequals(self.conts)
-                    for k, v in self.sonos_containers.iteritems():
-                        if v == '': continue    # ignore empty keys
-                        valuestring = v.split(',')
-                        if len(valuestring) == 1:
-                            cachestring = valuestring[0]
-                        elif len(valuestring) == 2:
-                            cachestring = valuestring[0] + ' - ' + 'upnp:class = "' + valuestring[1] + '"'
-                        else:
-                            cachestring = valuestring[0] + ' - ' + 'upnp:class ' + valuestring[2] + ' "' + valuestring[1] + '"'
-                            if valuestring[2] not in self.operators:
-                                    self.operators.append(valuestring[2])
-                        self.caches[cachestring] = self.dictmapping[k]
-#                        self.sonos_decache[valuestring[0] + ',' + valuestring[1]] = k
-                        self.sonos_decache[v] = k
-                except ConfigParser.NoSectionError:
-                    pass
-
-                # load mappings for selected proxy
-                try:
-                    self.conts = self.proxy.config.items(self.proxy.proxytrans + ' Containers')
-                    self.containers = fixcolonequals(self.conts)
-#                    print self.containers
-
-                    '''
-                    for k, v in self.containers.iteritems():
-
-# Composer=1$16,object.container.person.author
-
-                        if v == '': continue    # ignore empty keys
-                        valuestring = v.split(',')
-                        if len(valuestring) == 1:
-                            cachestring = valuestring[0]
-                        elif len(valuestring) == 2:
-                            cachestring = valuestring[0] + ' - ' + 'upnp:class = "' + valuestring[1] + '"'
-                        else:
-                            cachestring = valuestring[0] + ' - ' + 'upnp:class ' + valuestring[2] + ' "' + valuestring[1] + '"'
-                            if valuestring[2] not in self.operators:
-                                    self.operators.append(valuestring[2])
-                        self.caches[cachestring] = self.dictmapping[k]
-                        self.proxy_decache[v] = k
-                    '''
-                except ConfigParser.NoSectionError:
-                    pass
-
-                try:
-                    self.cont_maps = self.proxy.config.items(self.proxy.proxytrans + ' Container Mapping')
-                    self.container_mappings = fixcolonequals(self.cont_maps)
-                except ConfigParser.NoSectionError:
-                    pass
-
-                try:
-                    self.attr_maps = self.proxy.config.items(self.proxy.proxytrans + ' Attribute Mapping')
-                    self.attribute_mappings = fixcolonequals(self.attr_maps)
-#                    print self.attribute_mappings
-                except ConfigParser.NoSectionError:
-                    pass
-
-#            print "##############################"
-#            print self.proxy.proxytrans
-#            print self.translate
-#            print self.caches
-#            print self.sonos_containers
-#            print self.sonos_decache
-#            print self.containers
-#            print self.container_mappings
-#            print self.attribute_mappings
-#            print "##############################"
-
-
-    def soap_Browse(self, *args, **kwargs):
-#        for key in kwargs:
-#            print "another keyword arg: %s: %s" % (key, kwargs[key])
-
-        log.debug("PROXY_BROWSE: %s", kwargs)
-
-        result = self.controlpoint.proxyBrowse(kwargs['ObjectID'], kwargs['BrowseFlag'], kwargs['Filter'], kwargs['StartingIndex'], kwargs['RequestedCount'], kwargs['SortCriteria'], self.mediaserver)
-        if 'Result' in result:
-
-            # if we are browsing the root, filter out 2 (video) and 3 (pictures)
-            res = result['Result']
-
-            c = 0
-            cont1 = re.search('<container id="1" parentID="0".*?/container>', res)
-            if cont1 != None:
-                # root entry
-                cont2 = re.search('<container id="2" parentID="0".*?/container>', res)
-                if cont2 != None:
-                    c -= 1
-                    res = re.sub('<container id="2" parentID="0".*?/container>', '', res)
-                cont3 = re.search('<container id="3" parentID="0".*?/container>', res)
-                if cont3 != None:
-                    c -= 1
-                    res = re.sub('<container id="3" parentID="0".*?/container>', '', res)
-            # correct the counts
-            if 'NumberReturned' in result:
-                nr = int(result['NumberReturned'])
-                nr += c
-                result['NumberReturned'] = str(nr)
-            if 'TotalMatches' in result:
-                tm = int(result['TotalMatches'])
-                tm += c
-                result['TotalMatches'] = str(tm)
-
-            log.debug("BROWSE res: %s", res)
-
-            # if result contains destination addresses in XML, need to transform them to proxy addresses
-            # (otherwise the Sonos kicks up a fuss)
-            # for WMP at least, the port of the dest track address may not be the port of the dest webserver
-            #    so we need to save the dest track address
-            address = re.search(self.destip + ':[0-9]*', res)
-            if address != None:
-                self.destmusicaddress = self.destscheme + '://' + address.group()
-                # save this address so proxy can use it
-                self.proxy.destmusicaddress = self.destmusicaddress
-                res = re.sub(self.destmusicaddress, self.proxyaddress, res)
-
-#            print "@@@@@@@@@ res after: " + str(res)
-
-            result['Result'] = res
-        return result
-
-    def soap_Search(self, *args, **kwargs):
-
-        containerID = kwargs['ContainerID']
-        mscontainerID = containerID
-        searchCriteria = kwargs['SearchCriteria']
-
-        log.debug('containerID: %s' % str(containerID))
-        log.debug('searchCriteria: %s' % str(searchCriteria))
-#        print 'translate: ' + str(self.translate)
-
-        if self.translate == 'Through':
-
-            result = self.controlpoint.proxySearch(containerID, searchCriteria, kwargs['Filter'], kwargs['StartingIndex'], kwargs['RequestedCount'], kwargs['SortCriteria'], self.mediaserver)
-#            print result['Result']
-
-        elif self.translate == 'Translate':
-
-            # perform any container and attribute mappings
-            if containerID in self.container_mappings:
-                containerID = self.container_mappings[containerID]
-            for k, v in self.attribute_mappings.iteritems():
-                searchCriteria = re.sub(k, v, searchCriteria)
-
-            if containerID == '':
-                # server does not support search type
-                result = {'NumberReturned': '0', 'UpdateID': '1', 'Result': '', 'TotalMatches': '0'}
-                return result
-            else:
-                result = self.controlpoint.proxySearch(containerID, searchCriteria, kwargs['Filter'], kwargs['StartingIndex'], kwargs['RequestedCount'], kwargs['SortCriteria'], self.mediaserver)
-
-        elif self.translate == 'Cache':
-
-#            if kwargs['Filter'] == 'dc:title,res':
-#                kwargs['Filter'] = 'dc:title,res,upnp:albumArtURI'
-#            print "%%%%%%%%%%%%%%%%%%%%%%%%"
-#            print kwargs['Filter']
-#            print "%%%%%%%%%%%%%%%%%%%%%%%%"
-
-
-            # TODO: look into sort criteria
-#<SortCriteria>+dc:title,+microsoft:artistAlbumArtist</SortCriteria>
-
-#            print "map: " + str(self.attribute_mappings)
-
-            # split search string into components
-            # TODO: check if there is ever an 'or'
-            searchelements = searchCriteria.split(' and ')
-
-            # TODO: add error processing if dict items not found
-
-#            print "len: " + str(len(searchelements))
-
-            if len(searchelements) == 2:
-                # first time through, just class and refID
-                # get search type from containerID and class combination
-                for op in self.operators:
-                    if op in searchelements[0]:
-                        thisop = op
-                        break
-                upnpclass = searchelements[0].split(' ' + thisop + ' ')[1][1:-1]
-
-#                print "Class: " + str(upnpclass)
-
-                searchkey = containerID + ',' + upnpclass
-                if thisop != self.defaultop:
-                    searchkey += ',' + thisop
-
-#                print "searchkey: " + str(searchkey)
-
-                searchtype = self.sonos_decache[searchkey]
-
-#                print "searchtype: " + str(searchtype)
-
-                # get containerID from map
-                containerID = self.containers[searchtype]
-
-                # check for translation
-                criteriatrans = False
-                if ',' in containerID:
-                    valuestring = containerID.split(',')
-                    containerID = valuestring[0]
-                    newclass = valuestring[1]
-                    if newclass != '':
-                        criteriatrans = True
-
-#                print "containerID: " + str(containerID)
-
-                # just use container for search
-                if self.subtranslate == 'Discrete':
-                    searchCriteria = ''
-                else:
-                    searchCriteria = searchelements[0]
-
-                # apply translation
-                if criteriatrans == True:
-                    searchCriteria = re.sub(upnpclass, newclass, searchCriteria)
-
-#                print "searchCriteria: " + str(searchCriteria)
-
-                if containerID == '':
-                    # server does not support search type
-                    result = {'NumberReturned': '0', 'UpdateID': '1', 'Result': '', 'TotalMatches': '0'}
-                    return result
-                else:
-                    result = self.controlpoint.proxySearch(containerID, searchCriteria, kwargs['Filter'], kwargs['StartingIndex'], kwargs['RequestedCount'], kwargs['SortCriteria'], self.mediaserver)
-                # cache results
-
-                if 'Result' in result:
-                    # at this level there should be at least one container in the result (Asset returns items for playlists if not registered),
-                    # unless we are searching tracks
-
-#                    print result['Result']
-
-                    if not '<container id' in result['Result'] and searchtype != 'Tracks':
-                        result = {'NumberReturned': '0', 'UpdateID': '1', 'Result': '', 'TotalMatches': '0'}
-                        return result
-
-                    if searchtype != 'Tracks':
-                        # get cache to hold results in
-                        cache = self.caches[mscontainerID + ' - ' + searchelements[0]]
-                        # save results in cache
-                        self.update_cache(result['Result'], cache)
-
-            elif len(searchelements) >= 3:
-                # not first time through, use cache to get container id
-
-                check_for_containers = False
-                if searchelements[0] == 'upnp:class derivedfrom "object.item.audioItem"':
-                    # In this search Sonos is expecting items rather than containers, need to check
-                    # what we get in the result and may need to make another search
-                    check_for_containers = True
-
-                # get cache
-                classstring = searchelements[2].split(' = ')
-                upnpclass = classstring[0]
-                dctitle = classstring[1][1:-1]
-                cache = self.decaches[upnpclass]
-
-                # add on any subelements to cache item name
-                numelements = len(searchelements)
-                if numelements > 3:
-                    for i in range(3, numelements):
-                        substring = searchelements[i].split(' = ')
-                        subtype = substring[0]
-                        subtitle = substring[1][1:-1]
-                        dctitle += ' - ' + subtitle
-
-                containerID = cache[dctitle]
-
-#                print "containerID: " + str(containerID)
-
-                if self.subtranslate == 'Discrete':
-                    searchCriteria = ''
-                else:
-                    searchCriteria = searchelements[0]
-                    if numelements >= 3:
-                        for i in range(2, numelements):
-                            additionalCriteria = searchelements[i]
-                            # perform any attribute translations
-                            for k, v in self.attribute_mappings.iteritems():
-                                additionalCriteria = re.sub(k, v, additionalCriteria)
-#                            print "@@@@ add: " + str(additionalCriteria)
-                            # 3 hacks for Twonky follow TODO: add to ini
-                            if not 'upnp:genre' in additionalCriteria:
-                                searchCriteria += ' and ' + additionalCriteria
-                            if 'upnp:genre' in additionalCriteria and check_for_containers == True:
-                                searchCriteria += ' and ' + additionalCriteria
-                        if 'upnp:author' in searchCriteria:
-                            searchCriteria = '*'
-                        if 'upnp:albumArtist' in searchCriteria:
-                            searchCriteria = '*'
-
-#                print "searchCriteria: " + str(searchCriteria)
-
-                result = self.controlpoint.proxySearch(containerID, searchCriteria, kwargs['Filter'], kwargs['StartingIndex'], kwargs['RequestedCount'], kwargs['SortCriteria'], self.mediaserver)
-
-#                print result['Result']
-
-                if 'Result' in result:
-
-                    # save in cache with prefix of search class
-                    container_found, item_found, container_list = self.update_cache(result['Result'], cache, dctitle)
-
-                    if check_for_containers == True and container_found == True and self.subtranslate == 'Discrete':
-                        # In this search Sonos is expecting items rather than containers, but we found containers
-                        # We need to search the containers too
-#                        print container_list
-                        new_result = {}
-                        numberReturned = totalMatches = 0
-                        items = ''
-                        if 'UpdateID' in result:
-                            new_result['UpdateID'] = result['UpdateID']
-
-                        for childID in container_list:
-                            child_result = self.controlpoint.proxySearch(childID, searchCriteria, kwargs['Filter'], kwargs['StartingIndex'], kwargs['RequestedCount'], kwargs['SortCriteria'], self.mediaserver)
-                            if 'Result' in child_result:
-                                numberReturned += int(child_result['NumberReturned'])
-                                totalMatches += int(child_result['TotalMatches'])
-
-                                # split out items and containers
-                                item, containers = self.process_result(child_result['Result'])
-                                # for containers, append to list we are processing
-                                if containers != []:
-                                    container_list += containers
-                                # for items, add to found items
-                                if item != '':
-                                    items += item
-                        result_xml  = '<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/">'
-                        result_xml += items
-                        result_xml += '</DIDL-Lite>'
-
-                        new_result['NumberReturned'] = str(numberReturned)
-                        new_result['TotalMatches'] = str(totalMatches)
-                        new_result['Result'] = result_xml
-#                        print 'new_result: ' + str(new_result)
-
-                        # save our result
-                        result = new_result
-
-                    if check_for_containers == False and item_found == True and self.subtranslate != 'Discrete':
-                        # In this search Sonos is expecting containers rather than items, but we found items too
-                        # We need to remove the items (assume they may not be consecutive)
-                        new_result = result['Result']
-                        numberReturned = int(result['NumberReturned'])
-                        totalMatches = int(result['TotalMatches'])
-                        num_items = new_result.count('</item>')
-                        numberReturned -= num_items
-                        totalMatches -= num_items
-                        while '<item ' in new_result:
-                            new_result = re.sub('<item.*?</item>' , '', new_result)
-                        result['Result'] = new_result
-                        result['NumberReturned'] = str(numberReturned)
-                        result['TotalMatches'] = str(totalMatches)
-
-#                    print result['Result']
-
-                    '''
-                    test of album art
-
-                    if '<upnp:albumArtURI dlna:profileID="JPEG_TN">http://192.168.0.10:26125/albumart/Art--1859633031.jpg/cover.jpg</upnp:albumArtURI>' in result['Result']:
-
-                        print "------------------------------------------------------"
-                        print "UDN: " + str(self.proxy.udn)
-                        udn = self.proxy.udn.replace('uuid:', '')
-                        print ">>>>>>>>>>>"
-
-#                        aart  = '<upnp:albumArtURI>/getaa?m=1&u=http://'
-                        aart  = '<upnp:albumArtURI>/getaa?u=http://'
-                        aart += udn
-                        aart += '.x-udn/'
-#                        aart += '192.168.0.2:10243/
-                        aart += 'albumart/Art--1859633031.jpg/cover.jpg'
-#                        aart += 'content/c2/b16/f44100/7782.mp3'
-#                        aart += '?albumArt=true</upnp:albumArtURI>'
-                        aart += '</upnp:albumArtURI>'
-
-#                        aart = '<upnp:albumArtURI>http://192.168.0.2:10243/albumart/Art--1859633031.jpg/cover.jpg</upnp:albumArtURI>'
-#                        aart = '<upnp:albumArtURI>/getaa?m=1&u=http://192.168.0.2:10243/content/c2/b16/f44100/7782.mp3?albumArt=true</upnp:albumArtURI>'
-
-#http://192.168.0.2:10243/albumart/Art--1859633031.jpg/cover.jpg
-
-                        result['Result'] = result['Result'].replace('<upnp:albumArtURI dlna:profileID="JPEG_TN">http://192.168.0.10:26125/albumart/Art--1859633031.jpg/cover.jpg</upnp:albumArtURI>', aart)
-
-                        print result['Result']
-
-                        print "------------------------------------------------------"
-
-#<upnp:albumArtURI dlna:profileID="JPEG_TN">http://192.168.0.10:26125/albumart/Art--1859633031.jpg/cover.jpg</upnp:albumArtURI>
-
-#/getaa?m=1&u=http://02286246-a968-4b5b-9a9a-defd5e9237e0.x-udn/WMPNSSv3/4206383637/1_e0JBNDM5NENDLUJENjgtNDQ0Ny05NTdFLTMxNTQ5QTAxRDI2Qn0uMC40.mp3?albumArt=true
-
-#/getaa?m=1&u=http://b68dd228-957b-4cfe-abcd-123456789abc.x-udn/content/c2/b16/f44100/7782.mp3?albumArt=true
-
-                    '''
-
-        elif self.translate == 'Browse':
-            pass
-
-#            if containerID in self.container_mappings:
-#                containerID = self.container_mappings[containerID]
-
-#            result = self.soap_Browse(ObjectID=containerID, BrowseFlag='BrowseDirectChildren', Filter='*', StartingIndex=kwargs['StartingIndex'], RequestedCount=kwargs['RequestedCount'], SortCriteria='')
-#            REMEMBER TO ADJUST THE XML SURROUNDING THE RESULT SO IT LOOKS LIKE A SEARCH RESPONSE!
-#            result = self.controlpoint.proxySearch(containerID, searchCriteria, kwargs['Filter'], kwargs['StartingIndex'], kwargs['RequestedCount'], kwargs['SortCriteria'], self.mediaserver)
-#            print result['Result']
-
-        else:
-            print 'Unsupported Translation type "' + self.translate + '" in pycpoint.ini file'
-            result = {'NumberReturned': '0', 'UpdateID': '1', 'Result': '', 'TotalMatches': '0'}
-            return result
-
-        # post process result
-        if 'Result' in result:
-            # if result contains destination addresses in XML, need to transform them to proxy addresses
-            # (otherwise the Sonos kicks up a fuss)
-            # for WMP at least, the port of the dest track address may not be the port of the dest webserver
-            #    so we need to save the dest track address
-            res = result['Result']
-            address = re.search(self.destip + ':[0-9]*', res)
-            if address != None:
-                self.destmusicaddress = self.destscheme + '://' + address.group()
-                # save this address so proxy can use it
-                self.proxy.destmusicaddress = self.destmusicaddress
-                res = re.sub(self.destmusicaddress, self.proxyaddress, res)
-
-#            # remove all but first res - assumes res are consecutive
-#            firstres = re.search('<res[^<]*</res>', res)
-#            if firstres != None:
-#                res = re.sub('<res.*</res>' , firstres.group(), res)
-
-            # if proxied server returns flac, spoof it as something else that is supported
-            # on WMP, otherwise Sonos will not offer to play it as an individual track
-            res = res.replace(':audio/x-flac:', ':audio/x-ms-wma:')
-
-            result['Result'] = res
-#            print "@@@@@@@@@ res after: " + str(res)
-
-        return result
-
-    def update_cache(self, result, cache, prefix=''):
-        # get containers returned
-        container_found = False
-        item_found = False
-        container_list = []
-        elt = parse_xml(result)
-        elt = elt.getroot()
-        for item in elt.getchildren():
-            # only save containers, not individual items
-            if item.tag == '{urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/}container':
-                containerid = item.attrib.get('id')
-                dctitle = item.find('{%s}%s' % ('http://purl.org/dc/elements/1.1/', 'title')).text
-#                upnpclass = item.find('{%s}%s' % ('urn:schemas-upnp-org:metadata-1-0/upnp/', 'class'))
-                if prefix != '':
-                    dctitle = prefix + ' - ' + dctitle
-                cache[dctitle] = containerid
-                container_list.append(containerid)
-                container_found = True
-            elif item.tag == '{urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/}item':
-                item_found = True
-        return container_found, item_found, container_list
-#        print "~~~~~~~~~~~~~~~~~~~~~~~"
-#        print cache
-#        print "~~~~~~~~~~~~~~~~~~~~~~~"
-
-    def process_result(self, result):
-        container_list = []
-        items = ''
-        elt = parse_xml(result)
-        elt = elt.getroot()
-        for item in elt.getchildren():
-            if item.tag == '{urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/}container':
-                containerid = item.attrib.get('id')
-                container_list.append(containerid)
-            elif item.tag == '{urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/}item':
-                items += ElementTree.tostring(item)
-        return items, container_list
-
-    def soap_GetSearchCapabilities(self, *args, **kwargs):
-        result = self.controlpoint.proxyGetSearchCapabilities(self.mediaserver)
-        return result
-    def soap_GetSortCapabilities(self, *args, **kwargs):
-        result = self.controlpoint.proxyGetSortCapabilities(self.mediaserver)
-        return result
-    def soap_GetSystemUpdateID(self, *args, **kwargs):
-        result = self.controlpoint.proxyGetSystemUpdateID(self.mediaserver)
-        return result
-
-
-class ConnectionManager(Service):
-
-    service_name = 'ConnectionManager'
-    service_type = 'urn:schemas-upnp-org:service:ConnectionManager:1'
-    scpd_xml_path = os.path.join(os.getcwd(), 'connection-manager-scpd.xml')
-
-    def __init__(self, controlpoint, mediaserver):
-        self.controlpoint = controlpoint
-        self.mediaserver = mediaserver
-        Service.__init__(self, self.service_name, self.service_type, url_base='', scpd_xml_filepath=self.scpd_xml_path)
-    def soap_GetCurrentConnectionInfo(self, *args, **kwargs):
-        result = self.controlpoint.proxyGetCurrentConnectionInfo(kwargs['ConnectionID'], self.mediaserver)
-        return result
-    def soap_GetProtocolInfo(self, *args, **kwargs):
-        result = self.controlpoint.proxyGetProtocolInfo(self.mediaserver)
-        return result
-    def soap_GetCurrentConnectionIDs(self, *args, **kwargs):
-        result = self.controlpoint.proxyGetCurrentConnectionIDs(self.mediaserver)
-        return result
-
 ###############
 ###############
 # SMAPI service
@@ -1023,16 +422,37 @@ class Smapi(Service):
         dbpath, self.dbname = os.path.split(dbspec)
         self.wmpudn = wmpudn
 
-        # create MediaServer with SMAPI structure
-        self.mediaServer = MediaServer(self.proxy, self.dbspec, 'HIERARCHY', self.proxyaddress, self.webserverurl, self.wmpurl)
+        # check whether user indexes are enabled
+        self.load_user_index_flag()
 
-#        self.prime_cache()
+        if not self.user_indexes:
+
+            # create MediaServer with default hierarchical ID
+            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'SMAPI', 'HIERARCHY_DEFAULT', self.proxyaddress, self.webserverurl, self.wmpurl)
+
+        else:
+
+            # create MediaServer with user defined hierarchical ID
+            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'SMAPI', 'HIERARCHY', self.proxyaddress, self.webserverurl, self.wmpurl)
 
         Service.__init__(self, self.service_name, self.service_type, url_base='', scpd_xml_filepath=self.scpd_xml_path)
 
 # TODO: replace scpd with ws:
 #       namespace is currently hardcoded
 #       result is manually created from children
+
+    def load_user_index_flag(self):
+
+        # get user index setting
+        self.user_indexes = False
+        try:
+            ini_user_indexes = self.proxy.config.get('indexing', 'user_indexes')
+            if ini_user_indexes.lower() == 'y':
+                self.user_indexes = True
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
 
     #####################
     # SMAPI soap services
@@ -1067,7 +487,6 @@ class Smapi(Service):
     def soap_reloadIni(self, *args, **kwargs):
 
         log.debug("SMAPI_RELOADINI: %s", kwargs)
-
         import ConfigParser
         import StringIO
         import codecs
@@ -1080,7 +499,7 @@ class Smapi(Service):
         config.readfp(StringIO.StringIO(ini))
         self.proxy.config = config
 
-        self.load_ini()
+        self.mediaServer.load_ini()
 
         ret = '<ns0:result>1</ns0:result>'
 
@@ -1106,7 +525,7 @@ class Smapi(Service):
 Are we implementing this for search?
 What about genre-artist?
 Which indices are large - should we just perform it for all container queries that return a large count (or over a certain number)?
-What do we do if a result is not in alpha order?
+What do we do if a result is not in alpha order? - spec says it has to be
         '''
 
         log.debug("\nSMAPI_GETSCROLLINDICES: %s", kwargs)
@@ -1139,41 +558,35 @@ What do we do if a result is not in alpha order?
 
             if not static:
 
+                scrolltype = '!Alpha%s' % browsetype
                 # dynamic
-                ContainerID = '999'     # dummy
+                queryID = '-1'
                 SearchCriteria = ''
                 StartingIndex = 0
                 RequestedCount = 1
                 scrollresult = self.mediaServer.dynamicQuery(Controller=controllername,
                                                                 Address=controlleraddress,
-                                                                ContainerID=ContainerID,
+                                                                QueryID=queryID,
                                                                 SearchCriteria=SearchCriteria,
                                                                 StartingIndex=StartingIndex,
                                                                 RequestedCount=RequestedCount,
-                                                                SMAPIalpha=browsetype,
-                                                                SMAPI=None,
-                                                                SMAPIkeys=[],
-                                                                SMAPIfull=[],
-                                                                Source='SMAPI')
+                                                                SMAPI=scrolltype)
 
             elif not browsebyid:
 
-                scrolltype = 'Alpha%s' % browsetype
+                scrolltype = '!Alpha%s' % browsetype
                 # create call data for CD Search and call it
-                ContainerID = '999'     # dummy
+                queryID = '-1'
                 SearchCriteria = ''
                 StartingIndex = 0
                 RequestedCount = 1
                 scrollresult = self.mediaServer.staticQuery(Controller=controllername,
                                                               Address=controlleraddress,
-                                                              QueryID=ContainerID,
+                                                              QueryID=queryID,
                                                               SearchCriteria=SearchCriteria,
                                                               StartingIndex=StartingIndex,
                                                               RequestedCount=RequestedCount,
-                                                              SMAPI=scrolltype,
-                                                              SMAPIkeys='',
-                                                              smapiservice=self,
-                                                              Source='SMAPI')
+                                                              SMAPI=scrolltype)
 
             log.debug(scrollresult)
 
@@ -1267,8 +680,7 @@ What do we do if a result is not in alpha order?
                                                                     StartingIndex=index,
                                                                     RequestedCount=count,
                                                                     recursive=recursive,
-                                                                    term=term,
-                                                                    Source='SMAPI')
+                                                                    term=term)
 
         except: # catch *all* exceptions
             e = sys.exc_info()[0]
@@ -1297,24 +709,30 @@ What do we do if a result is not in alpha order?
         log.debug('Controller: %s' % controllername)
         log.debug('Address: %s' % controlleraddress)
 
-        objectID = kwargs['{http://www.sonos.com/Services/1.1}id']
-        log.debug("id: %s" % objectID)
+        queryID = kwargs['{http://www.sonos.com/Services/1.1}id']
+        log.debug("id: %s" % queryID)
 
-        BrowseFlag = 'BrowseDirectChildren'            ## IS THIS CORRECT (probably ignored)
+        BrowseFlag = 'BrowseDirectChildren'
         index = 0
         count = 1
 
-        # we know query type, call it direct
-        items, total, index, itemtype = self.mediaServer.staticQuery(Controller=controllername,
-                                                                        Address=controlleraddress,
-                                                                        ObjectID=objectID,
-                                                                        BrowseFlag=BrowseFlag,
-                                                                        StartingIndex=index,
-                                                                        RequestedCount=count,
-                                                                        SMAPI='Track',
-                                                                        smapiservice=self,
-                                                                        Source='SMAPI',
-                                                                        Action='BROWSE')
+        try:
+            # we know query type, call it direct
+            items, total, index, itemtype = self.mediaServer.staticQuery(Controller=controllername,
+                                                                            Address=controlleraddress,
+                                                                            QueryID=queryID,
+                                                                            BrowseFlag=BrowseFlag,
+                                                                            StartingIndex=index,
+                                                                            RequestedCount=count,
+                                                                            SMAPI='',
+                                                                            Action='BROWSE')
+        except: # catch *all* exceptions
+            e = sys.exc_info()[0]
+            log.debug(e)
+            import traceback
+            tb = traceback.format_exc()
+            log.debug(tb)
+
         log.debug(total)
         log.debug(items)
 
@@ -1452,19 +870,19 @@ What do we do if a result is not in alpha order?
 
         return uri
 
-###############################
-###############################
-# DummyContentDirectory service
-###############################
-###############################
+##########################
+##########################
+# ContentDirectory service
+##########################
+##########################
 
-class DummyContentDirectory(Service):
+class ContentDirectory(Service):
 
     service_name = 'ContentDirectory'
     service_type = 'urn:schemas-upnp-org:service:ContentDirectory:1'
     scpd_xml_path = os.path.join(os.getcwd(), 'content-directory-scpd.xml')
 
-    def __init__(self, proxyaddress, proxy , webserverurl, wmpurl, dbspec, wmpudn):
+    def __init__(self, proxyaddress, proxy , webserverurl, wmpurl, dbspec, wmpudn, ininame):
         self.proxyaddress = proxyaddress
         self.proxy = proxy
         self.webserverurl = webserverurl
@@ -1472,24 +890,20 @@ class DummyContentDirectory(Service):
         self.dbspec = dbspec
         dbpath, self.dbname = os.path.split(dbspec)
         self.wmpudn = wmpudn
+        self.ininame = ininame
 
-        # check what structure we should use
-        self.load_ini()
+        # check whether user indexes are enabled
+        self.load_user_index_flag()
 
-        if self.use_browse_for_WMP and not self.use_SMAPI_indexes_for_WMP:
+        if not self.user_indexes:
 
-            # create MediaServer with default SMAPI structure
-            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'HIERARCHY_DEFAULT', self.proxyaddress, self.webserverurl, self.wmpurl)
-
-        elif self.use_SMAPI_indexes_for_WMP:
-
-            # create MediaServer with user defined SMAPI structure
-            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'HIERARCHY', self.proxyaddress, self.webserverurl, self.wmpurl)
+            # create MediaServer with default hierarchical ID
+            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'UPNP', 'HIERARCHY_DEFAULT', self.proxyaddress, self.webserverurl, self.wmpurl, self.ininame)
 
         else:
 
-            # create MediaServer with Proxy structure
-            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'FLAT', self.proxyaddress, self.webserverurl, self.wmpurl)
+            # create MediaServer with user defined hierarchical ID
+            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'UPNP', 'HIERARCHY', self.proxyaddress, self.webserverurl, self.wmpurl, self.ininame)
 
         Service.__init__(self, self.service_name, self.service_type, url_base='', scpd_xml_filepath=self.scpd_xml_path)
 
@@ -1517,33 +931,22 @@ class DummyContentDirectory(Service):
             self._state_variables['SystemUpdateID'].update(systemupdateid)
             log.debug("SystemUpdateID value: %s" % self._state_variables['SystemUpdateID'].get_value())
 
-    def load_ini(self):
+    def load_user_index_flag(self):
 
-        # get browse setting
-        self.use_browse_for_WMP = False
+        # get user index setting
+        self.user_indexes = False
         try:
-            ini_use_browse_for_WMP = self.proxy.config.get('INI', 'use_browse_for_WMP')
-            if ini_use_browse_for_WMP.lower() == 'y':
-                self.use_browse_for_WMP = True
+            ini_user_indexes = self.proxy.config.get('indexing', 'user_indexes')
+            if ini_user_indexes.lower() == 'y':
+                self.user_indexes = True
         except ConfigParser.NoSectionError:
-            self.use_browse_for_WMP = False
+            pass
         except ConfigParser.NoOptionError:
-            self.use_browse_for_WMP = False
+            pass
             
-        # get SMAPI setting
-        self.use_SMAPI_indexes_for_WMP = False
-        try:
-            ini_use_SMAPI_indexes_for_WMP = self.proxy.config.get('SMAPI WMP', 'use_SMAPI_indexes_for_WMP')
-            if ini_use_SMAPI_indexes_for_WMP.lower() == 'y':
-                self.use_SMAPI_indexes_for_WMP = True
-        except ConfigParser.NoSectionError:
-            self.use_SMAPI_indexes_for_WMP = False
-        except ConfigParser.NoOptionError:
-            self.use_SMAPI_indexes_for_WMP = False
-            
-    ###################
-    # DCD soap services
-    ###################
+    ################################
+    # ContentDirectory soap services
+    ################################
 
     def soap_ReloadIni(self, *args, **kwargs):
 #        for key in kwargs:
@@ -1566,7 +969,7 @@ class DummyContentDirectory(Service):
         config.readfp(StringIO.StringIO(ini))
         self.proxy.config = config
 
-        self.load_ini()
+        self.mediaServer.load_ini()
 
         ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
         ret += '1'
@@ -1602,21 +1005,9 @@ class DummyContentDirectory(Service):
 
         log.debug("PROXY_BROWSE: %s", kwargs)
 
-        log.debug("self.use_browse_for_WMP: %s", self.use_browse_for_WMP)
-        log.debug("self.use_SMAPI_indexes_for_WMP: %s", self.use_SMAPI_indexes_for_WMP)
-
-        if (self.use_SMAPI_indexes_for_WMP or self.use_browse_for_WMP):
-            structure = 'HIERARCHY'
-        else:
-            structure = 'FLAT'
-        log.debug("structure: %s", structure)
-
         try:
             # call wrapper
-            xml, count, total = self.mediaServer.query(Structure=structure,
-                                                        Source='UPNP',
-                                                        Action='BROWSE',
-                                                        **kwargs)
+            xml, count, total = self.mediaServer.query(Action='BROWSE', **kwargs)
         except: # catch *all* exceptions
             e = sys.exc_info()[0]
             log.debug(e)
@@ -1636,15 +1027,11 @@ class DummyContentDirectory(Service):
 
         log.debug("PROXY_SEARCH: %s", kwargs)
 
-        # hierarchy is not supported for search
-        structure = 'FLAT'
+        # TODO: what are we going to do with this?
 
         try:
             # call wrapper
-            xml, count, total = self.mediaServer.query(Structure=structure,
-                                                        Source='UPNP',
-                                                        Action='SEARCH',
-                                                        **kwargs)
+            xml, count, total = self.mediaServer.query(Action='SEARCH', **kwargs)
         except: # catch *all* exceptions
             e = sys.exc_info()[0]
             log.debug(e)
@@ -1662,6 +1049,7 @@ class DummyContentDirectory(Service):
 
     def soap_GetSearchCapabilities(self, *args, **kwargs):
         log.debug("PROXY_GetSearchCapabilities: %s", kwargs)
+        # TODO: make this pass whatever the user has defined
         result = {'SearchCaps': 'Artist,Contributing Artist,Composer,Album,Track,ALL'}
         return result
     def soap_GetSortCapabilities(self, *args, **kwargs):
@@ -1673,13 +1061,13 @@ class DummyContentDirectory(Service):
         result = {'Id': self.systemupdateid}
         return result
 
-################################
-################################
-# DummyConnectionManager service
-################################
-################################
+###########################
+###########################
+# ConnectionManager service
+###########################
+###########################
 
-class DummyConnectionManager(Service):
+class ConnectionManager(Service):
 
     service_name = 'ConnectionManager'
     service_type = 'urn:schemas-upnp-org:service:ConnectionManager:1'

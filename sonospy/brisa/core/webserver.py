@@ -33,6 +33,8 @@ import base64
 import struct
 import StringIO
 
+import gzip
+import cStringIO
 
 from brisa import __enable_webserver_logging__, __enable_offline_mode__
 from brisa.core import log, config, threaded_call
@@ -1086,7 +1088,40 @@ class Resource(object):
                         except zlib.error, e:
                             log.debug(e)
                     '''
+                    log.debug('environ: %s' % environ)
+                    log.debug('req.headers: %s' % req.headers)
+
+                    canzip = req.headers.get('accept-encoding', None)
+                    log.debug('canzip: %s' % canzip)
+
+                    if canzip != None:
+
+                        log.debug(len(resp.body))
+                        try:
+                            import gzip
+                            import cStringIO
+                            zbuf = cStringIO.StringIO()
+#                            zfile = gzip.GzipFile(mode = 'wb', fileobj = zbuf, compresslevel = 9)
+                            zfile = gzip.GzipFile(mode = 'wb', fileobj = zbuf)
+                            zfile.write(resp.body)
+                            zfile.close()
+                            resp.body = zbuf.getvalue()                            
+
+                            log.debug(len(resp.body))
+                            log.debug(resp.headers)
+                            resp.headers['Content-Length'] = '%d' % len(resp.body)
+                            resp.headers['Content-Encoding'] = 'gzip'
+                            log.debug(resp.headers)
                             
+#                        except zlib.error, e:
+#                            log.debug(e)
+                        except: # catch *all* exceptions
+                            e = sys.exc_info()[0]
+                            log.debug(e)
+                            import traceback
+                            tb = traceback.format_exc()
+                            log.debug(tb)
+
                     resp._respond()
                     
                     return resp.body

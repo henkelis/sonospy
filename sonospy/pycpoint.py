@@ -3,7 +3,7 @@
 #
 # pycpoint
 #
-# pycpoint and sonospy copyright (c) 2009-2010 Mark Henkelis
+# pycpoint and sonospy copyright (c) 2009-2013 Mark Henkelis
 # BRisa copyright (c) Brisa Team <brisa-develop@garage.maemo.org> (BRisa is licenced under the MIT License)
 # web2py copyright (c) Massimo Di Pierro <mdipierro@cs.depaul.edu> (web2py is Licensed under GPL version 2.0)
 # circuits.web copyright (c) 2004-2010 James Mills (Circuits is covered by the MIT license)
@@ -230,7 +230,7 @@ class ControlPointWeb(object):
     msrootids = {}
     
     proxies = []
-    upnpproxy = []
+#    upnpproxy = []
     wmpproxy = []
     wmpfound = False
     sonospyproxies = {}
@@ -328,8 +328,6 @@ class ControlPointWeb(object):
         'upnp:channelName' : 'contains,exists,<,<=,>=,>,=,!=,derivedfrom,doesnotContain' ,
         'upnp:longDescription' : 'contains,exists,<,<=,>=,>,=,!=,derivedfrom,doesnotContain' ,
         'upnp:programTitle' : 'contains,exists,<,<=,>=,>,=,!=,derivedfrom,doesnotContain' ,
-        # Twonky specific
-        '@protocolInfo' : '=,contains,!=,doesNotContain' ,      # move to ini
         }
 
     ms_operator_codes = {'lt' : '<' ,
@@ -423,8 +421,8 @@ class ControlPointWeb(object):
                                    'ARTIST_ALBUM' : '0',
                                    'ALBUMARTIST' : '0',
                                    'ALBUMARTIST_ALBUM' : '0',
-                                   'CONTRIBUTINGARTIST' : '0',
-                                   'CONTRIBUTINGARTIST_ALBUM' : '0',
+                                   'ARTIST' : '0',
+                                   'ARTIST_ALBUM' : '0',
                                    'COMPOSER' : '0',
                                    'COMPOSER_ALBUM' : '0',
                                    'GENRE' : '107',
@@ -439,8 +437,8 @@ class ControlPointWeb(object):
                                    'ARTIST_ALBUM' : ('upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistAlbumArtist = "%s" and upnp:album = "%s"', 2),
                                    'ALBUMARTIST' : ('upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:artistAlbumArtist = "%s"', 1),
                                    'ALBUMARTIST_ALBUM' : ('upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistAlbumArtist = "%s" and upnp:album = "%s"', 2),
-                                   'CONTRIBUTINGARTIST' : ('upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:artistPerformer = "%s"', 1),
-                                   'CONTRIBUTINGARTIST_ALBUM' : ('upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistPerformer = "%s" and upnp:album = "%s"', 2),
+                                   'ARTIST' : ('upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:artistPerformer = "%s"', 1),
+                                   'ARTIST_ALBUM' : ('upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:artistPerformer = "%s" and upnp:album = "%s"', 2),
                                    'COMPOSER' : ('upnp:class = "object.container.album.musicAlbum" and @refID exists false and microsoft:authorComposer = "%s"', 1),
                                    'COMPOSER_ALBUM' : ('upnp:class derivedfrom "object.item.audioItem" and @refID exists false and microsoft:authorComposer = "%s" and upnp:album = "%s"', 2),
                                    'GENRE' : ('upnp:class = "object.container.person.musicArtist" and @refID exists false and upnp:genre = "%s"', 1),
@@ -511,7 +509,7 @@ Music/Rating                101     object.container
     parser.add_option("-q", "--quiet", action="store_true", dest="quiet")
     parser.add_option("-n", "--nogui", action="store_true", dest="nogui")
     parser.add_option("-p", "--proxyonly", action="store_true", dest="proxyonly")
-    parser.add_option("-u", "--upnpproxy", action="append", type="string", dest="upnpproxies")
+#    parser.add_option("-u", "--upnpproxy", action="append", type="string", dest="upnpproxies")
     parser.add_option("-w", "--wmpproxy", action="append", type="string", dest="wmpproxies")
     parser.add_option("-s", "--service", action="store_true", dest="musicservice")
 
@@ -531,10 +529,10 @@ Music/Rating                101     object.container
         print "option.nogui: " + str(options.nogui)
     if options.proxyonly:
         print "option.proxyonly: " + str(options.proxyonly)
-    if options.upnpproxies:
-        for u in options.upnpproxies:
-            print "    UPnP proxy: " + str(u)
-            upnpproxy.append(u)
+#    if options.upnpproxies:
+#        for u in options.upnpproxies:
+#            print "    UPnP proxy: " + str(u)
+#            upnpproxy.append(u)
     if options.wmpproxies:
         for w in options.wmpproxies:
             print "    WMP proxy: " + str(w)
@@ -647,20 +645,21 @@ Music/Rating                101     object.container
         # proxy internally if it has been requested
         internal_count = 0
         for wmpstring in self.wmpproxy:
+            wmp = ''
+            wmpname = ''
+            dbname = None
+            ininame = None
             wmpsplit = wmpstring.split('=')
-            if len(wmpsplit) == 1:
-                wmp = wmpsplit[0]
-                wmpname = ''
-                dbname = ''
-            else:
-                wmp = wmpsplit[0]
+            wmp = wmpsplit[0]
+            if len(wmpsplit) > 1:
                 if ',' in wmpsplit[1]:
                     namesplit = wmpsplit[1].split(',')
                     wmpname = namesplit[0]
                     dbname = namesplit[1]
+                    if len(namesplit) > 2:
+                        ininame = namesplit[2]
                 else:
                     wmpname = wmpsplit[1]
-                    dbname = ''
 
             if wmp.lower() == 'sonospy':
                 if wmpname == '':
@@ -698,13 +697,19 @@ Music/Rating                101     object.container
                 try:
                     proxy = Proxy(name, 'WMP', wmptrans, proxyuuid, self.config, None,
                                   createwebserver=True, webserverurl=listen_url, wmpurl=serve_url, 
-                                  startwmp=startwmp, dbname=dbname, wmpudn=self.internal_proxy_udn, 
+                                  startwmp=startwmp, dbname=dbname, ininame=ininame, wmpudn=self.internal_proxy_udn, 
                                   wmpcontroller=wmpcontroller, wmpcontroller2=wmpcontroller2,
                                   smapi=smapi)
-                except ValueError, e:
-                    print "Proxy. Name: %s error - %s" % (name, e.args[0])
-                else:
                     proxy.start()
+#                except ValueError, e:
+#                    print "Proxy. Name: %s error - %s" % (name, e.args[0])
+                except: # catch *all* exceptions
+                    e = sys.exc_info()[0]
+                    log.debug(e)
+                    import traceback
+                    tb = traceback.format_exc()
+                    log.debug(tb)
+                else:
                     wmpcontroller = proxy.wmpcontroller                              
                     wmpcontroller2 = proxy.wmpcontroller2                              
                     smapi = False
@@ -5441,6 +5446,7 @@ Music/Rating                101     object.container
             log.debug('new device fn: %s' % str(device_item.friendly_name))                                    
 
             if newmediaserver == True and not device_item.friendly_name.startswith('Proxy'):
+                '''
                 for upnp in self.upnpproxy:
                     if re.search(upnp, device_item.friendly_name) != None:
                         friendly = re.sub(r'[^a-zA-Z0-9_\- ]','', device_item.friendly_name)
@@ -5459,7 +5465,8 @@ Music/Rating                101     object.container
                             
                             # save udn of original server against proxied name
                             self.rootids[name] = device_item.udn
-                        
+                   
+                '''     
                 if not self.wmpfound:
                     for wmpstring in self.wmpproxy:
                         wmpsplit = wmpstring.split('=')

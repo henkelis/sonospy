@@ -4,7 +4,7 @@ import os
 import codecs
 from brisa.core import log
 
-transcodetable_extension = {'mp2': 'mp3', 'pc': 'wav'}
+transcodetable_extension = {'mp2': 'mp3', 'pc': 'wav', 'ac3': 'mp3'}
 smapitranscodetable_extension = {'flac': 'mp3'}
 transcodetable_resolution = {'flac': ((48000, 16, 2, 'flac'),(48000, 16, 6, 'flac'))} # tuple = samplerate, bitspersample, channels, fileextension
 
@@ -95,6 +95,21 @@ def transcode(inputfile, transcodetype):
                 "-Y",
                 "-m", "j",
                 inputfile,
+                "-"],
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+        return sub.stdout
+
+    if transcodetype == 'ac3.mp3':
+        # transcode using ffmpeg
+        # ffmpeg -i <inputfile.ac3> -acodec libmp3lame -ab 320k -f mp3 -
+        sub = subprocess.Popen([
+                "ffmpeg",
+                "-i",
+                inputfile,
+                "-acodec", "libmp3lame",
+                "-ab", "320k",
+                "-f", "mp3",
                 "-"],
                 stdout=subprocess.PIPE,
                 stderr=devnull)
