@@ -29,6 +29,7 @@ import codecs
 import operator
 import datetime
 import string
+from operator import itemgetter
 
 from brisa.core import log
 from brisa.core import webserver
@@ -59,6 +60,9 @@ class MediaServer(object):
     # constants
 
     noitemsfound = 'No items found'
+    enterkeywords = 'Enter keywords...'
+#    keywordsearchdelimiter = '===== %s ====='
+    novalidkeywords = 'No valid keywords specified.'
 
     id_length     = 100000000
     id_range      = 99999999
@@ -76,7 +80,8 @@ class MediaServer(object):
     playlist_parentid           = 800000000
     favourite_parentid          = 900000000
     favouritetrack_parentid    = 1000000000
-    dynamic_parentid_start     = 1100000000
+    keywordsearch_parentid     = 1100000000
+    dynamic_parentid_start     = 1200000000
     
     # default values, overriden by caller if required
 
@@ -105,7 +110,8 @@ class MediaServer(object):
                   favouritetrack_parentid,  # Favourite track
                   track_parentid,           # Track
                  ]
-
+    
+    '''
     flatrootitems = [
                      ('%s' % album_parentid, 'Albums'),
                      ('%s' % albumartist_parentid, 'Artists'),
@@ -115,6 +121,9 @@ class MediaServer(object):
                      ('%s' % playlist_parentid, 'Playlists'),
                      ('%s' % track_parentid, 'Tracks'),
                     ]
+    '''
+
+    # alpha statement for SMAPI
 
     smapialphastatement = """
                              select count(lower(substr(alpha,1,1))) as count,
@@ -124,12 +133,38 @@ class MediaServer(object):
                              order by character
                           """
 
+    # UPNP classes
+
     artist_class = 'object.container.person.musicArtist'
     album_class = 'object.container.album.musicAlbum'
     composer_class = 'object.container.person.musicArtist'
     genre_class = 'object.container.person.musicArtist'
     track_class = 'object.item.audioItem.musicTrack'
     playlist_class = 'object.container.playlistContainer'
+
+    # default key settings for alternative indexes
+    
+    default_index_key_dict = {
+        'proxyname': 'all',
+        'servicename': 'all',
+        'controller': 'all',
+        'sort_order': '',
+        'entry_prefix': '',
+        'entry_suffix': '',
+        'active': 'y',
+        }
+
+    range_index_key_dict = {
+        'range_field': '',
+        'index_range': ('','',''),
+        }
+
+    user_index_key_dict = default_index_key_dict.copy()
+    user_index_key_dict.update(range_index_key_dict)
+
+    ######
+    # init
+    ######
 
     def __init__(self, proxy, dbspec, source, structure, proxyaddress, webserverurl, wmpurl, ininame):
 
@@ -208,8 +243,6 @@ class MediaServer(object):
         # get index properties from ini
         if self.structure == 'HIERARCHY_DEFAULT':
         
-            self.structure = 'HIERARCHY'
-            
             # get default indexes
             self.load_indexes('DEFAULT')
 
@@ -558,10 +591,13 @@ class MediaServer(object):
         # reset user id count
         self.next_user_id = self.user_parentid + 1
 
-        # load root, hierarchy, path and index settings data
-        self.rootitems, self.hierarchies, self.index_settings, self.path_index_entries = self.load_hierarchy(index_type)
+        self.debugout('statichierarchy', self.statichierarchy)
 
-        self.debugout('rootitems', self.rootitems)
+        # load root, hierarchy, path and index settings data
+        self.allrootitems, self.displayrootitems, self.hierarchies, self.index_settings, self.path_index_entries = self.load_hierarchy(index_type)
+
+        self.debugout('allrootitems', self.allrootitems)
+        self.debugout('displayrootitems', self.displayrootitems)
         self.debugout('hierarchies', self.hierarchies)
         self.debugout('index_settings', self.index_settings)
         self.debugout('path_index_entries', self.path_index_entries)
@@ -571,7 +607,7 @@ class MediaServer(object):
         self.index_types = {}
         self.index_ids = {}
         self.dynamic_lookup = {}
-        for entry, entrystring in self.rootitems:
+        for entry, entrystring in self.allrootitems:
             hierarchy = self.hierarchies[entry]
             index_type_list = []
             index_id_list = []
@@ -610,6 +646,38 @@ class MediaServer(object):
         self.debugout('index_ids', self.index_ids)
         self.debugout('dynamic_lookup', self.dynamic_lookup)
 
+        # now post process dynamic entries - if there is a dynamic
+        # above a normal static index, and the range field is the
+        # same as the index, then convert it to a range so that
+        # we can just use the range in the static call
+        # (we could decide to create a list of valid fields, but
+        # obviously they are index specific - we'll just go 
+        # dynamic if it's not the field we know)
+        
+        for entry, entrydict in self.index_types.iteritems():
+            # check if index starts with dynamic and there are no other dynamic entries
+            if entrydict[0] == 'DYNAMIC' and not 'DYNAMIC' in entrydict[1:]:
+                rangecheck = True
+                # get key for path entry
+                pathkey = '%s_%s' % (entry, self.hierarchies[entry][0])
+                # get entries for this user defined index
+                keydict = self.path_index_entries[pathkey]
+                # get child index
+                childindex = self.hierarchies[entry][1]
+                # check range field for each entry in list
+                for indexkey, title in keydict:
+                    # get key for path index entry
+                    pathindexkey = '%s_%s_%s' % (entry, indexkey, childindex)
+                    # get range field for child
+                    indexfield = self.index_settings[pathindexkey]['range_field']
+                    # check if the range field of the child is the same as the child
+                    if indexfield != '' and indexfield != childindex:
+                        rangecheck = False
+                if rangecheck:
+                    self.index_types[entry] = ['RANGE'] + entrydict[1:]
+
+        self.debugout('index_types', self.index_types)
+
 
 
         # TEMP
@@ -625,200 +693,32 @@ class MediaServer(object):
         self.debugout('user_search_entries', self.user_search_entries)
 
         # create search entries for user defined search entries
+        # TODO: fix the fixed width of the format strings below
         self.searchitems = []
         for searchid, (searchtype, searchname, searchfields) in self.user_search_entries.iteritems():
-#            # TODO: fix the fixed width of the format string below
-            self.searchitems += [('R0:%09i' % searchid, searchname)]
+            if searchtype == 'root':
+                rootid, indexentrystart, indexentrytable = searchfields[0]
+                self.searchitems += [('%s:%09i' % (rootid, indexentrystart), searchname)]
+            else:            
+                self.searchitems += [('R0:%09i' % searchid, searchname)]
 
-        # create further search entries for all except user defined root entries
-        for (rootid, rootname) in self.rootitems:
-            firstindex = self.index_ids[rootid][0]
-            if firstindex not in self.path_index_entries.keys():
-                self.searchitems += [('%s:%09i' % (rootid, firstindex), rootname)]
+        if index_type == 'DEFAULT':
+            # create search entries for all root entries
+            for (rootid, rootname) in self.displayrootitems:
+                firstindex = self.hierarchies[rootid][0]
+                path_name = '%s_%s' % (rootid, firstindex)
+                if path_name not in self.path_index_entries.keys():
+                    firstindexstart = self.index_ids[rootid][0]
+                    self.searchitems += [('%s:%09i' % (rootid, firstindexstart), rootname)]
 
         self.debugout('searchitems', self.searchitems)
 
-    def get_root_entry(self, title):
-        # get root ID given title
-        for entry, entrystring in self.rootitems:
-            if entrystring == title:
-                return entry
-        return None
-
-    def load_searches(self, index_type):
-
-        if index_type == 'DEFAULT': inifile = DEFAULTINDEX_INI
-        else: 
-            if self.ininame == None: inifile = USERINDEX_INI
-            else: inifile = self.ininame
-
-        user_search_entries = {}
-
-        processing = False
-
-        # read line by line so we can process EOF to tidy up
-        f = codecs.open(inifile,'r','utf-8')
-        while True:
-
-            line=f.readline()
-
-            # if EOF, pretend we have a new section
-            if not line:
-                processing = True
-                line = '['
-        
-            line = self.strip_line(line)
-            if not line: continue
-
-            if processing and line.startswith('['):
-            
-                break
-            
-            if line == '[searches]':
-
-                processing = True
-
-            elif processing:
-
-                # look for search entry, formats are:
-                #    multisearch = index_entry_name_1 , ... index_entry_name_n
-                # or
-                #    subsearch = root_entry_title / index_entry_field
-
-                key, value = self.extract_key_value(line)
-
-                if key == 'multisearch':
-
-                    # is a set of search indexes to combine (could be a single one)
-                    indexentries = value.split(',')
-                    if indexentries != []:
-                        # convert entries and get index starts
-                        convindexentries = []
-                        for rootindex in indexentries:
-                            rootkey = self.get_root_entry(rootindex)
-                            if rootkey != None:
-                                # get index start
-                                indexentrystart = self.index_ids[rootkey][0]
-                                # get index table
-                                indexentrytable = self.hierarchies[rootkey][0]
-                                convindexentries += [(rootkey, indexentrystart, indexentrytable)]
-                        # save entry
-                        if convindexentries != []:
-                            user_search_entry = ('multi', convindexentries)
-                            self.next_user_id += 1
-
-                elif key == 'subsearch':
-                
-                    # is a lower level search type
-                    indexentries = value.split('/')
-                    if len(indexentries) == 2:
-                        lookuproot = indexentries[0]
-                        # first entry must be in hierarchies
-                        rootkey = self.get_root_entry(lookuproot)
-                        if rootkey != None:
-                            lookup_indexes = self.hierarchies[rootkey]
-                            lookupindex = indexentries[1]
-                            # second entry must be in that hierarchy's indexes
-                            if lookupindex in lookup_indexes:
-                                # get position in ini entry
-                                indexentrypos = lookup_indexes.index(lookupindex)
-                                # get index start
-                                indexentrystart = self.index_ids[rootkey][indexentrypos]
-                                # save entry
-                                user_search_entry = ('lower', [(rootkey, indexentrystart, lookupindex)])
-                                self.next_user_id += 1
-                    
-                elif key == 'title':
-                    
-                    title = value
-
-                    # save search data
-                    # values are type, title, root, fields
-                    user_search_entries[self.next_user_id] = user_search_entry[0], title, user_search_entry[1]
-
-        return user_search_entries
-    
-    # default key settings for alternative indexes
-    
-    default_index_key_dict = {
-        'proxyname': 'all',
-        'servicename': 'all',
-        'controller': 'all',
-        'sort_order': '',
-        'entry_prefix': '',
-        'entry_suffix': '',
-        'active': 'y',
-        }
-
-    range_index_key_dict = {
-        'range_field': '',
-        'index_range': ('','',''),
-        }
-
-    user_index_key_dict = default_index_key_dict.copy()
-    user_index_key_dict.update(range_index_key_dict)
-
-    default_indexes = {
-        'album': 'album_album',
-        'albumartist': 'albumartist_albumartist',
-        'albumartist_album': 'albumartist_album',
-        'artist': 'artist_artist',
-        'artist_album': 'artist_album',
-        'composer': 'composer_composer',
-        'composer_album': 'composer_album',
-        'genre': 'genre_genre',
-        'genre_albumartist': 'genre_albumartist',
-        'genre_albumartist_album': 'genre_albumartist_album',
-        'playlist': 'playlist_playlist',
-        'track': 'track_track',
-        }
-
-
-
-#########################
-
-
-
-    def strip_line(self, line):
-        # remove whitespace, ignore blank and comment lines
-        line = line.strip()
-        if line == '': return None
-        if line.startswith('#'): return None
-        if line.endswith('\n'): line = line[:-1]
-        return line
-
-    def extract_key_value(self, line):
-        # extract valid key/value pair
-        entries = line.split('=')
-        if len(entries) == 2:
-            key = entries[0].strip().lower()
-            if key == '': key = None
-            else:
-                value = entries[1].strip()
-                if value == '': value = None
-        if not key or not value:
-            return None, None
-        else:
-            return key, value
-
-    def get_higher_types(self, index, tree, path_indexes):
-        # get concatenated list of all path indexes above passed index
-        # get position of index in tree
-        pos = tree.index(index)
-        # get type of previous entry if there is one
-        if pos == 0: return None
-        else:
-            types = ''
-            for i in range(pos):
-                entry = tree[i]
-                if entry in path_indexes.keys():
-                    types = '_'.join(filter(None,(types, path_indexes[entry])))
-            return types
-        
     def load_hierarchy(self, index_type):
 
-        # rootitems will contain an ordered list of root item tuples, of root ID and title
+        # allrootitems will contain an ordered list of all root item tuples, of root ID and title
         #    root ID starts with 'R' and is consecutive (and unique) from 1
+        #
+        # displayrootitems will contain an ordered list of those root items that are to be displayed
         #
         # hierarchy_data will contain a dictionary of root item IDs, with values
         # of a list of the items in the hierarchy for that root
@@ -837,7 +737,8 @@ class MediaServer(object):
             if self.ininame == None: inifile = USERINDEX_INI
             else: inifile = self.ininame
 
-        rootitems = []
+        allrootitems = []
+        displayrootitems = []
         hierarchy_data = {}
         hierarchy_entries = {}
         path_index_entries = {}
@@ -884,7 +785,9 @@ class MediaServer(object):
                     if tree_count > 0 and title:
                     
                         # save previous tree data
-                        rootitems += [(tree_id, title)]
+                        allrootitems += [(tree_id, title)]
+                        if display_index:
+                            displayrootitems += [(tree_id, title)]
                         hierarchy_data[tree_id] = tree
 
                         # save prev path entries
@@ -912,11 +815,18 @@ class MediaServer(object):
                         title = None
                         path_entry = {}
                     path_indexes = {}
+                    display_index = True
                     
                 elif tree_count > 0:
 
+                    # look for display value
+                    if key == 'display':
+
+                        if value.lower() == 'n':
+                            display_index = False
+                    
                     # look for tree title
-                    if key == 'title':
+                    elif key == 'title':
                     
                         title = value
                         index = None
@@ -967,13 +877,201 @@ class MediaServer(object):
 
             if stop_processing: break
 
-        return rootitems, hierarchy_data, hierarchy_entries, path_index_entries
+        return allrootitems, displayrootitems, hierarchy_data, hierarchy_entries, path_index_entries
 
+    def load_searches(self, index_type):
 
+        if index_type == 'DEFAULT': inifile = DEFAULTINDEX_INI
+        else: 
+            if self.ininame == None: inifile = USERINDEX_INI
+            else: inifile = self.ininame
 
-#########################
+        user_search_entries = {}
 
+        processing = False
 
+        # read line by line so we can process EOF to tidy up
+        f = codecs.open(inifile,'r','utf-8')
+        while True:
+
+            line=f.readline()
+
+            # if EOF, pretend we have a new section
+            if not line:
+                processing = True
+                line = '['
+        
+            line = self.strip_line(line)
+            if not line: continue
+
+            if processing and line.startswith('['):
+            
+                break
+            
+            if line == '[searches]':
+
+                processing = True
+
+            elif processing:
+
+                # look for search entry, formats are:
+                #    search = index_entry_name
+                # or
+                #    multisearch = index_entry_name_1 , ... index_entry_name_n
+                # or
+                #    subsearch = root_entry_title / index_entry_field
+
+                key, value = self.extract_key_value(line)
+
+                if key == 'search':
+
+                    user_search_entry = None
+                    # is a search index
+                    if value != '':
+                        # convert entry and get index start
+                        convindexentries = []
+                        rootkey = self.get_root_entry(value)
+                        log.debug('value: %s  rootkey: %s' % (value, rootkey))
+                        if rootkey != None:
+                            # get index start
+                            indexentrystart = self.index_ids[rootkey][0]
+                            # get index table
+                            indexentrytable = self.hierarchies[rootkey][0]
+                            convindexentries += [(rootkey, indexentrystart, indexentrytable)]
+                        # save entry
+                        if convindexentries != []:
+                            user_search_entry = ('root', convindexentries)
+
+                if key == 'multisearch':
+
+                    user_search_entry = None
+                    # is a set of search indexes to combine (could be a single one)
+                    indexentries = value.split(',')
+                    if indexentries != []:
+                        # convert entries and get index starts
+                        convindexentries = []
+                        for rootindex in indexentries:
+                            rootkey = self.get_root_entry(rootindex)
+                            if rootkey != None:
+                                # get index start
+                                indexentrystart = self.index_ids[rootkey][0]
+                                # get index table
+                                indexentrytable = self.hierarchies[rootkey][0]
+                                convindexentries += [(rootkey, indexentrystart, indexentrytable)]
+                        # save entry
+                        if convindexentries != []:
+                            user_search_entry = ('multi', convindexentries)
+
+                elif key == 'subsearch':
+                
+                    user_search_entry = None
+                    # is a lower level search type
+                    indexentries = value.split('/')
+                    if len(indexentries) == 2:
+                        lookuproot = indexentries[0]
+                        # first entry must be in hierarchies
+                        rootkey = self.get_root_entry(lookuproot)
+                        if rootkey != None:
+                            lookup_indexes = self.hierarchies[rootkey]
+                            lookupindex = indexentries[1]
+                            # second entry must be in that hierarchy's indexes
+                            if lookupindex in lookup_indexes:
+                                # get position in ini entry
+                                indexentrypos = lookup_indexes.index(lookupindex)
+                                # get index start
+                                indexentrystart = self.index_ids[rootkey][indexentrypos]
+                                # save entry
+                                user_search_entry = ('lower', [(rootkey, indexentrystart, lookupindex)])
+                    
+                elif key == 'title':
+                    
+                    title = value
+
+                    if user_search_entry != None:
+
+                        # save search data
+                        # values are type, title, root, fields
+                        user_search_entries[self.next_user_id] = user_search_entry[0], title, user_search_entry[1]
+                        self.next_user_id += 1
+
+        # TEMP
+        # create keyword entry from album/artist/track root entries
+        keywordentry = []
+        for sid, (stype, stitle, sindex) in user_search_entries.iteritems():
+            if stype == 'root':
+                if sindex[0][2] == 'album' or sindex[0][2] == 'albumartist' or sindex[0][2] == 'track':
+                    keywordentry += [sindex[0]]
+        if keywordentry:        
+            user_search_entries[self.next_user_id] = ('keyword', 'Keyword', keywordentry)
+            self.next_user_id += 1
+
+        return user_search_entries
+    
+    '''
+    default_indexes = {
+        'album': 'album_album',
+        'albumartist': 'albumartist_albumartist',
+        'albumartist_album': 'albumartist_album',
+        'artist': 'artist_artist',
+        'artist_album': 'artist_album',
+        'composer': 'composer_composer',
+        'composer_album': 'composer_album',
+        'genre': 'genre_genre',
+        'genre_albumartist': 'genre_albumartist',
+        'genre_albumartist_album': 'genre_albumartist_album',
+        'playlist': 'playlist_playlist',
+        'track': 'track_track',
+        }
+    '''
+
+    #########
+    # helpers
+    #########
+
+    def get_root_entry(self, title):
+        # get root ID given title
+        for entry, entrystring in self.allrootitems:
+            if entrystring == title:
+                return entry
+        return None
+
+    def strip_line(self, line):
+        # remove whitespace, ignore blank and comment lines
+        line = line.strip()
+        if line == '': return None
+        if line.startswith('#'): return None
+        if line.endswith('\n'): line = line[:-1]
+        return line
+
+    def extract_key_value(self, line):
+        # extract valid key/value pair
+        key = value = None
+        entries = line.split('=')
+        if len(entries) == 2:
+            key = entries[0].strip().lower()
+            if key == '': key = None
+            else:
+                value = entries[1].strip()
+                if value == '': value = None
+        if not key or not value:
+            return None, None
+        else:
+            return key, value
+
+    def get_higher_types(self, index, tree, path_indexes):
+        # get concatenated list of all path indexes above passed index
+        # get position of index in tree
+        pos = tree.index(index)
+        # get type of previous entry if there is one
+        if pos == 0: return None
+        else:
+            types = ''
+            for i in range(pos):
+                entry = tree[i]
+                if entry in path_indexes.keys():
+                    types = '_'.join(filter(None,(types, path_indexes[entry])))
+            return types
+        
     def convert_range(self, rangestring):
         rangestring = rangestring.strip().lower()
         rangestring = " ".join(rangestring.split())
@@ -1000,6 +1098,9 @@ class MediaServer(object):
                 rangeend = rangefacets[1]
         return (rangestart, rangeend, units)
 
+    ##########
+    # database
+    ##########
 
     def prime_cache(self):
         log.debug("prime start: %.3f" % time.time())
@@ -1052,7 +1153,6 @@ class MediaServer(object):
         # standardise ID field name
         kwargs['QueryID'] = queryID
 
-#        if self.structure == 'HIERARCHY':
         return self.hierarchicalQuery(**kwargs)
 
     def hierarchicalQuery(self, **kwargs):
@@ -1065,6 +1165,10 @@ class MediaServer(object):
         log.debug("StartingIndex: %s" % index)
         count = int(kwargs.get('RequestedCount', 100))
         log.debug("RequestedCount: %s" % count)
+        term = kwargs.get('term', None)
+        log.debug("term: %s" % term)
+
+        wassearch = False
 
         # work out what hierarchy data is asking for
         # it's either
@@ -1079,7 +1183,7 @@ class MediaServer(object):
         playlist = False
         if queryID == 'root' or queryID == '0' or queryID == '1':
             # TODO: process count/index (i.e. take note of how many entries are requested)
-            items = self.rootitems
+            items = self.displayrootitems
         elif queryID == 'search':
             # TODO: process count/index (i.e. take note of how many entries are requested)
             items = self.searchitems
@@ -1098,6 +1202,12 @@ class MediaServer(object):
             track = True
         else:
             # must be a list of IDs separated by :
+            
+            # remove any search flag and store it
+            if queryID.startswith('S'):
+                wassearch = True
+                queryID = queryID[1:]
+                
             ids = queryID.split(':')
 
         log.debug("items: %s" % items)
@@ -1155,6 +1265,11 @@ class MediaServer(object):
 
         else:
 
+            controllername = kwargs.get('Controller', '')
+            log.debug('Controller: %s' % controllername)
+            controlleraddress = kwargs.get('Address', '')
+            log.debug('Address: %s' % controlleraddress)
+
             # have a list of queryIDs - are a hierarchy of containers
             log.debug('ids: %s' % ids)
 
@@ -1173,9 +1288,6 @@ class MediaServer(object):
             # get this entry key
             indexentrykey = indexkeys[indexentryposition]
 
-#            # get index entry type
-#            indexentrytype = self.index_types[rootname][indexentryposition]
-
             # get index entry id
             indexentryid = self.index_ids[rootname][indexentryposition]
 
@@ -1188,8 +1300,31 @@ class MediaServer(object):
             # check if current entry is a key that isn't a leaf, if so
             # we need to append the next entry in the index
             if indexentryname == 'usersearch':
-
-                pass
+#                pass
+                # check if we have been passed the keyword search entry
+                if rootname == 'R0' and queryID in [searchitem[0] for searchitem in self.searchitems]:
+                    searchtype, searchtitle, searchfields = self.user_search_entries[indexkeys[0]]
+                    if searchtype == 'keyword':
+                        if not '=' in term or term[-1] == '=':
+                            items = []
+                            return items, -1, -1, 'container'
+                        else:
+#                            items = [('R0:1', u'Success 1', None, 'artist'), ('R0:1', u'Success 2', None, 'album')]
+#                            return items, 2, 2, 'container'
+                            StartingIndex = str(index)
+                            RequestedCount = str(count)
+                            hierarchy = queryID
+                            idkeys = {}
+                            return self.keywordQuery(Controller=controllername,
+                                                      Address=controlleraddress,
+                                                      QueryID=queryID,
+                                                      StartingIndex=StartingIndex,
+                                                      RequestedCount=RequestedCount,
+                                                      SMAPI=hierarchy,
+                                                      idkeys=idkeys,
+                                                      Action='BROWSE',
+                                                      term=term,
+                                                      searchfields=searchfields)
 
             elif isid and not indexentryid in self.tracktypes:
             
@@ -1214,8 +1349,15 @@ class MediaServer(object):
             # check whether this call is supported by static or dynamic
             static = False
             firstindexentryname = self.hierarchies[rootname][0]
-            if firstindexentryname != 'usersearch' and indexentryname != 'usersearch':
+            
+            if wassearch:
+            
+                # TEMP - if its a search, assume dynamic
+                static = 'DYNAMIC'
 
+            elif firstindexentryname != 'usersearch' and indexentryname != 'usersearch':
+
+#                static = self.index_types[rootname][indexentryposition - 1]
                 static = self.index_types[rootname][indexentryposition]
 
                 if static == 'STATIC' or static == 'LEAF':
@@ -1227,6 +1369,8 @@ class MediaServer(object):
                     # - but only do this if there is a dynamic index in this hierarchy
                     #   before this index entry
                     if 'DYNAMIC' in self.index_types[rootname][:indexentryposition]:
+#                    #   immediately before this index entry
+#                    if self.index_types[rootname][indexentryposition] == 'DYNAMIC':
                     
                         # TEMP - if there is a dynamic above it, assume it is dynamic
                         static = 'DYNAMIC'
@@ -1246,44 +1390,47 @@ class MediaServer(object):
             # if recursive requested, replace last item in hierarchy
             # with track
             # (assumes all hierarchies end in track, or at least
-            #  that recursive will only be requested for tracks)
+            # that recursive will only be requested for hierarchies
+            # that end in tracks)
             recursive = kwargs.get('recursive', False)
             log.debug("recursive: %s" % recursive)
             if recursive:
-            
-                # FIXME
-            
                 # if last entry has a user defined path index as a parent,
                 # append rather than replace as we need to take account
                 # of any range in the user defined index
                 append = False
-                if len(ids) > 1:
-                    containerid = ids[-2]
-                    parentid = self.get_parent(containerid)
-                    if self.containername[parentid] in self.path_index_entries.keys():
+                if len(ids) > 2:
+                    indexname = self.hierarchies[rootname][len(ids) - 3]
+                    path_name = '%s_%s' % (rootname, indexname)
+                    log.debug('path_name: %s' % path_name)
+                    if path_name in self.path_index_entries.keys():
                         append = True
                 if append:
-                    ids += [self.containerstart['track']]
+                    ids += [self.track_parentid]
+                    indexkeys += [self.track_parentid]
                 else:
-                    ids[len(ids) - 1] = self.containerstart['track']
-                log.debug(ids)
+                    ids[-1] = self.track_parentid
+                    indexkeys[-1] = self.track_parentid
+                log.debug('ids: %s' % ids)
+                log.debug('indexkeys: %s' % indexkeys)
             
             # process ids
             idkeys = {}
             hierarchy = ''
             for i in range(len(indexkeys)):
-            
+
                 # get this entry key
                 indexentrykey = indexkeys[i]
 
-#                # get index entry type
-#                indexentrytype = self.index_types[rootname][i]
-
-                # get index entry id
-                indexentryid = self.index_ids[rootname][i]
-
-                # get index entry name
-                indexentryname = self.hierarchies[rootname][i]
+                # get index entry id and index entry name
+                if not recursive or i < len(indexkeys) - 1:
+                    indexentryid = self.index_ids[rootname][i]
+                    indexentryname = self.hierarchies[rootname][i]
+                else:
+                    # if recursive, last entry must be last entry in index
+                    # (and must be tracks)
+                    indexentryid = self.index_ids[rootname][-1]
+                    indexentryname = self.hierarchies[rootname][-1]
 
                 # check if entry is id rather than container
                 isid = False if indexentrykey == indexentryid else True
@@ -1300,14 +1447,7 @@ class MediaServer(object):
             
             # if we get this far we have a list of IDs and we need to query the database
             
-            controllername = kwargs.get('Controller', '')
-            log.debug('Controller: %s' % controllername)
-            controlleraddress = kwargs.get('Address', '')
-            log.debug('Address: %s' % controlleraddress)
-            term = kwargs.get('term', None)
-            log.debug("term: %s" % term)
-
-            if indexentryname == 'usersearch' or static == 'DYNAMIC':
+            if indexentryname == 'usersearch' or static == 'DYNAMIC' or static == 'RANGE':
 
                 # dynamic
                 # create call data to dynamicQuery and call it
@@ -1324,7 +1464,8 @@ class MediaServer(object):
                                            StartingIndex=StartingIndex,
                                            RequestedCount=RequestedCount,
                                            SMAPI=hierarchy,
-                                           idkeys=idkeys)
+                                           idkeys=idkeys,
+                                           wassearch=wassearch)
 
             else:
 
@@ -1417,7 +1558,7 @@ class MediaServer(object):
         artisttype = 'singletrack'
         sorttype = '%s_%s' % (roottype, 'track')
         # TODO: orderby is not applicable for this call (others probably aren't too)
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='track')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='track')
 
         if tracktype == 'T':
             querystatement = "select * from tracks where id = ?"
@@ -1428,142 +1569,163 @@ class MediaServer(object):
             
     def getQueryAlbumartist(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='albumartist')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='albumartist')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
+
+        artisttype = 'albumartist'
 
         searchwhere = ''
-        artisttype = 'albumartist'
         if searchcontainer:
             searchstring = escape_sql(searchstring)
-            searchwhere = "where albumartist like '%s%%'" % searchstring
+            searchwhere = "albumartist like '%s%%'" % searchstring
 
-        if searchwhere == '':
-            albumwhere = 'where %s' % self.albumartist_album_albumtype_where
-        else:
-            albumwhere = ' and %s' % self.albumartist_album_albumtype_where
+        albumwhere = '%s' % self.albumartist_album_albumtype_where
 
-        countstatement = "select count(distinct albumartist) from AlbumartistAlbum %s%s" % (searchwhere, albumwhere)
-        orderstatement = "select rowid, albumartist, lastplayed, playcount from AlbumartistAlbum %s%s group by albumartist order by %s limit ?, ?" % (searchwhere, albumwhere, orderby)
-        alphastatement = self.smapialphastatement % ('albumartist', 'AlbumartistAlbum %s group by albumartist order by %%s' % albumwhere)
+        where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
+        if where != '':
+            where = 'where %s' % where
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        countstatement = "select count(distinct albumartist) from AlbumartistAlbum %s" % where
+        orderstatement = "select rowid, albumartist, lastplayed, playcount from AlbumartistAlbum %s group by albumartist order by %s limit ?, ?" % (where, orderby)
+        alphastatement = self.smapialphastatement % ('albumartist', 'AlbumartistAlbum %s group by albumartist order by %%s' % where)
+
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
             
     def getQueryArtist(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='artist')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='artist')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
+
+        artisttype = 'artist'
 
         searchwhere = ''
-        artisttype = 'artist'
         if searchcontainer:
             searchstring = escape_sql(searchstring)
-            searchwhere = "where artist like '%s%%'" % searchstring
+            searchwhere = "artist like '%s%%'" % searchstring
 
-        if searchwhere == '':
-            albumwhere = 'where %s' % self.artist_album_albumtype_where
-        else:
-            albumwhere = ' and %s' % self.artist_album_albumtype_where
+        albumwhere = '%s' % self.artist_album_albumtype_where
 
-        countstatement = "select count(distinct artist) from ArtistAlbum %s%s" % (searchwhere, albumwhere)
-        orderstatement = "select rowid, artist, lastplayed, playcount from ArtistAlbum %s%s group by artist order by %s limit ?, ?" % (searchwhere, albumwhere, orderby)
-        alphastatement = self.smapialphastatement % ('artist', 'ArtistAlbum %s group by artist order by %%s' % albumwhere)
+        where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
+        if where != '':
+            where = 'where %s' % where
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        countstatement = "select count(distinct artist) from ArtistAlbum %s" % where
+        orderstatement = "select rowid, artist, lastplayed, playcount from ArtistAlbum %s group by artist order by %s limit ?, ?" % (where, orderby)
+        alphastatement = self.smapialphastatement % ('artist', 'ArtistAlbum %s group by artist order by %%s' % where)
+
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenreAlbumartist(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='albumartist')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='albumartist')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
+
         artisttype = 'albumartist'
         albumwhere = 'and %s' % self.albumartist_album_albumtype_where
+        
         countstatement = "select count(distinct albumartist) from GenreAlbumartistAlbum where genre=? %s" % albumwhere
         orderstatement = "select rowid, albumartist, lastplayed, playcount from GenreAlbumartistAlbum where genre=? %s group by albumartist order by %s limit ?, ?" % (albumwhere, orderby)
         alphastatement = ''
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenreArtist(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='artist')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='artist')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
+
         artisttype = 'artist'
         albumwhere = 'and %s' % self.artist_album_albumtype_where
         countstatement = "select count(distinct artist) from GenreArtistAlbum where genre=? %s" % albumwhere
         orderstatement = "select rowid, artist, lastplayed, playcount from GenreArtistAlbum where genre=? %s group by artist order by %s limit ?, ?" % (albumwhere, orderby)
         alphastatement = ''
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenre(self, searchcontainer, searchstring, sorttype, controllername):
 
         searchwhere = ''
         if searchcontainer:
             searchstring = escape_sql(searchstring)
-            searchwhere = "where genre like '%s%%'" % searchstring
+            searchwhere = "genre like '%s%%'" % searchstring
+            
         if self.use_albumartist:
         
-            orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='genre')
+            orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='genre')
+            rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
             artisttype = 'albumartist'
-            if searchwhere == '':
-                albumwhere = 'where %s' % self.albumartist_album_albumtype_where
-            else:
-                albumwhere = ' and %s' % self.albumartist_album_albumtype_where
+            albumwhere = '%s' % self.albumartist_album_albumtype_where
 
-            countstatement = "select count(distinct genre) from GenreAlbumartistAlbum %s%s" % (searchwhere, albumwhere)
+            where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
+            if where != '':
+                where = 'where %s' % where
+
+
+            countstatement = "select count(distinct genre) from GenreAlbumartistAlbum %s" % where
             orderstatement = """select rowid, genre, lastplayed, playcount from Genre where genre in
-                               (select distinct genre from GenreAlbumartistAlbum %s%s)
-                               order by %s limit ?, ?""" % (searchwhere, albumwhere, orderby)
-            alphastatement = self.smapialphastatement % ('genre', 'GenreAlbumartistAlbum %s group by genre order by %%s' % albumwhere)
+                               (select distinct genre from GenreAlbumartistAlbum %s)
+                               order by %s limit ?, ?""" % (where, orderby)
+            alphastatement = self.smapialphastatement % ('genre', 'GenreAlbumartistAlbum %s group by genre order by %%s' % where)
 
         else:
 
-            orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='genre')
+            orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='genre')
+            rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
             artisttype = 'artist'
-            if searchwhere == '':
-                albumwhere = 'where %s' % self.artist_album_albumtype_where
-            else:
-                albumwhere = ' and %s' % self.artist_album_albumtype_where
+            albumwhere = '%s' % self.artist_album_albumtype_where
 
-            countstatement = "select count(distinct genre) from GenreArtistAlbum %s%s" % (searchwhere, albumwhere)
+            where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
+            if where != '':
+                where = 'where %s' % where
+
+            countstatement = "select count(distinct genre) from GenreArtistAlbum %s" % where
             orderstatement = """select rowid, genre, lastplayed, playcount from Genre where genre in
-                               (select distinct genre from GenreArtistAlbum %s%s)
-                               order by %s limit ?, ?"""  % (searchwhere, albumwhere, orderby)
-            alphastatement = self.smapialphastatement % ('genre', 'GenreArtistAlbum %s group by genre order by %%s' % albumwhere)
+                               (select distinct genre from GenreArtistAlbum %s)
+                               order by %s limit ?, ?"""  % (where, orderby)
+            alphastatement = self.smapialphastatement % ('genre', 'GenreArtistAlbum %s group by genre order by %%s' % where)
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryComposer(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='composer')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='composer')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'composer'
 
         searchwhere = ''
         if searchcontainer:
             searchstring = escape_sql(searchstring)
-            searchwhere = "where composer like '%s%%'" % searchstring
+            searchwhere = "composer like '%s%%'" % searchstring
 
-        if searchwhere == '':
-            albumwhere = 'where %s' % self.composer_album_albumtype_where
-        else:
-            albumwhere = ' and %s' % self.composer_album_albumtype_where
+        albumwhere = '%s' % self.composer_album_albumtype_where
 
-        countstatement = "select count(distinct composer) from ComposerAlbum %s%s" % (searchwhere, albumwhere)
-        orderstatement = "select rowid, composer, lastplayed, playcount from ComposerAlbum %s%s group by composer order by %s limit ?, ?" % (searchwhere, albumwhere, orderby)
-        alphastatement = self.smapialphastatement % ('composer', 'ComposerAlbum %s group by composer order by %%s' % albumwhere)
+        where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
+        if where != '':
+            where = 'where %s' % where
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        countstatement = "select count(distinct composer) from ComposerAlbum %s" % (where)
+        orderstatement = "select rowid, composer, lastplayed, playcount from ComposerAlbum %s group by composer order by %s limit ?, ?" % (where, orderby)
+        alphastatement = self.smapialphastatement % ('composer', 'ComposerAlbum %s group by composer order by %%s' % where)
+
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryAlbum(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         searchwhere = ''
         if searchcontainer:
             searchstring = escape_sql(searchstring)
-            searchwhere = "where album like '%s%%'" % searchstring
+            searchwhere = "album like '%s%%'" % searchstring
 
         at = self.get_albumtype_where(albumtype, table='aa')
-        if searchwhere == '':
-            albumwhere = 'where %s' % at
-        else:
-            albumwhere = ' and %s' % at
+        albumwhere = '%s' % at
+
+        where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
+        if where != '':
+            where = 'where %s' % where
 
         if self.use_albumartist:
 
@@ -1572,25 +1734,25 @@ class MediaServer(object):
             album_groupby = self.groupby_albumartist
             orderby = self.album_groupby_albumartist
             if 'albumartist' in self.album_group:
-                countstatement = "select count(distinct %s) from AlbumartistAlbum aa %s%s" % (album_distinct, searchwhere, albumwhere)
+                countstatement = "select count(distinct %s) from AlbumartistAlbum aa %s" % (album_distinct, where)
                 orderstatement = """
                                    select album_id, album, '', albumartist, '', a.*, 0 from AlbumartistAlbum aa join albums a on
                                    aa.album_id = a.id
-                                   %s%s group by %s
+                                   %s group by %s
                                    order by %s limit ?, ?
-                                 """ % (searchwhere, albumwhere, album_groupby, orderby)
-                alphastatement = self.smapialphastatement % ('album', 'AlbumartistAlbum aa %s group by %s order by %%s' % (albumwhere, album_groupby))
+                                 """ % (where, album_groupby, orderby)
+                alphastatement = self.smapialphastatement % ('album', 'AlbumartistAlbum aa %s group by %s order by %%s' % (where, album_groupby))
             else:
                 separate_albums = '||albumartist' if self.show_separate_albums else ''
-                countstatement = "select count(distinct %s%s) from AlbumartistAlbumsonly aa %s%s" % (album_distinct, separate_albums, searchwhere, albumwhere)
+                countstatement = "select count(distinct %s%s) from AlbumartistAlbumsonly aa %s" % (album_distinct, separate_albums, where)
                 separate_albums = ',albumartist' if self.show_separate_albums else ''
                 orderstatement = """
                                    select album_id, aa.album, '', aa.albumartist, '', a.* from AlbumartistAlbumsonly aa join albumsonly a on
                                    aa.album_id = a.id
-                                   %s%s group by %s%s
+                                   %s group by %s%s
                                    order by %s limit ?, ?
-                                 """ % (searchwhere, albumwhere, album_groupby, separate_albums, orderby)
-                alphastatement = self.smapialphastatement % ('album', 'AlbumartistAlbumsonly aa %s group by %s%s order by %%s' % (albumwhere, album_groupby, separate_albums))
+                                 """ % (where, album_groupby, separate_albums, orderby)
+                alphastatement = self.smapialphastatement % ('album', 'AlbumartistAlbumsonly aa %s group by %s%s order by %%s' % (where, album_groupby, separate_albums))
 
         else:
         
@@ -1599,31 +1761,32 @@ class MediaServer(object):
             album_groupby = self.groupby_artist
             orderby = self.album_groupby_artist
             if 'artist' in self.album_group:
-                countstatement = "select count(distinct %s) from ArtistAlbum aa %s%s" % (album_distinct, searchwhere, albumwhere)
+                countstatement = "select count(distinct %s) from ArtistAlbum aa %s" % (album_distinct, where)
                 orderstatement = """
                                    select album_id, album, artist, '', '', a.*, 0 from ArtistAlbum aa join albums a on
                                    aa.album_id = a.id
-                                   %s%s group by %s
+                                   %s group by %s
                                    order by %s limit ?, ?
-                                 """ % (searchwhere, albumwhere, album_groupby, orderby)
-                alphastatement = self.smapialphastatement % ('album', 'ArtistAlbum aa %s group by %s order by %%s' % (albumwhere, album_groupby))
+                                 """ % (where, album_groupby, orderby)
+                alphastatement = self.smapialphastatement % ('album', 'ArtistAlbum aa %s group by %s order by %%s' % (where, album_groupby))
             else:
                 separate_albums = '||artist' if self.show_separate_albums else ''
-                countstatement = "select count(distinct %s%s) from ArtistAlbumsonly aa %s%s" % (album_distinct, separate_albums, searchwhere, albumwhere)
+                countstatement = "select count(distinct %s%s) from ArtistAlbumsonly aa %s" % (album_distinct, separate_albums, where)
                 separate_albums = ',artist' if self.show_separate_albums else ''
                 orderstatement = """
                                    select album_id, aa.album, aa.artist, '', '', a.* from ArtistAlbumsonly aa join albumsonly a on
                                    aa.album_id = a.id
-                                   %s%s group by %s%s
+                                   %s group by %s%s
                                    order by %s limit ?, ?
-                                 """ % (searchwhere, albumwhere, album_groupby, separate_albums, orderby)
-                alphastatement = self.smapialphastatement % ('album', 'ArtistAlbumsonly aa %s group by %s%s order by %%s' % (albumwhere, album_groupby, separate_albums))
+                                 """ % (where, album_groupby, separate_albums, orderby)
+                alphastatement = self.smapialphastatement % ('album', 'ArtistAlbumsonly aa %s group by %s%s order by %%s' % (where, album_groupby, separate_albums))
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryPlaylist(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='playlist')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='playlist')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         if self.use_albumartist:
             artisttype = 'albumartist'
@@ -1632,13 +1795,18 @@ class MediaServer(object):
         searchwhere = ''
         if searchcontainer:
             searchstring = escape_sql(searchstring)
-            searchwhere = "where playlist like '%s%%'" % searchstring
+            searchwhere = "playlist like '%s%%'" % searchstring
 
-        countstatement = "select count(distinct plfile) from playlists %s" % (searchwhere)
-        orderstatement = "select rowid,* from playlists %s group by plfile order by playlist limit ?, ?" % (searchwhere)
-        alphastatement = self.smapialphastatement % ('playlist', 'playlists %s order by %%s' % searchwhere)
+        albumwhere = ''
+        where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
+        if where != '':
+            where = 'where %s' % where
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        countstatement = "select count(distinct plfile) from playlists %s" % (where)
+        orderstatement = "select rowid,* from playlists %s group by plfile order by playlist limit ?, ?" % (where)
+        alphastatement = self.smapialphastatement % ('playlist', 'playlists %s order by %%s' % where)
+
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryTrack(self, searchcontainer, searchstring, sorttype, controllername):
 
@@ -1647,8 +1815,9 @@ class MediaServer(object):
         log.debug('sorttype: %s' % sorttype)
         log.debug('controllername: %s' % controllername)
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
-#        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='titleorder')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+#        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='titleorder')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         log.debug('orderby: %s' % orderby)
         log.debug('prefix: %s' % prefix)
@@ -1660,18 +1829,19 @@ class MediaServer(object):
         artisttype = 'track'
         if searchcontainer:
             searchstring = escape_sql(searchstring)
-            if searchwhere == '':
-                searchwhere = "where title like '%s%%'" % searchstring
+            searchwhere = "title like '%s%%'" % searchstring
 
-            else:
-                searchwhere += " and title like '%s%%'" % searchstring
+        albumwhere = ''
+        where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
+        if where != '':
+            where = 'where %s' % where
 
-        countstatement = "select count(1) from tracks %s" % searchwhere
-        orderstatement = "select * from tracks %s order by %s limit ?, ?" % (searchwhere, orderby)
-#        orderstatement = "select * from tracks %s where titleorder >= ? and titleorder < ? order by %s" % (searchwhere, orderby)
-        alphastatement = self.smapialphastatement % ('title', 'tracks %s order by %%s' % searchwhere)
+        countstatement = "select count(1) from tracks %s" % where
+        orderstatement = "select * from tracks %s order by %s limit ?, ?" % (where, orderby)
+#        orderstatement = "select * from tracks %s where titleorder >= ? and titleorder < ? order by %s" % (where, orderby)
+        alphastatement = self.smapialphastatement % ('title', 'tracks %s order by %%s' % where)
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryAlbumTrack(self, searchcontainer, searchstring, sorttype, controllername, albumtype, separated):
 
@@ -1681,7 +1851,8 @@ class MediaServer(object):
             orderby = 'discnumber, tracknumber, title'
 
         # TODO: fix albumtypedummy - can't differentiate between albumtypes in same index any more anyway....
-        orderby, prefix, suffix, albumtypedummy = self.get_orderby(sorttype, controllername, dynamic=False, orderby=orderby)
+        orderby, prefix, suffix, albumtypedummy, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby=orderby)
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         #TODO: check artisttype
         artisttype = 'track'
@@ -1729,11 +1900,12 @@ class MediaServer(object):
 
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, params
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange, params
 
     def getQueryPlaylistTrack(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='p.track')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='p.track')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         #TODO: check artisttype
         artisttype = 'track'
@@ -1748,11 +1920,12 @@ class MediaServer(object):
         #TODO: add alphastatement
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryComposerAlbum(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         albumtypewhere = self.get_albumtype_where(albumtype, table='aa')
 
@@ -1767,11 +1940,12 @@ class MediaServer(object):
                         """ % (albumtypewhere, self.groupby_composer, orderby)
 
         alphastatement = ''
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryAlbumartistAlbum(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         albumtypewhere = self.get_albumtype_where(albumtype, table='aa')
 
@@ -1785,11 +1959,12 @@ class MediaServer(object):
                            order by %s limit ?, ?
                          """ % (albumtypewhere, self.groupby_albumartist, orderby)
         alphastatement = ''
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryArtistAlbum(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         albumtypewhere = self.get_albumtype_where(albumtype, table='aa')
 
@@ -1804,11 +1979,12 @@ class MediaServer(object):
                          """ % (albumtypewhere, self.groupby_artist, orderby)
 
         alphastatement = ''
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenreAlbumartistAlbum(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         albumtypewhere = self.get_albumtype_where(albumtype, table='aa')
 
@@ -1822,11 +1998,12 @@ class MediaServer(object):
                            order by %s limit ?, ?
                          """ % (albumtypewhere, self.groupby_albumartist, orderby)
         alphastatement = ''
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenreArtistAlbum(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
         
         albumtypewhere = self.get_albumtype_where(albumtype, table='aa')
 
@@ -1841,44 +2018,48 @@ class MediaServer(object):
                          """ % (albumtypewhere, self.groupby_artist, orderby)
 
         alphastatement = ''
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryAlbumartistTrack(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'albumartist'
         countstatement = "select count(*) from AlbumartistAlbumTrack aa where aa.albumartist=?"
         orderstatement = "select * from tracks where rowid in (select track_id from AlbumartistAlbumTrack aa where aa.albumartist=?) order by album, discnumber, tracknumber, title limit ?, ?"
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryArtistTrack(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'artist'
         countstatement = "select count(*) from ArtistAlbumTrack aa where aa.artist=?"
         orderstatement = "select * from tracks where rowid in (select track_id from ArtistAlbumTrack aa where aa.artist=?) order by album, discnumber, tracknumber, title limit ?, ?"
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryComposerTrack(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'composer'
         countstatement = "select count(*) from ComposerAlbumTrack aa where aa.composer=?"
         orderstatement = "select * from tracks where rowid in (select track_id from ComposerAlbumTrack aa where aa.composer=?) order by album, discnumber, tracknumber, title limit ?, ?"
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenreTrack(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         if self.use_albumartist:
             artisttype = 'albumartist'
@@ -1890,33 +2071,36 @@ class MediaServer(object):
             orderstatement = "select * from tracks where rowid in (select track_id from GenreArtistAlbumTrack aa where aa.genre=?) order by artist, album, discnumber, tracknumber, title limit ?, ?"
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenreAlbumartistTrack(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'albumartist'
         countstatement = "select count(*) from GenreAlbumartistAlbumTrack where genre=? and albumartist=?"
         orderstatement = "select * from tracks where rowid in (select track_id from GenreAlbumartistAlbumTrack where genre=? and albumartist=?) order by discnumber, tracknumber, title limit ?, ?"
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenreArtistTrack(self, searchcontainer, searchstring, sorttype, controllername):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='title')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'artist'
         countstatement = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=?"
         orderstatement = "select * from tracks where rowid in (select track_id from GenreArtistAlbumTrack where genre=? and artist=?) order by discnumber, tracknumber, title limit ?, ?" % (startingIndex, requestedCount)
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryAlbumartistAlbumTrack(self, searchcontainer, searchstring, sorttype, controllername, queryalbumtype):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='tracknumber')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='tracknumber')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'albumartist'
         if queryalbumtype == 10:
@@ -1934,11 +2118,12 @@ class MediaServer(object):
                              '''
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryArtistAlbumTrack(self, searchcontainer, searchstring, sorttype, controllername, queryalbumtype):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='tracknumber')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='tracknumber')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'artist'
         if queryalbumtype == 10:
@@ -1956,11 +2141,12 @@ class MediaServer(object):
                              '''
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryComposerAlbumTrack(self, searchcontainer, searchstring, sorttype, controllername, queryalbumtype):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='tracknumber')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='tracknumber')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'composer'
         if queryalbumtype == 10:
@@ -1978,11 +2164,12 @@ class MediaServer(object):
                              '''
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenreAlbumartistAlbumTrack(self, searchcontainer, searchstring, sorttype, controllername, queryalbumtype):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='tracknumber')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='tracknumber')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'albumartist'
         if queryalbumtype == 10:
@@ -2000,11 +2187,12 @@ class MediaServer(object):
                              '''
         alphastatement = ''
                              
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenreArtistAlbumTrack(self, searchcontainer, searchstring, sorttype, controllername, queryalbumtype):
 
-        orderby, prefix, suffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=False, orderby='tracknumber')
+        orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='tracknumber')
+        rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'artist'
         if queryalbumtype == 10:
@@ -2022,7 +2210,7 @@ class MediaServer(object):
                              '''
         alphastatement = ''
 
-        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype
+        return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     #############################################
     # static query post processors for containers
@@ -2166,7 +2354,7 @@ class MediaServer(object):
         res = ''
         count = 0
         for row in c:
-#            log.debug("row: %s", row)
+            log.debug("row: %s", row)
             count += 1
             album_id, album, artist, albumartist, composer, id, albumlist, artistlist, year, albumartistlist, duplicate, cover, artid, inserted, composerlist, tracknumbers, created, lastmodified, albumtype, lastplayed, playcount, albumsort, separated = row
             id = str(id)
@@ -2252,7 +2440,6 @@ class MediaServer(object):
                 if a_suffix: album = '%s%s' % (album, a_suffix)
                 log.debug('a_suffix: %s' % a_suffix)
 
-            # TODO: process art for SMAPI?
             coverres = ''
             if cover.startswith('EMBEDDED_'):
                 # art is embedded for this file
@@ -2287,7 +2474,7 @@ class MediaServer(object):
             itemid = album_id
 
             # TODO: check this
-            if self.structure == 'HIERARCHY':
+            if self.structure.startswith('HIERARCHY'):
                 pass
             else:
                 itemid ='A__%s_%s_%s__%s' % (album_entry, artist_entry, albumartist_entry, id)
@@ -2295,7 +2482,7 @@ class MediaServer(object):
 
             itemid = ':'.join(filter(None,(queryIDprefix, str(itemid))))
             if self.source == 'SMAPI':
-                items += [(itemid, album)]
+                items += [(itemid, album, coverres)]
             else:
 #                itemid = ':'.join(filter(None,(queryIDprefix, str(itemid))))
                 res += self.album_didl(itemid, containerstart, albumartist, artist, album, coverres)
@@ -2313,12 +2500,13 @@ class MediaServer(object):
         roottype = browsetype.split(':')[0]
         
         if tracktype == None: tracktype = 'T'
-
+        call_tracktype = tracktype
+        
         for row in c:
-#            log.debug("row: %s", row)
+            log.debug("row: %s", row)
             count += 1
 
-            if tracktype == 'S':
+            if call_tracktype == 'S':
             
                 # is a call for mediametadata for a playlist stream entry
                 playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
@@ -2391,9 +2579,9 @@ class MediaServer(object):
                 transcode = False
             else:
                 if self.source == 'SMAPI':
-                    transcode, newtype = checksmapitranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+                    transcode, newtype, ext = checksmapitranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
                     if transcode:
-                        mime = 'audio/mpeg'
+                        mime = getMime(ext)
                 else:
                     transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
                 
@@ -2417,18 +2605,52 @@ class MediaServer(object):
                 dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
                 self.proxy.wmpcontroller.add_static_file(dummystaticfile)
 
-            if cover == '':
+            if self.source == 'SMAPI':
+
                 coverres = ''
-            elif cover != '' and not cover.startswith('EMBEDDED_'):
-                cvfile = getFile(cover)
-                cvpath = cover
-                coverfiletype = getFileType(cvfile)
-                dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
-                coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
-                dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
-                self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
-            elif cover.startswith('EMBEDDED_'):
-                coverres = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+                if cover.startswith('EMBEDDED_'):
+                    # art is embedded for this file
+                    coverparts = cover.split('_')
+                    coveroffsets = coverparts[1]
+                    # spec may contain '_'
+                    specstart = len('EMBEDDED_') + len(coveroffsets) + 1
+                    coverspec = cover[specstart:]
+                    cvfile = getFile(coverspec)
+                    cvpath = coverspec
+                    dummycoverfile = self.dbname + '.' + str(artid) + '.coverart'
+    #                log.debug("dummycoverfile: %s", dummycoverfile)
+    #                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                    coverres = self.proxyaddress + '/wmp/' + dummycoverfile
+    #                log.debug("coverres: %s", coverres)
+                    dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath, cover=cover)
+    #                log.debug("dummycoverstaticfile: %s", dummycoverstaticfile)
+                    self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+    #                log.debug("after add_static_file")
+                elif cover != '':
+                    cvfile = getFile(cover)
+                    cvpath = cover
+                    coverfiletype = getFileType(cvfile)
+                    dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
+    #                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                    coverres = self.proxyaddress + '/wmp/' + dummycoverfile
+                    dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
+                    self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+
+            else:
+            
+                if cover == '':
+                    coverres = ''
+                elif cover != '' and not cover.startswith('EMBEDDED_'):
+                    cvfile = getFile(cover)
+                    cvpath = cover
+                    coverfiletype = getFileType(cvfile)
+                    dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
+                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                    dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
+                    self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+                elif cover.startswith('EMBEDDED_'):
+                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+
 
             iduration = int(length)
             duration = maketime(float(length))
@@ -2960,15 +3182,35 @@ class MediaServer(object):
             log.debug('rootname: %s' % rootname)
             log.debug('indexkeys: %s' % indexkeys)
 
+            # get sorttype
+            
+            # if there is only one index key and it's a dynamic one, it means we are running
+            # a static query with an associated range. If there is more than one index key
+            # and the first key is a dynamic one, we need to filter out the dynamic key (as
+            # we have already taken account of the range in a previous query).
+            # Either way we will need to insert the dynamic key into the sort type to get
+            # the range, plus remove the dynamic facet of the browsetype
+            
+            if int(indexkeys[0]) in self.dynamic_lookup.keys():
+                # get sorttype containing dynamic facet
 
+                # if recursive is set, then there could be more than one non-key indexkey entry
+                # - we need to find the first of those to put in the sorttype
+                #   e.g. if we are asked for all entries for a path entry, the index keys
+                #   will contain both the entry below the path and a tracks entry
+                for entry in idhierarchy:
+                    key, iskey, parent = idkeys[entry]
+                    if iskey == False:
+                        break
+                sorttype = '%s_%s_%s' % (rootname, self.dynamic_lookup[int(indexkeys[0])], entry)
+                # remove dynamic facet of browsetype
+                browsetype = ':'.join(idhierarchy[1:])
+                log.debug("browsetype: %s" % browsetype)
+                
+            else:
+                sorttype = self.get_index_key(ids, idhierarchy)
 
-
-            sorttype = self.get_index_key(ids)
             log.debug("sorttype: %s" % sorttype)
-
-
-
-
 
             # remove the last entry from the query ID if it's a container id
             # so that we can subsequently append the key selected from that container
@@ -2977,7 +3219,6 @@ class MediaServer(object):
             # get index entry id
             indexentryid = self.index_ids[rootname][indexentryposition]
             # check if entry is id rather than container
-#            isid = False if indexkeys[indexentryposition] == indexentryid else True
             isid = False if int(indexkeys[indexentryposition]) == indexentryid else True
             if not isid:            
                 queryIDprefix = ':'.join(filter(None,[rootname] + indexkeys[:-1]))
@@ -3029,7 +3270,7 @@ class MediaServer(object):
              browsetype == 'album':
 
             log.debug('albums')
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryAlbum(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryAlbum(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3042,6 +3283,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAalbum':
@@ -3055,7 +3299,7 @@ class MediaServer(object):
              browsetype == 'albumartist':
 
             log.debug('albumartist')
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryAlbumartist(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryAlbumartist(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3065,6 +3309,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAalbumartist':
@@ -3078,7 +3325,7 @@ class MediaServer(object):
              browsetype == 'artist':
 
             log.debug('albumartist')
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryArtist(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryArtist(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3088,6 +3335,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAartist':
@@ -3102,7 +3352,7 @@ class MediaServer(object):
 
             log.debug('composer')
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryComposer(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryComposer(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3112,6 +3362,9 @@ class MediaServer(object):
             totalMatches, = c.fetchone()
             totalMatches = int(totalMatches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAcomposer':
@@ -3126,7 +3379,7 @@ class MediaServer(object):
 
             log.debug('genre')
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryGenre(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenre(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3136,6 +3389,9 @@ class MediaServer(object):
             totalMatches, = c.fetchone()
             totalMatches = int(totalMatches)
             
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAgenre':
@@ -3150,7 +3406,7 @@ class MediaServer(object):
 
             log.debug('playlist')
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryPlaylist(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryPlaylist(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3160,6 +3416,9 @@ class MediaServer(object):
             totalMatches, = c.fetchone()
             totalMatches = int(totalMatches)
             
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAplaylist':
@@ -3174,7 +3433,7 @@ class MediaServer(object):
 
             log.debug('track')
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryTrack(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryTrack(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3184,6 +3443,9 @@ class MediaServer(object):
             totalMatches, = c.fetchone()
             totalMatches = int(totalMatches)
             
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAtrack':
@@ -3209,7 +3471,7 @@ class MediaServer(object):
             log.debug('    albumtype: %s', albumtype)
             log.debug('    separated: %s', separated)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, params = self.getQueryAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype, separated)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange, params = self.getQueryAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype, separated)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3233,6 +3495,9 @@ class MediaServer(object):
 
             log.debug("totalMatches: %s", totalMatches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -3250,7 +3515,7 @@ class MediaServer(object):
             playlistid = self.runQueryPlaylist(c, idkeys)
             log.debug('    playlistid: %s', playlistid)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryPlaylistTrack(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryPlaylistTrack(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3260,6 +3525,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (playlistid, startingIndex, requestedCount))
@@ -3273,7 +3541,7 @@ class MediaServer(object):
             albumartist = self.runQueryAlbumartist(c, idkeys)
             log.debug('    albumartist: %s', albumartist)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryAlbumartistAlbum(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryAlbumartistAlbum(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3283,6 +3551,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (albumartist, startingIndex, requestedCount))
@@ -3296,7 +3567,7 @@ class MediaServer(object):
             artist = self.runQueryArtist(c, idkeys)
             log.debug('    artist: %s', artist)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryArtistAlbum(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryArtistAlbum(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3306,6 +3577,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (artist, startingIndex, requestedCount))
@@ -3319,7 +3593,7 @@ class MediaServer(object):
             composer = self.runQueryComposer(c, idkeys)
             log.debug('    composer: %s', composer)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryComposerAlbum(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryComposerAlbum(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3329,6 +3603,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (composer, startingIndex, requestedCount))
@@ -3343,7 +3620,7 @@ class MediaServer(object):
             genre = self.runQueryGenre(c, idkeys)
             log.debug('    genre: %s', genre)
             
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryGenreAlbumartist(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreAlbumartist(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3353,6 +3630,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, startingIndex, requestedCount))
@@ -3367,7 +3647,7 @@ class MediaServer(object):
             genre = self.runQueryGenre(c, idkeys)
             log.debug('    genre: %s', genre)
             
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryGenreArtist(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreArtist(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3377,6 +3657,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, startingIndex, requestedCount))
@@ -3395,7 +3678,7 @@ class MediaServer(object):
             log.debug('    genre: %s', genre)
             log.debug('    albumartist: %s', albumartist)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryGenreAlbumartistAlbum(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreAlbumartistAlbum(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3405,6 +3688,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, albumartist, startingIndex, requestedCount))
@@ -3419,7 +3705,7 @@ class MediaServer(object):
             log.debug('    genre: %s', genre)
             log.debug('    artist: %s', artist)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryGenreArtistAlbum(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreArtistAlbum(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3429,6 +3715,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, artist, startingIndex, requestedCount))
@@ -3446,7 +3735,7 @@ class MediaServer(object):
             albumartist = self.runQueryAlbumartist(c, idkeys)
             log.debug('    albumartist: %s', albumartist)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryAlbumartistTrack(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryAlbumartistTrack(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3456,6 +3745,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (albumartist, startingIndex, requestedCount))
@@ -3469,7 +3761,7 @@ class MediaServer(object):
             artist = self.runQueryArtist(c, idkeys)
             log.debug('    artist: %s', artist)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryArtistTrack(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryArtistTrack(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3479,6 +3771,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (artist, startingIndex, requestedCount))
@@ -3492,7 +3787,7 @@ class MediaServer(object):
             composer = self.runQueryComposer(c, idkeys)
             log.debug('    composer: %s', composer)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryComposerTrack(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryComposerTrack(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3502,6 +3797,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (composer, startingIndex, requestedCount))
@@ -3515,7 +3813,7 @@ class MediaServer(object):
             genre = self.runQueryGenre(c, idkeys)
             log.debug('    genre: %s', genre)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryGenreTrack(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreTrack(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3525,6 +3823,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, startingIndex, requestedCount))
@@ -3539,7 +3840,7 @@ class MediaServer(object):
             log.debug('    genre: %s', genre)
             log.debug('    albumartist: %s', albumartist)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryGenreAlbumartistTrack(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreAlbumartistTrack(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3549,6 +3850,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, albumartist, startingIndex, requestedCount))
@@ -3563,7 +3867,7 @@ class MediaServer(object):
             log.debug('    genre: %s', genre)
             log.debug('    artist: %s', artist)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryGenreArtistTrack(searchcontainer, searchstring, sorttype, controllername)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreArtistTrack(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3573,6 +3877,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, artist, startingIndex, requestedCount))
@@ -3592,7 +3899,7 @@ class MediaServer(object):
             log.debug('    album: %s', album)
             log.debug('    albumtype: %s', albumtype)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryAlbumartistAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryAlbumartistAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3606,6 +3913,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -3622,7 +3932,7 @@ class MediaServer(object):
             log.debug('    album: %s', album)
             log.debug('    albumtype: %s', albumtype)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryArtistAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryArtistAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3636,6 +3946,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -3652,7 +3965,7 @@ class MediaServer(object):
             log.debug('    album: %s', album)
             log.debug('    albumtype: %s', albumtype)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryComposerAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryComposerAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3666,6 +3979,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -3683,7 +3999,7 @@ class MediaServer(object):
             log.debug('    album: %s', album)
             log.debug('    albumtype: %s', albumtype)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryGenreAlbumartistAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreAlbumartistAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3697,6 +4013,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -3714,7 +4033,7 @@ class MediaServer(object):
             log.debug('    album: %s', album)
             log.debug('    albumtype: %s', albumtype)
 
-            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype = self.getQueryGenreArtistAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype)
+            countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreArtistAlbumTrack(searchcontainer, searchstring, sorttype, controllername, albumtype)
 
             log.debug("countstatement: %s", countstatement)
             log.debug("orderstatement: %s", orderstatement)
@@ -3728,6 +4047,9 @@ class MediaServer(object):
             matches, = c.fetchone()
             totalMatches = int(matches)
 
+            if rangetype == 'count':
+                totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
+                
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -3761,6 +4083,9 @@ class MediaServer(object):
 
         log.debug("start: %.3f" % time.time())
 
+        # process params
+        ################
+
         controllername = kwargs.get('Controller', '')
         controlleraddress = kwargs.get('Address', '')
         log.debug('Controller: %s' % controllername)
@@ -3790,6 +4115,8 @@ class MediaServer(object):
         startingIndex = int(kwargs['StartingIndex'])
         requestedCount = int(kwargs['RequestedCount'])
 
+        wassearch = kwargs.get('wassearch', False)
+
         # browse can be called under the following scenarios:
         #
         # 1) For a root container
@@ -3809,6 +4136,9 @@ class MediaServer(object):
         #    - idhierarchy will contain a single entry of 'usersearch'
         #    - id passed points to usersearch entry with container details
         #    - searchCriteria contains the search string
+        # 6) For a container further down the hierarchy
+        #    that is the result of a search
+        #    - wassearch is set to True
         #
         # the table to be queried depends on the scenario. Mostly the table
         # is tracks, but playlists and workvirtuals can also be queried.
@@ -3844,8 +4174,12 @@ class MediaServer(object):
         # default where clause
         where = ''
 
+        # process any ALPHA request and exit
+        ####################################
+
         if SMAPI.startswith('!ALPHA'):
             # process alpha request
+            
             field = self.convert_field_name(idhierarchy[0])
             browsetable = self.get_table(field, field)
             alphastatement = self.smapialphastatement % (field, '%s %s group by %s order by %s' % (browsetable, where, field, field))
@@ -3857,6 +4191,9 @@ class MediaServer(object):
             if not self.proxy.db_persist_connection:
                 db.close()
             return ret
+
+        # process hierarchy
+        ###################
 
         # convert keys to integers (except rootname)
         ids = [i if i.startswith('R') else int(i) for i in ids]
@@ -3896,7 +4233,7 @@ class MediaServer(object):
             path_name = '%s_%s' % (rootname, field)
             log.debug('path_name: %s' % path_name)
 
-            # don't process for usersearch, and only for id's (not for containers)
+            # process for id's only (not containers and usersearch)
             if searchcontainer != 'usersearch' and browsebyid:
 
                 if path_name in self.path_index_entries.keys():
@@ -3928,10 +4265,12 @@ class MediaServer(object):
                 prevtitle = title
 
         # process last item in hierarchy
+        ################################
         
         user_index = False
         searchtype = ''
         searchname = ''
+        rangetype = None
         if entry.lower() != 'track':
 
             field = self.convert_field_name(entry)
@@ -4035,7 +4374,7 @@ class MediaServer(object):
                     log.debug("ids: %s" % ids)
 
 #                    sorttype = '%s_%s%s' % (idhierarchy[0], idhierarchy[-1], indexsuffix)
-                    sorttype = self.get_index_key(ids)
+                    sorttype = self.get_index_key(ids, idhierarchy)
                     log.debug("sorttype: %s" % sorttype)
 
                 log.debug(sorttype)
@@ -4104,89 +4443,20 @@ class MediaServer(object):
 
                     # if not search, process any range
 
-                    rangestart, rangeend, units = indexrange
-                    log.debug('rangestart: %s' % rangestart)
-                    log.debug('rangeend: %s' % rangeend)
-                    log.debug('units: %s' % units)
-                    if rangestart != '' or rangeend != '':
-
-                        # have been passed a range for the index
-                        # we need to convert that to a where clause
-                        # and add it to the start of any existing where clause
-
-                        if units == '':
-                            # have start and end of range
-                            pass
-                        elif units in ['days', 'weeks', 'months', 'years']:
-                            # have a date
-                            if rangestart == 'last':
-                                rangelength = int(rangeend) * (-1)
-                                log.debug(rangelength)
-                                rangeenddate = datetime.datetime.now()
-                                log.debug(rangeenddate)
-                                if units == 'days':
-                                    rangestartdate = rangeenddate+datedelta(days=rangelength)
-                                    log.debug(rangestartdate)
-                                elif units == 'weeks':
-                                    rangestartdate = rangeenddate+datedelta(weeks=rangelength)
-                                elif units == 'months':
-                                    rangestartdate = rangeenddate+datedelta(months=rangelength)
-                                elif units == 'years':
-                                    rangestartdate = rangeenddate+datedelta(years=rangelength)
-                            elif rangestart == 'first':
-                                # don't know first date, will have to find it with query - for now use epoch and today
-                                rangestartdate = time.gmtime(0)
-                                rangeenddate = datetime.datetime.now()
-                            else:
-                                # must be a range of dates from last (so we need to swap them round
-                                # so that they are chronological)
-                                rangestart = int(rangestart) * (-1)
-                                rangeend = int(rangeend) * (-1)
-                                now = datetime.datetime.now()
-                                if units == 'days':
-                                    rangestartdate = now+datedelta(days=rangeend)
-                                    rangeenddate = now+datedelta(days=rangestart)
-                                elif units == 'weeks':
-                                    rangestartdate = now+datedelta(weeks=rangeend)
-                                    rangeenddate = now+datedelta(weeks=rangestart)
-                                elif units == 'months':
-                                    rangestartdate = now+datedelta(months=rangeend)
-                                    rangeenddate = now+datedelta(months=rangestart)
-                                elif units == 'years':
-                                    rangestartdate = now+datedelta(years=rangeend)
-                                    rangeenddate = now+datedelta(years=rangestart)
-                            log.debug('rangestartdate: %s' % rangestartdate)
-                            log.debug('rangeenddate: %s' % rangeenddate)
-
-                        # now convert the input so the database understands it
+                    if indexrange:
 
                         if rangefield == '': rangefield = field
 
-                        if rangefield.lower() == 'year':
-                            rangestartyear, dummy = self.get_year_ordinal_range(rangestart)
-                            dummy, rangeendyear = self.get_year_ordinal_range(rangeend)
-                            rangewhere = '%s between %s and %s' % (rangefield, rangestartyear, rangeendyear)
-                        elif rangefield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
-                            rangestartyear = int(time.mktime(rangestartdate.timetuple()))
-                            rangeendyear = int(time.mktime(rangeenddate.timetuple()))
-                            rangewhere = '%s between %s and %s' % (rangefield, rangestartyear, rangeendyear)
-                        else:
-                            rangestartstring = self.translate_dynamic_field(field, rangestart, 'in')
-                            rangeendstring = self.translate_dynamic_field(field, rangeend, 'in')
-                            rangestartstring = escape_sql(rangestartstring)
-                            rangeendstring = escape_sql(rangeendstring)
-                            rangewhere = "%s between '%s' and '%s'" % (rangefield, rangestartstring, rangeendstring)
+                        rangetype, rangewhere = self.format_range(rangefield, indexrange)
+                        
+                        if rangetype == 'where':
 
-                        log.debug('rangewhere: %s' % rangewhere)
-
-                        # and add it to the start of the where clause
-
-                        if where.startswith('where'):
-                            where = 'and %s' % where[5:]
-                        where = 'where %s %s' % (rangewhere, where)
-
-                        log.debug('where: %s' % where)
-
+                            # add it to the start of the where clause
+                            if where.startswith('where'):
+                                where = 'and %s' % where[5:]
+                            where = 'where %s %s' % (rangewhere, where)
+                            log.debug('where: %s' % where)
+                            
                 if searchcontainer and len(searchlist) > 1:
 
                     # multi container search
@@ -4236,6 +4506,8 @@ class MediaServer(object):
                         log.debug(field.lower())
                         if field.lower() == 'title':
                             singlestatement = "select 'track' as recordtype, rowid, id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid, %s from %s %s order by %s" % (selectfield, browsetable, where, orderfield)
+                        elif browsetable == 'tracks':
+                            singlestatement = "select '%s' as recordtype, rowid, '', '', '', '', '', '', '', '', '', '', '', '', folderart, trackart, '', '', '', '', '', folderartid, trackartid, %s from %s %s group by %s order by %s" % (field, selectfield, browsetable, where, groupfield, orderfield)
                         else:
                             singlestatement = "select '%s' as recordtype, rowid, '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', '', %s from %s %s group by %s order by %s" % (field, selectfield, browsetable, where, groupfield, orderfield)
                         log.debug(singlestatement)
@@ -4361,8 +4633,44 @@ class MediaServer(object):
 
             c.execute(countstatement)
             totalMatches, = c.fetchone()
-            log.debug(totalMatches)
+            log.debug('totalMatches: %s' % totalMatches)
 
+            # check if we need to apply a count to the query
+            if rangetype == 'count':
+
+                rangeset, rangecount, units = indexrange
+                # rangeset can be either 'first' or 'last'
+                # rangecount is a number of records to retrieve
+                rangecount = int(rangecount)
+                # units will be 'records'
+
+                # adjust the SQL to limit what we get back
+                # we need to limit the initial (full) result, which may be further 
+                # limited by the requested count
+                
+                # for the count, we'll just limit what was returned
+                originalMatches = totalMatches
+                if totalMatches > rangecount:
+                    totalMatches = rangecount
+                    log.debug('range adjusted count: %s' % totalMatches)
+
+                # for the select, we need to add a bounding limit to the initial
+                # query before applying the existing requested count/startindex
+                
+                # work out bounding limit clause
+                if rangeset == 'first':
+                    limitclause = ' limit %s)' % rangecount
+                elif rangeset == 'last':
+                    limitclause = ' limit %s, %s)' % (originalMatches - rangecount, rangecount)
+                
+                # add outer select
+                statement = 'SELECT * from (%s' % statement
+                
+                # insert outer select limit before call limit
+                statement = statement.replace(' limit ', ' %s limit ' % limitclause)
+
+                log.debug('range adjusted statement: %s' % statement)
+                
             if totalMatches > 0:
 
                 c.execute(statement, (startingIndex, requestedCount))
@@ -4370,6 +4678,7 @@ class MediaServer(object):
                 for row in c:
 
                     log.debug("row: %s", row)
+                    log.debug("keys: %s", row.keys())
 
                     recordtype = row['recordtype']
 #                    log.debug(recordtype)
@@ -4430,12 +4739,69 @@ class MediaServer(object):
                         title = escape(title)
 #                        log.debug(title)
 
-                        if searchcontainer and len(searchlist) > 1:
+
+                        coverres = ''
+
+                        folderart = None if not 'folderart' in row.keys() else row['folderart']
+                        trackart = None if not 'trackart' in row.keys() else row['trackart']
+                        folderartid = None if not 'folderartid' in row.keys() else row['folderartid']
+                        trackartid = None if not 'trackartid' in row.keys() else row['trackartid']
+                        
+                        log.debug('%s, %s, %s, %s' % (folderart, trackart, folderartid, trackartid))
+                        
+                        if folderart or trackart:
+                            cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
+
+
+                            if cover.startswith('EMBEDDED_'):
+                                # art is embedded for this file
+                                coverparts = cover.split('_')
+                                coveroffsets = coverparts[1]
+                                # spec may contain '_'
+                                specstart = len('EMBEDDED_') + len(coveroffsets) + 1
+                                coverspec = cover[specstart:]
+                                cvfile = getFile(coverspec)
+                                cvpath = coverspec
+                                dummycoverfile = self.dbname + '.' + str(artid) + '.coverart'
+                #                log.debug("dummycoverfile: %s", dummycoverfile)
+                #                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                                coverres = self.proxyaddress + '/wmp/' + dummycoverfile
+                #                log.debug("coverres: %s", coverres)
+                                dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath, cover=cover)
+                #                log.debug("dummycoverstaticfile: %s", dummycoverstaticfile)
+                                self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+                #                log.debug("after add_static_file")
+                            elif cover != '':
+                                cvfile = getFile(cover)
+                                cvpath = cover
+                                coverfiletype = getFileType(cvfile)
+                                dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
+                #                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                                coverres = self.proxyaddress + '/wmp/' + dummycoverfile
+                                dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
+                                self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+
+                        log.debug(coverres)
+
+
+
+
+
+                        if searchtype == 'lower':
+
+                            log.debug('itemidprefixes: %s' % itemidprefixes)
+
+                        elif searchtype == 'multi':
+#                        if searchcontainer and len(searchlist) > 1:
                             # if we are processing multiple containers, we need
                             # to set the prefix appropriately
                             rowitemidprefix = itemidprefixes[recordtype]
                         else:
                             rowitemidprefix = itemidprefix
+
+                        # if we are searching, need to capture that for subsequent calls (so they are dynamic too)
+                        if searchcontainer or wassearch:
+                            rowitemidprefix = '%s%s' % ('S', rowitemidprefix)
 
                         itemid = rowid + containerstart
                         itemid = ':'.join(filter(None,(rowitemidprefix, str(itemid))))
@@ -4535,9 +4901,9 @@ class MediaServer(object):
                         filetype = getFileType(filename)
 
                         if SMAPI != '' and self.source == 'SMAPI':
-                            transcode, newtype = checksmapitranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+                            transcode, newtype, ext = checksmapitranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
                             if transcode:
-                                mime = 'audio/mpeg'
+                                mime = getMime(ext)
                         else:
                             transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
                         if transcode:
@@ -4554,14 +4920,47 @@ class MediaServer(object):
                             dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
                             self.proxy.wmpcontroller.add_static_file(dummystaticfile)
 
-                        if cover != '' and not cover.startswith('EMBEDDED_'):
-                            cvfile = getFile(cover)
-                            cvpath = cover
-                            coverfiletype = getFileType(cvfile)
-                            dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
-                            coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
-                            dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
-                            self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+                        if self.source == 'SMAPI':
+
+                            coverres = ''
+                            if cover.startswith('EMBEDDED_'):
+                                # art is embedded for this file
+                                coverparts = cover.split('_')
+                                coveroffsets = coverparts[1]
+                                # spec may contain '_'
+                                specstart = len('EMBEDDED_') + len(coveroffsets) + 1
+                                coverspec = cover[specstart:]
+                                cvfile = getFile(coverspec)
+                                cvpath = coverspec
+                                dummycoverfile = self.dbname + '.' + str(artid) + '.coverart'
+                #                log.debug("dummycoverfile: %s", dummycoverfile)
+                #                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                                coverres = self.proxyaddress + '/wmp/' + dummycoverfile
+                #                log.debug("coverres: %s", coverres)
+                                dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath, cover=cover)
+                #                log.debug("dummycoverstaticfile: %s", dummycoverstaticfile)
+                                self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+                #                log.debug("after add_static_file")
+                            elif cover != '':
+                                cvfile = getFile(cover)
+                                cvpath = cover
+                                coverfiletype = getFileType(cvfile)
+                                dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
+                #                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                                coverres = self.proxyaddress + '/wmp/' + dummycoverfile
+                                dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
+                                self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+
+                        else:
+
+                            if cover != '' and not cover.startswith('EMBEDDED_'):
+                                cvfile = getFile(cover)
+                                cvpath = cover
+                                coverfiletype = getFileType(cvfile)
+                                dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
+                                coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                                dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
+                                self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
 
                         iduration = int(length)
                         duration = maketime(float(length))
@@ -4657,6 +5056,500 @@ class MediaServer(object):
 
 
 
+
+
+
+
+
+
+
+
+
+    def keywordQuery(self, *args, **kwargs):
+
+        # TODO: fix error conditions (return zero)
+        log.debug("Mediaserver.keywordQuery: %s", kwargs)
+
+        log.debug("start: %.3f" % time.time())
+
+        # process params
+        ################
+
+        controllername = kwargs.get('Controller', '')
+        controlleraddress = kwargs.get('Address', '')
+        log.debug('Controller: %s' % controllername)
+        log.debug('Address: %s' % controlleraddress)
+
+        queryID = kwargs.get('QueryID','')
+        log.debug('queryID: %s' % str(queryID))
+        
+        ids = queryID.split(':')
+        log.debug('ids: %s' % ids)
+        
+        term = kwargs.get('term', None)
+        log.debug("term: %s" % term)
+
+        searchfields = kwargs.get('searchfields', None)
+        log.debug("searchfields: %s" % searchfields)
+
+        SMAPI = kwargs.get('SMAPI', '')
+        log.debug('SMAPI: %s' % SMAPI)
+        if SMAPI.startswith('!ALPHA'):
+            idhierarchy = [SMAPI[6:]]
+        else:
+            idhierarchy = SMAPI.split(':')
+        log.debug('idhierarchy: %s' % idhierarchy)
+        idkeys = kwargs.get('idkeys', [])
+        log.debug('idkeys: %s' % idkeys)
+
+        startingIndex = int(kwargs['StartingIndex'])
+        requestedCount = int(kwargs['RequestedCount'])
+
+        wassearch = kwargs.get('wassearch', False)
+
+        # keyword search can be called under the following scenarios:
+        #    TODO:
+
+        # set up return list
+        items = []
+        extras = []
+
+        # set up cursor (note we want to refer to fields by name)
+        if self.proxy.db_persist_connection:
+            db = self.proxy.db
+        else:
+            db = sqlite3.connect(self.dbspec)
+        db.row_factory = sqlite3.Row
+        c = db.cursor()
+
+        # process hierarchy
+        ###################
+
+        # convert keys to integers (except rootname)
+        ids = [i if i.startswith('R') else int(i) for i in ids]
+
+        # ID is always passed prepended with root name
+        rootname, indexkeys = self.get_index_parts(ids)
+        
+        log.debug('rootname: %s' % rootname)
+        log.debug('indexkeys: %s' % indexkeys)
+
+        itemidprefix = rootname
+
+        # process term
+        albumartist = album = track = None
+        termitems = term.split(' ')
+        orderby = ''
+        for subterm in termitems:
+            subterm = subterm.lower()
+            if subterm.startswith('artist='):
+                albumartist = subterm[7:]
+                orderby = ','.join(filter(None,(orderby, 'albumartist')))
+            elif subterm.startswith('albumartist='):
+                albumartist = subterm[12:]
+                orderby = ','.join(filter(None,(orderby, 'albumartist')))
+            if subterm.startswith('album='):
+                album = subterm[6:]
+                orderby = ','.join(filter(None,(orderby, 'album')))
+            if subterm.startswith('track='):
+                track = subterm[6:]
+                orderby = ','.join(filter(None,(orderby, 'title')))
+        log.debug('orderby: %s' % orderby)
+
+        if not albumartist and not album and not track:
+            return items, -2, -2, 'container'
+            
+        log.debug('albumartist=%s, album=%s, track=%s' % (albumartist, album, track))
+        albumartistwhere = '' if not albumartist else "albumartist like '%%%s%%'" % (albumartist)
+        albumwhere = '' if not album else "album like '%%%s%%'" % (album)
+        trackwhere = '' if not track else "title like '%%%s%%'" % (track)
+        where = ' and '.join(filter(None,(albumartistwhere, albumwhere, trackwhere)))
+        log.debug('where: %s' % where)
+
+#        countstatement = "select count(title) from tracks where %s" % (where)
+#        statement = "select 'track' as recordtype, rowid, id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid from tracks where %s order by %s limit ?, ?" % (where, orderby)
+
+        countstatement  = "select sum(total) from ("
+        countstatement += "select count(*) as total from (select title from tracks where %s) '1'" % where
+        countstatement += " union all "
+        countstatement += "select count(*) as total from (select album from tracks where %s group by album) '2'" % where
+        countstatement += " union all "
+        countstatement += "select count(*) as total from (select albumartist from tracks where %s group by albumartist) '3'" % where
+        countstatement += ")"
+        
+        statement  = "select * from (select 'track' as recordtype, rowid, id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid from tracks where %s order by %s) '1'" % (where, orderby)
+        statement += " union all "
+        statement += "select * from (select 'album' as recordtype, rowid, '', '', '', album, '', '', '', '', '', '', '', '', folderart, trackart, '', '', '', '', '', folderartid, trackartid from tracks where %s group by album order by %s) '2'" % (where, orderby)
+        statement += " union all "
+        statement += "select * from (select 'albumartist' as recordtype, rowid, '', '', '', '', '', '', albumartist, '', '', '', '', '', folderart, trackart, '', '', '', '', '', folderartid, trackartid from tracks where %s group by albumartist order by %s) '3'" % (where, orderby)
+        statement += " limit ?, ?"
+
+        log.debug("countstatement: %s", countstatement)
+        log.debug("statement: %s", statement)
+
+        c.execute(countstatement)
+        totalMatches, = c.fetchone()
+        log.debug('totalMatches: %s' % totalMatches)
+
+#        foundalbumartists = []
+#        foundalbumartistalbums = []            
+
+        extraskeydata = {}
+        for searchroot, searchfieldparent, searchfield in searchfields:        
+            extraskeydata['%s:root' % searchfield] = searchroot
+            extraskeydata['%s:parent' % searchfield] = searchfieldparent
+        
+        if totalMatches > 0:
+
+            c.execute(statement, (startingIndex, requestedCount))
+
+            for row in c:
+
+                log.debug("row: %s", row)
+                log.debug("keys: %s", row.keys())
+
+                recordtype = row['recordtype']
+                rowid = row['rowid']
+
+                # field names are taken from first select in union, which varies,
+                # so use positions
+                id = row[2]
+                title = row[3]
+                artist = row[4]
+                album = row[5]
+                genre = row[6]
+                tracknumber = row[7]
+                albumartist = row[8]
+                composer = row[9]
+                codec = row[10]
+                length = row[11]
+                path = row[12]
+                filename = row[13]
+                folderart = row[14]
+                trackart = row[15]
+                bitrate = row[16]
+                samplerate = row[17]
+                bitspersample = row[18]
+                channels = row[19]
+                mime = row[20]
+                folderartid = row[21]
+                trackartid = row[22]
+
+                tracktype = 'T'
+
+                cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
+                
+                if recordtype == 'track':
+
+                    mime = fixMime(mime)
+
+                    wsfile = filename
+                    wspath = os.path.join(path, filename)
+                    path = self.convert_path(path)
+                    filepath = path + filename
+                    filepath = encode_path(filepath)
+                    filepath = escape(filepath, escape_entities)
+                    protocol = getProtocol(mime)
+                    contenttype = mime
+                    filetype = getFileType(filename)
+
+                    if SMAPI != '' and self.source == 'SMAPI':
+                        transcode, newtype, ext = checksmapitranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+                        if transcode:
+                            mime = getMime(ext)
+                    else:
+                        transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
+                    if transcode:
+                        dummyfile = self.dbname + '.' + id + '.' + newtype
+                    else:
+                        dummyfile = self.dbname + '.' + id + '.' + filetype
+                    res = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+                    if transcode:
+                        log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s\ntranscodetype: %s' % (dummyfile, wsfile, wspath, contenttype, newtype))
+                        dummystaticfile = webserver.TranscodedFileSonos(dummyfile, wsfile, wspath, newtype, contenttype, cover=cover)
+                        self.proxy.wmpcontroller.add_transcoded_file(dummystaticfile)
+                    else:
+                        log.debug('\ndummyfile: %s\nwsfile: %s\nwspath: %s\ncontenttype: %s' % (dummyfile, wsfile, wspath, contenttype))
+                        dummystaticfile = webserver.StaticFileSonos(dummyfile, wsfile, wspath, contenttype, cover=cover)
+                        self.proxy.wmpcontroller.add_static_file(dummystaticfile)
+
+                if self.source == 'SMAPI':
+
+                    coverres = ''
+                    if cover.startswith('EMBEDDED_'):
+                        # art is embedded for this file
+                        coverparts = cover.split('_')
+                        coveroffsets = coverparts[1]
+                        # spec may contain '_'
+                        specstart = len('EMBEDDED_') + len(coveroffsets) + 1
+                        coverspec = cover[specstart:]
+                        cvfile = getFile(coverspec)
+                        cvpath = coverspec
+                        dummycoverfile = self.dbname + '.' + str(artid) + '.coverart'
+        #                log.debug("dummycoverfile: %s", dummycoverfile)
+        #                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                        coverres = self.proxyaddress + '/wmp/' + dummycoverfile
+        #                log.debug("coverres: %s", coverres)
+                        dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath, cover=cover)
+        #                log.debug("dummycoverstaticfile: %s", dummycoverstaticfile)
+                        self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+        #                log.debug("after add_static_file")
+                    elif cover != '':
+                        cvfile = getFile(cover)
+                        cvpath = cover
+                        coverfiletype = getFileType(cvfile)
+                        dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
+        #                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                        coverres = self.proxyaddress + '/wmp/' + dummycoverfile
+                        dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
+                        self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+
+                else:
+
+                    if cover != '' and not cover.startswith('EMBEDDED_'):
+                        cvfile = getFile(cover)
+                        cvpath = cover
+                        coverfiletype = getFileType(cvfile)
+                        dummycoverfile = self.dbname + '.' + str(artid) + '.' + coverfiletype
+                        coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
+                        dummycoverstaticfile = webserver.StaticFileSonos(dummycoverfile, cvfile, cvpath)    # TODO: pass contenttype
+                        self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
+
+                if recordtype == 'track':
+                    iduration = int(length)
+                    duration = maketime(float(length))
+                    tracknumber = self.convert_tracknumber(tracknumber)
+
+                if artist == '': artist = '[unknown artist]'
+                if albumartist == '': albumartist = '[unknown albumartist]'
+                if album == '': album = '[unknown album]'
+                if title == '': title = '[unknown title]'
+
+                title = escape(title)
+                artist = escape(artist)
+                albumartist = escape(albumartist)
+                album = escape(album)
+
+#                # save artists/albums encountered
+#                if not albumartist in foundalbumartists:
+#                    foundalbumartists += [albumartist]
+#                    extras += [(rowid, albumartist, 'albumartist')]
+#                if not (albumartist, album) in foundalbumartistalbums:
+#                    foundalbumartistalbums += [(albumartist, album)]
+#                    extras += [(rowid, album, 'album')]
+
+                if cover == '':
+                    coverres = ''
+                elif cover.startswith('EMBEDDED_'):
+                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+
+                # fix WMP urls if necessary
+                res = res.replace(self.webserverurl, self.wmpurl)
+                coverres = coverres.replace(self.webserverurl, self.wmpurl)
+
+                # TODO: fix entry IDs
+#                        full_id = '%s%s__%s_%s_%s__%s' % (tracktype, idhierarchy[0], album_entry_id, artist_entry_id, albumartist_entry_id, str(id))
+
+                if recordtype == 'track':
+
+                    metadatatype = 'track'
+    #                    metadata = (aristId, artist, composerId, composer, \
+    #                                albumId, album, albumArtURI, albumArtistId, \
+    #                                albumArtist, genreId, genre, duration)
+
+
+                    full_id = '%s%s__%s_%s_%s__%s' % (tracktype, idhierarchy[0], 0, 0, 0, str(id))
+
+                    metadata = ('', artist, '', '', \
+                                '', album, coverres, '', \
+                                albumartist, '', '', iduration)
+                    items += [(full_id, title, mime, res, 'track', metadatatype, metadata)]
+
+                else:
+
+                    ekey = 'S%s:%s' % (extraskeydata['%s:root' % recordtype], extraskeydata['%s:parent' % recordtype] + rowid)
+                    if recordtype == 'album':
+                        items += [(ekey, 'AL: %s' % album, None, recordtype)]
+                    else:
+                        items += [(ekey, 'AR: %s' % albumartist, None, recordtype)]
+
+        # sort extras on type then title
+#        extras = sorted(extras, key=itemgetter(2,1))
+#        self.debugout('extras', extras)
+#        # get extras key data
+#        extraskeydata = {}
+#        for searchroot, searchfieldparent, searchfield in searchfields:        
+#            extraskeydata['%s:root' % searchfield] = searchroot
+#            extraskeydata['%s:parent' % searchfield] = searchfieldparent
+#        # post process extras        
+#        for eid, etitle, etype in extras:
+#            ekey = 'S%s:%s' % (extraskeydata['%s:root' % etype], extraskeydata['%s:parent' % etype] + eid)
+#            items += [(ekey, etitle, None, etype)]
+#        totalMatches += len(extras)
+
+        c.close()
+        db.row_factory = None
+        if not self.proxy.db_persist_connection:
+            db.close()
+
+        log.debug("end: %.3f" % time.time())
+
+        if self.source == 'SMAPI':
+
+            if totalMatches == 0:
+                itemtype = 'nothing'    # won't be used
+#            elif len(items[0]) == 2:
+            itemtype = 'container'
+#            else:
+#                itemtype = 'track'
+            return items, totalMatches, startingIndex, itemtype
+            
+
+
+
+
+
+
+
+
+
+
+
+    ###############
+    # query helpers
+    ###############
+
+    def format_range(self, rangefield, indexrange):
+
+        rangestart, rangeend, units = indexrange
+        log.debug('rangestart: %s' % rangestart)
+        log.debug('rangeend: %s' % rangeend)
+        log.debug('units: %s' % units)
+
+        # ignore empty range
+        if rangestart == '' and rangeend == '':
+
+            # range is empty        
+            return None, None
+            
+        # check if it is a count of records
+        if units == 'records':
+        
+            return 'count', None
+        
+        
+        # we need to convert that to a where clause
+        # and add it to the start of any existing where clause
+
+        if units == '':
+            # have start and end of range
+            pass
+        elif units in ['days', 'weeks', 'months', 'years']:
+            # have a date
+            if rangestart == 'last':
+                rangelength = int(rangeend) * (-1)
+                log.debug(rangelength)
+                rangeenddate = datetime.datetime.now()
+                log.debug(rangeenddate)
+                if units == 'days':
+                    rangestartdate = rangeenddate+datedelta(days=rangelength)
+                    log.debug(rangestartdate)
+                elif units == 'weeks':
+                    rangestartdate = rangeenddate+datedelta(weeks=rangelength)
+                elif units == 'months':
+                    rangestartdate = rangeenddate+datedelta(months=rangelength)
+                elif units == 'years':
+                    rangestartdate = rangeenddate+datedelta(years=rangelength)
+            elif rangestart == 'first':
+                # don't know first date, will have to find it with query - for now use epoch and today
+                rangestartdate = time.gmtime(0)
+                rangeenddate = datetime.datetime.now()
+            else:
+                # must be a range of dates from last (so we need to swap them round
+                # so that they are chronological)
+                rangestart = int(rangestart) * (-1)
+                rangeend = int(rangeend) * (-1)
+                now = datetime.datetime.now()
+                if units == 'days':
+                    rangestartdate = now+datedelta(days=rangeend)
+                    rangeenddate = now+datedelta(days=rangestart)
+                elif units == 'weeks':
+                    rangestartdate = now+datedelta(weeks=rangeend)
+                    rangeenddate = now+datedelta(weeks=rangestart)
+                elif units == 'months':
+                    rangestartdate = now+datedelta(months=rangeend)
+                    rangeenddate = now+datedelta(months=rangestart)
+                elif units == 'years':
+                    rangestartdate = now+datedelta(years=rangeend)
+                    rangeenddate = now+datedelta(years=rangestart)
+            log.debug('rangestartdate: %s' % rangestartdate)
+            log.debug('rangeenddate: %s' % rangeenddate)
+
+        # now convert the input so the database understands it
+
+        if rangefield.lower() == 'year':
+            rangestartyear, dummy = self.get_year_ordinal_range(rangestart)
+            dummy, rangeendyear = self.get_year_ordinal_range(rangeend)
+            rangewhere = '%s between %s and %s' % (rangefield, rangestartyear, rangeendyear)
+        elif rangefield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
+            rangestartyear = int(time.mktime(rangestartdate.timetuple()))
+            rangeendyear = int(time.mktime(rangeenddate.timetuple()))
+            rangewhere = '%s between %s and %s' % (rangefield, rangestartyear, rangeendyear)
+        else:
+            rangestartstring = self.translate_dynamic_field(rangefield, rangestart, 'in')
+            rangeendstring = self.translate_dynamic_field(rangefield, rangeend, 'in')
+            rangestartstring = escape_sql(rangestartstring)
+            rangeendstring = escape_sql(rangeendstring)
+            rangewhere = "%s between '%s' and '%s'" % (rangefield, rangestartstring, rangeendstring)
+
+        log.debug('rangewhere: %s' % rangewhere)
+
+        return 'where', rangewhere
+
+    def adjust_for_range(self, rangedetails, totalMatches, orderstatement, alphastatement):
+
+        # rangedetails contains the type and count
+        rangeset, rangecount, units = rangedetails
+        
+        # rangeset can be either 'first' or 'last'
+        # rangecount is a number of records to retrieve
+        # units will be 'records'
+        rangecount = int(rangecount)
+
+        # adjust the SQL to limit what we get back
+        # we need to limit the initial (full) result, which may be further 
+        # limited by the requested count
+        
+        # for the count, we'll just limit what was returned
+        originalMatches = totalMatches
+        if totalMatches > rangecount:
+            totalMatches = rangecount
+            log.debug('range adjusted count: %s' % totalMatches)
+
+        # for the statements we need to add additional limits
+        # work out bounding limit clause
+        if rangeset == 'first':
+            limitclause = ' limit %s)' % rangecount
+        elif rangeset == 'last':
+            limitclause = ' limit %s, %s)' % (originalMatches - rangecount, rangecount)
+
+        # orderstatement
+        if orderstatement != '':
+            # we need to add a bounding limit to the initial query
+            # before applying the existing requested count/startindex
+            # add outer select
+            orderstatement = 'SELECT * from (%s' % orderstatement
+            # insert outer select limit before call limit
+            orderstatement = orderstatement.replace(' limit ', ' %s limit ' % limitclause)
+            log.debug('range adjusted orderstatement: %s' % orderstatement)
+
+        # alphastatement
+        if alphastatement != '':
+            # we need to add a bounding limit to the inner query
+            alphastatement = alphastatement.replace('order by %%s)', 'order by %%s limit %s)' % limitclause)
+            log.debug('range adjusted alphastatement: %s' % alphastatement)
+        
+        return totalMatches, orderstatement, alphastatement
 
     #################    
     # display helpers
@@ -5046,7 +5939,7 @@ class MediaServer(object):
         albumtypes = self.get_possible_albumtypes(sorttype)
         
         # static = sort_order, entry_prefix, entry_suffix, albumtypes
-        default_static_orderby = (orderby, None, None, albumtypes)
+        default_static_orderby = (orderby, None, None, albumtypes, '', ('','',''))
 
         # dynamic = range_field, index_range, sort_order, entry_prefix, entry_suffix, albumtypes
         default_dynamic_orderby = ('', ('','',''), '', '', '', albumtypes)
@@ -5071,10 +5964,10 @@ class MediaServer(object):
             else:
                 namekey = 'proxyname'
 
-            log.debug(self.index_settings)
+#            log.debug(self.index_settings)
             for (index, values) in self.index_settings.iteritems():
-                log.debug(index)
-                log.debug(values)
+#                log.debug(index)
+#                log.debug(values)
                 if sorttype == index and values['active'] == 'y':
                     # precedence is proxy-and-controller/proxy/controller/neither
                     if values[namekey] == self.proxy.proxyname and controller.startswith(values['controller']) and not bothfound:
@@ -5101,7 +5994,9 @@ class MediaServer(object):
                 if dynamic:
                     return (foundvalues['range_field'], foundvalues['index_range'], sort_order, foundvalues['entry_prefix'], foundvalues['entry_suffix'], albumtypes)
                 else:
-                    return (sort_order, foundvalues['entry_prefix'], foundvalues['entry_suffix'], albumtypes)
+                    range_field = foundvalues['range_field']
+                    if range_field == None or range_field == '': range_field = orderby
+                    return (sort_order, foundvalues['entry_prefix'], foundvalues['entry_suffix'], albumtypes, range_field, foundvalues['index_range'])
 
     def static_makepresuffix(self, fix, replace, fixdict, ps):
         EMPTY = '__EMPTY__'
@@ -5200,23 +6095,26 @@ class MediaServer(object):
             indexkeys = idkeys[1:]
         return rootname, indexkeys
 
-    def get_index_key(self, ids):
+    def get_index_key(self, ids, idhierarchy):
 
-        # first facet is rootname
+        # first facet of ids is rootname
         rootname = ids[0]
         keylist = [rootname]
         # add another facet for each path index in the list
         for i in range(len(ids) - 1):
             if ids[i] in self.dynamic_lookup.keys():
                 keylist += [self.dynamic_lookup[ids[i]]]
-        # last facet is index name, if there is one
-        if len(ids) > 1:
-            keylist += [self.hierarchies[rootname][len(ids) - 1]]
-        else:
-            # if not, get first item in list
-            keylist += [self.hierarchies[rootname][0]]
+        # last facet of idhierarchy is index name and position
+        keylist += [idhierarchy[-1]]
+#        # last facet is index name, if there is one
+#        if len(ids) > 2:
+#            keylist += [self.hierarchies[rootname][len(ids) - 2]]
+#        else:
+#            # if not, get first item in list
+#            keylist += [self.hierarchies[rootname][0]]
         return '_'.join(keylist)
 
+    '''
     def get_index(self, idkeys, position, root=None):
         log.debug('idkeys: %s', idkeys)
         log.debug('position: %s', position)
@@ -5237,11 +6135,12 @@ class MediaServer(object):
             parent = self.get_parent(thiskey)
             if parent != int(thiskey): browsebyid = True
         parent = '%s_%s' % (firstkey, parent)
-        browsetype = self.containername[parent]
+        browsetype = self.containername[parent] # FIXME: this is not a valid dict anymore
         return browsetype, browsebyid
 
     def get_parent(self, objectid):
         return self.id_length * int(int(objectid) / self.id_length)
+    '''
 
     def get_table(self, container, field):
         # work out which table is being queried
@@ -5413,14 +6312,20 @@ class MediaServer(object):
         return delim2, delim
 
     def debugout(self, label, data):
+    
+        # note that when logging with debugout, the callers details will be
+        # logger rather than debugout's details (hacked in brisa/log.py)
+    
         if isinstance(data, dict):
-            log.debug('%s:' % (label))
+            dbo = ''
             for k,v in data.iteritems():
-                log.debug('    %s: %s' % (k, v))
+                dbo += '\n\t\t\t\t\t\t\t\t\t\t\t\t%s: %s' % (k, v)
+            log.debug('%s:%s' % (label, dbo))
         elif isinstance(data, (list, tuple, set, frozenset)):
-            log.debug('%s:' % (label))
+            dbo = ''
             for v in data:
-                log.debug('    %s' % repr(v))
+                dbo += '\n\t\t\t\t\t\t\t\t\t\t\t\t%s' % (repr(v))
+            log.debug('%s:%s' % (label, dbo))
         else:
             log.debug('%s: %s' % (label, data))
 
@@ -5480,6 +6385,17 @@ def fixMime(mime):
     elif mime == 'audio/vorbis':
         mime = 'application/ogg'
     elif mime == 'audio/mp3':
+        mime = 'audio/mpeg'
+    elif mime == 'audio/x-ms-wma':
+        mime = 'audio/wma'
+    return mime
+
+def getMime(ext):
+    if ext == 'flac':
+        mime = 'audio/flac'
+    elif ext == 'wav':
+        mime = 'audio/wav'
+    elif ext == 'mp3':
         mime = 'audio/mpeg'
     return mime
 

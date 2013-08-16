@@ -73,42 +73,50 @@ def main():
     config.readfp(StringIO.StringIO(ini))
 
     # get ports to use
-    comms_port = 50103
-    wmp_proxy_port = 10243
+    smapi_port = 50104
     wmp_internal_port = 10244
-    internal_proxy_udn='uuid:5e0fc086-1c37-4648-805c-ec2aba2b0a27'
     try:
-        comms_port = int(config.get('INI', 'comms_port'))
-    except ConfigParser.NoOptionError:
-        pass
-    try:        
-        wmp_proxy_port = int(config.get('INI', 'wmp_proxy_port'))
+        smapi_port = int(config.get('INI', 'smapi_port'))
     except ConfigParser.NoOptionError:
         pass
     try:        
         wmp_internal_port = int(config.get('INI', 'wmp_internal_port'))
     except ConfigParser.NoOptionError:
         pass
-    try:        
-        internal_proxy_udn = config.get('INI', 'internal_proxy_udn')
-    except ConfigParser.NoOptionError:
-        pass
+    print "smapi_port: %s" % smapi_port
+    print "wmp_internal_port: %s" % wmp_internal_port
 
-    proxies = getrunningproxies()
-    if not proxies:
+    proxies = getrunning('proxy')
+    services = getrunning('service')
+    if not proxies and not services:
         print "\npycpoint is not running"
         exit(1)
     print "Proxies: %s" % proxies
+    print "Services: %s" % services
     addresses = getproxyaddresses(proxies, wmp_internal_port)
-    print "Available addresses: %s" % addresses
+
+    proxy_addresses = []
+    service_addresses = []
+    for r in range(0, len(proxies)):
+        proxy_addresses += [(proxies[r], wmp_internal_port + r)]
+    for r in range(0, len(services)):
+        service_addresses += [(services[r], smapi_port + r)]
+    print "Available proxy addresses: %s" % proxy_addresses
+    print "Available service addresses: %s" % service_addresses
 
     if args:
-        newaddresses = []
-        for (proxy, port, udn) in addresses:
+        new_proxy_addresses = []
+        for (proxy, port) in proxy_addresses:
             if proxy in args:
-                newaddresses.append((proxy, port, udn))
-        addresses = newaddresses
-        print "Selected addresses: %s" % addresses
+                new_proxy_addresses.append((proxy, port))
+        proxy_addresses = new_proxy_addresses
+        print "Selected proxy addresses: %s" % proxy_addresses
+        new_service_addresses = []
+        for (service, port) in service_addresses:
+            if service in args:
+                new_service_addresses.append((service, port))
+        service_addresses = new_service_addresses
+        print "Selected service addresses: %s" % service_addresses
 
     invalidate = '%i' % options.invalidate
 
@@ -116,7 +124,8 @@ def main():
         print "\nnothing to do"
 
     if options.proxy:
-        for (proxy, port, udn) in addresses:
+        for (proxy, port) in proxy_addresses:
+            print '**** proxy %s:' % proxy
             hostName = "%s:%s" % (ip_address, port)
             soapret = sendSOAP(hostName,
                                'urn:schemas-upnp-org:service:ContentDirectory:1',
@@ -126,7 +135,8 @@ def main():
             print soapret
 
     if options.smapi:
-        for (proxy, port, udn) in addresses:
+        for (service, port) in service_addresses:
+            print '**** service %s:' % service
             hostName = "%s:%s" % (ip_address, port)
             soapret = sendSOAP(hostName,
                                'http://www.sonos.com/Services/1.1',
@@ -143,7 +153,7 @@ def main():
                 print soapret
 
     
-def getrunningproxies():
+def getrunning(rtype):
 
     devnull = file(os.devnull, 'ab')
 
@@ -166,13 +176,15 @@ def getrunningproxies():
                 stderr=devnull)
         output = p3.stdout.read()
     
-    proxies = []
-    if not output: return proxies
+    running = []
+    if not output: return running
     entries = output.split(' ')
     for entry in entries:
-        if entry.startswith('-wSonospy='):
-            proxies.append(entry[10:].split(',')[0])
-    return proxies
+        if rtype == 'proxy' and entry.startswith('-wSonospy='):
+            running.append(entry[10:].split(',')[0])
+        elif rtype == 'service' and entry.startswith('-sSonospy='):
+            running.append(entry[10:].split(',')[0])
+    return running
 
 def getproxyaddresses(proxies, port):
     port = int(port)
@@ -183,10 +195,11 @@ def getproxyaddresses(proxies, port):
             datastring=urllib.urlopen(uri).read()
         except IOError:
             pass
-        parts = datastring.split('<UDN>')
-        udn = parts[1].split('</UDN>')[0]
-        addresses.append((proxy, port, udn))
-        port += 1
+        else:
+            parts = datastring.split('<UDN>')
+            udn = parts[1].split('</UDN>')[0]
+            addresses.append((proxy, port, udn))
+            port += 1
     return addresses
 
 #Send SOAP request

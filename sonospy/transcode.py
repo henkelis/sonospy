@@ -5,8 +5,11 @@ import codecs
 from brisa.core import log
 
 transcodetable_extension = {'mp2': 'mp3', 'pc': 'wav', 'ac3': 'mp3'}
-smapitranscodetable_extension = {'flac': 'mp3'}
+smapitranscodetable_extension = {'mp2': 'mp3', 'pc': 'wav', 'ac3': 'mp3'}
+#smapitranscodetable_extension = {'flac': 'mp3'}
+#smapitranscodetable_extension = {'flac': 'ogg'}
 transcodetable_resolution = {'flac': ((48000, 16, 2, 'flac'),(48000, 16, 6, 'flac'))} # tuple = samplerate, bitspersample, channels, fileextension
+smapitranscodetable_resolution = {'flac': ((48000, 16, 2, 'flac'),(48000, 16, 6, 'flac'))} # tuple = samplerate, bitspersample, channels, fileextension
 
 alsa_device_file = 'alsa.device'
 alsa_device_script = os.path.join(os.getcwd(), 'getalsa.sh')
@@ -55,13 +58,33 @@ def checksmapitranscode(filetype, bitrate, samplerate, bitspersample, channels, 
 
     transcode = False
     newtype = None
+    ext = None
     
     if filetype.lower() in smapitranscodetable_extension.keys():
     
         transcode = True
         newtype = "%s.%s" % (filetype.lower(), smapitranscodetable_extension[filetype.lower()])
+        ext = smapitranscodetable_extension[filetype.lower()]
         
-    return transcode, newtype
+    elif filetype.lower() in smapitranscodetable_resolution.keys():
+    
+        for entry in smapitranscodetable_resolution[filetype.lower()]:
+            max_samplerate, max_bitspersample, num_channels, res_type = entry
+            log.debug(max_samplerate)
+            log.debug(max_bitspersample)
+            log.debug(num_channels)
+            log.debug(res_type)
+            if int(channels) == num_channels:
+                log.debug(channels)
+                if int(samplerate) > max_samplerate or int(bitspersample) > max_bitspersample:
+                    log.debug(samplerate)
+                    log.debug(bitspersample)
+                    transcode = True
+                    newtype = "%s_%s_%s.%s_%s_%s.%s" % (bitspersample, int(int(samplerate)/1000), channels, max_bitspersample, int(int(max_samplerate)/1000), 2, res_type)
+                    ext = res_type
+                    log.debug(newtype)
+            
+    return transcode, newtype, ext
     
 streams = ['http://', 'rtsp://']
 
@@ -184,6 +207,24 @@ def transcode(inputfile, transcodetype):
                 stderr=devnull)
 
         return p2.stdout
+
+    elif transcodetype == 'flac.ogg':
+        # transcode using flac
+        # flac <inputfile.flac> -d -c --ogg -
+       
+        log.debug(inputfile)
+
+        p1 = subprocess.Popen([
+                "flac",
+                inputfile,
+                "-d",
+                "-c",
+                "--ogg",
+                "-"],
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+
+        return p1.stdout
         
     elif transcodetype == 'flac.wav':
         # transcode using sox

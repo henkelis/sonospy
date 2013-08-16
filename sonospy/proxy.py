@@ -71,7 +71,7 @@ class Proxy(object):
                  mediaserver=None, controlpoint=None, createwebserver=False,
                  webserverurl=None, wmpurl=None, startwmp=False, dbname=None, ininame=None,
                  wmpudn=None, wmpcontroller=None, wmpcontroller2=None,
-                 smapi=False):
+                 wmptype=None):
         '''
         To serve an internal mediaserver, set:
             port = None
@@ -116,7 +116,7 @@ class Proxy(object):
         self.wmpwebserver = None
         self.wmpcontroller = wmpcontroller
         self.wmpcontroller2 = wmpcontroller2
-        self.smapi = smapi
+        self.wmptype = wmptype
 
         self.destmusicaddress = None
         if mediaserver == None:
@@ -229,16 +229,16 @@ class Proxy(object):
         #       causes the controlpoint to receive a duplicate _new_device_event_impl
         #       for the device being proxied
         try:
-            if self.smapi:
-                self.smapiservice = Smapi(self.root_device.location, self, self.webserverurl, self.wmpurl, self.dbspec, self.wmpudn)
+            if self.wmptype == 'Service':
+                self.smapiservice = Smapi(self.root_device.location, self, self.webserverurl, self.wmpurl, self.dbspec, self.wmpudn, self.ininame)
                 self.root_device.add_service(self.smapiservice)
-
-            self.cdservice = ContentDirectory(self.root_device.location, self, self.webserverurl, self.wmpurl, self.dbspec, self.wmpudn, self.ininame)
-            self.root_device.add_service(self.cdservice)
-            self.cmservice = ConnectionManager()
-            self.root_device.add_service(self.cmservice)
-            self.mrservice = X_MS_MediaReceiverRegistrar()
-            self.root_device.add_service(self.mrservice)
+            elif self.wmptype == 'Proxy':
+                self.cdservice = ContentDirectory(self.root_device.location, self, self.webserverurl, self.wmpurl, self.dbspec, self.wmpudn, self.ininame)
+                self.root_device.add_service(self.cdservice)
+                self.cmservice = ConnectionManager()
+                self.root_device.add_service(self.cmservice)
+                self.mrservice = X_MS_MediaReceiverRegistrar()
+                self.root_device.add_service(self.mrservice)
         except: # catch *all* exceptions
             e = sys.exc_info()[0]
             log.debug(e)
@@ -412,7 +412,7 @@ class Smapi(Service):
 #    service_type = 'urn:schemas-upnp-org:service:smapi:1'
     scpd_xml_path = os.path.join(os.getcwd(), 'smapi-scpd.xml')
 
-    def __init__(self, proxyaddress, proxy , webserverurl, wmpurl, dbspec, wmpudn):
+    def __init__(self, proxyaddress, proxy , webserverurl, wmpurl, dbspec, wmpudn, ininame):
 
         self.proxyaddress = proxyaddress
         self.proxy = proxy
@@ -421,6 +421,7 @@ class Smapi(Service):
         self.dbspec = dbspec
         dbpath, self.dbname = os.path.split(dbspec)
         self.wmpudn = wmpudn
+        self.ininame = ininame
 
         # check whether user indexes are enabled
         self.load_user_index_flag()
@@ -428,12 +429,12 @@ class Smapi(Service):
         if not self.user_indexes:
 
             # create MediaServer with default hierarchical ID
-            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'SMAPI', 'HIERARCHY_DEFAULT', self.proxyaddress, self.webserverurl, self.wmpurl)
+            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'SMAPI', 'HIERARCHY_DEFAULT', self.proxyaddress, self.webserverurl, self.wmpurl, self.ininame)
 
         else:
 
             # create MediaServer with user defined hierarchical ID
-            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'SMAPI', 'HIERARCHY', self.proxyaddress, self.webserverurl, self.wmpurl)
+            self.mediaServer = MediaServer(self.proxy, self.dbspec, 'SMAPI', 'HIERARCHY', self.proxyaddress, self.webserverurl, self.wmpurl, self.ininame)
 
         Service.__init__(self, self.service_name, self.service_type, url_base='', scpd_xml_filepath=self.scpd_xml_path)
 
@@ -758,29 +759,62 @@ What do we do if a result is not in alpha order? - spec says it has to be
         canplay = True
         
         if total == 0:
-#                itemid = containerstart + self.id_range
-#                title = self.noitemsfound
-#                itemid = ':'.join(filter(None,(itemidprefix, str(itemid))))
-#                items += [(itemid, title)]
-#                totalMatches = 1
-
-            items = [('NIF', self.mediaServer.noitemsfound)]
-        
-#        if total == 1 and items[0][1] == self.mediaServer.noitemsfound:
             # empty index
+            items = [('NIF', self.mediaServer.noitemsfound)]
             canenumerate = False
             canplay = False
             total = 1
 
+        elif total == -1:
+            # incomplete keyword search
+            items = [('EK', self.mediaServer.enterkeywords)]
+            canenumerate = False
+            canplay = False
+            total = 1
+
+        elif total == -2:
+            # invalid keyword search
+            items = [('IK', self.mediaServer.novalidkeywords)]
+            canenumerate = False
+            canplay = False
+            total = 1
+
+        prevsearchtype = ''
         for item in items:
             id = item[0]
             title = item[1]
+            albumarturi = None
+            if len(item) == 3:
+                albumarturi = item[2]
+            if len(item) == 4:
+                searchtype = item[3]
+                '''
+                if searchtype != prevsearchtype:
+                    prevsearchtype = searchtype
+                    # is a separator
+                    ret += '<ns0:mediaCollection>'
+                    ret += '<ns0:id>%s</ns0:id>' % (id)
+                    ret += '<ns0:title>%s</ns0:title>' % (self.mediaServer.keywordsearchdelimiter % searchtype)
+                    if albumarturi != None:
+                        ret += '<ns0:albumArtURI>%s</ns0:albumArtURI>' % (albumarturi)
+                    ret += '<ns0:itemType>search</ns0:itemType>'
+                    ret += '<ns0:canPlay>%i</ns0:canPlay>' % (False)
+                    ret += '<ns0:canScroll>%i</ns0:canScroll>' % (False)
+                    ret += '<ns0:canEnumerate>%i</ns0:canEnumerate>' % (False)
+                    ret += '</ns0:mediaCollection>'
+                    count += 1
+#                    index += 1
+                    total += 1
+                '''
+             
             count += 1
-            if len(item) == 2:
+            if len(item) == 2 or len(item) == 3 or len(item) == 4:
                 # is a container
                 ret += '<ns0:mediaCollection>'
                 ret += '<ns0:id>%s</ns0:id>' % (id)
                 ret += '<ns0:title>%s</ns0:title>' % (title)
+                if albumarturi != None:
+                    ret += '<ns0:albumArtURI>%s</ns0:albumArtURI>' % (albumarturi)
                 ret += '<ns0:itemType>container</ns0:itemType>'
                 ret += '<ns0:canPlay>%i</ns0:canPlay>' % (canplay)
                 ret += '<ns0:canScroll>%i</ns0:canScroll>' % (canscroll)
@@ -797,6 +831,9 @@ What do we do if a result is not in alpha order? - spec says it has to be
         pre += '<ns0:total>%s</ns0:total>' % (total)
 
         res = '%s%s' % (pre, ret)
+
+        # fix WMP urls if necessary
+        res = res.replace(self.webserverurl, self.wmpurl)
 
         return res
 
@@ -853,6 +890,9 @@ What do we do if a result is not in alpha order? - spec says it has to be
         ret += '<ns0:genre>%s</ns0:genre>' % (genre)
         ret += '<ns0:duration>%s</ns0:duration>' % (duration)
         ret += '</ns0:trackMetadata>'
+
+        # fix WMP urls if necessary
+        ret = ret.replace(self.webserverurl, self.wmpurl)
 
         return ret
 

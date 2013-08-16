@@ -11,6 +11,23 @@ import os
 import logging
 
 from logging import getLogger, Filter
+# hack for nested debugging
+from logging import currentframe
+
+#
+# _srcfile is used when walking the stack to check when we've got the first
+# caller stack frame.
+#
+import sys
+if hasattr(sys, 'frozen'): #support for py2exe
+    _srcfile = "logging%s__init__%s" % (os.sep, __file__[-4:])
+elif __file__[-4:].lower() in ['.pyc', '.pyo']:
+    _srcfile = __file__[:-4] + '.py'
+else:
+    _srcfile = __file__
+_srcfile = os.path.normcase(_srcfile)
+
+
 
 from brisa import __enable_logging__
 from brisa.core import config
@@ -147,6 +164,32 @@ def filtercheck(record):
 
 
 
+def findCaller():
+    """
+    Find the stack frame of the caller so that we can note the source
+    file name, line number and function name.
+    """
+    f = currentframe()
+    #On some versions of IronPython, currentframe() returns None if
+    #IronPython isn't run with -X:Frames.
+    if f is not None:
+        f = f.f_back
+    rv = "(unknown file)", 0, "(unknown function)"
+    while hasattr(f, "f_code"):
+        co = f.f_code
+        filename = os.path.normcase(co.co_filename)
+        if filename == _srcfile:
+            f = f.f_back
+            continue
+        # hack - if using debugout function, find caller of that            
+        if co.co_name == 'debugout':
+            f = f.f_back
+            continue
+        rv = (co.co_filename, f.f_lineno, co.co_name)
+        break
+    return rv
+
+
 
         
 
@@ -178,6 +221,7 @@ def setup_logging():
         root_logger = getLogger('RootLogger')
         root_logger.setLevel(level)
         
+        root_logger.findCaller = findCaller
         
         
 

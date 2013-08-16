@@ -1405,6 +1405,8 @@ def check_port(host, port, timeout=1.0):
 
     Copyright (c) 2002-2008, CherryPy Team (team@cherrypy.org)
     """
+    log.debug('host: %s' % host)
+    log.debug('port: %s' % port)
     if not host:
         raise ValueError("Host values of '' or None are not allowed.")
     host = client_host(host)
