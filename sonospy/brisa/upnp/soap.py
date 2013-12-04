@@ -173,6 +173,8 @@ ws_methods = [
               '{http://www.sonos.com/Services/1.1}getScrollIndicesResponse',
               '{http://www.sonos.com/Services/1.1}getLastUpdateResponse',
               '{http://www.sonos.com/Services/1.1}getMetadataResponse',
+              '{http://www.sonos.com/Services/1.1}getExtendedMetadataResponse',
+              '{http://www.sonos.com/Services/1.1}getExtendedMetadataTextResponse',
               '{http://www.sonos.com/Services/1.1}getMediaMetadataResponse',
               '{http://www.sonos.com/Services/1.1}searchResponse',
              ]

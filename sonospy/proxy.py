@@ -649,6 +649,99 @@ What do we do if a result is not in alpha order? - spec says it has to be
         log.debug("SMAPI_GETMEDIAMETADATA ret: %s\n", result)
         return result
 
+    def soap_getExtendedMetadata(self, *args, **kwargs):
+
+        log.debug("SMAPI_GETEXTENDEDMETADATA: %s", kwargs)
+#        res = self.processExtendedMetadata(kwargs)
+#        res = '''<ns0:mediaMetadata><ns0:id>Talbumartist__0_0_0__7da3dd8d08cc9d3ac60206449cae886e</ns0:id><ns0:title>Eat for Two</ns0:title><ns0:mimeType>audio/mpeg</ns0:mimeType><ns0:itemType>track</ns0:itemType><ns0:trackMetadata><ns0:aristId></ns0:aristId><ns0:artist>10,000 Maniacs</ns0:artist><ns0:composerId></ns0:composerId><ns0:composer></ns0:composer><ns0:albumId></ns0:albumId><ns0:album>Blind Man's Zoo</ns0:album><ns0:albumArtURI>http://192.168.1.71:10243/wmp/chow.29.jpg</ns0:albumArtURI><ns0:albumArtistId></ns0:albumArtistId><ns0:albumArtist>10,000 Maniacs</ns0:albumArtist><ns0:genreId></ns0:genreId><ns0:genre></ns0:genre><ns0:duration>212</ns0:duration></ns0:trackMetadata></ns0:mediaMetadata><ns0:relatedText><ns0:id>Talbumartist__0_0_0__7da3dd8d08cc9d3ac60206449cae886e</ns0:id><ns0:type>ALBUM_NOTES</ns0:type></ns0:relatedText>'''
+
+        id = kwargs['{http://www.sonos.com/Services/1.1}id']
+        log.debug("id: %s" % id)
+        if not id.startswith('T'):
+            ret = u''
+            ret += '<ns0:mediaCollection>'
+            ret += '<ns0:id>%s</ns0:id>' % (id)
+            ret += '<ns0:title>title</ns0:title>'
+            ret += '<ns0:itemType>artist</ns0:itemType>'
+            ret += '<ns0:canPlay>%i</ns0:canPlay>' % (False)
+            ret += '<ns0:canScroll>%i</ns0:canScroll>' % (False)
+            ret += '<ns0:canEnumerate>%i</ns0:canEnumerate>' % (False)
+            ret += '</ns0:mediaCollection>'
+            ret += '<ns0:relatedBrowse>'
+            ret += '<ns0:id>ABCDE</ns0:id>'
+            ret += '<ns0:type>RELATED_ARTISTS</ns0:type>'
+            ret += '</ns0:relatedBrowse>'
+            ret += '<ns0:relatedText>'
+            ret += '<ns0:id>%s</ns0:id>' % (id)
+            ret += '<ns0:type>ARTIST_BIO</ns0:type>'
+            ret += '</ns0:relatedText>'
+            ret += '<ns0:relatedText>'
+            ret += '<ns0:id>%s</ns0:id>' % (id)
+            ret += '<ns0:type>ALBUM_NOTES</ns0:type>'
+            ret += '</ns0:relatedText>'
+            res = ret
+        else:
+
+            res = self.processMediaMetadata('metadata', kwargs)
+            log.debug(res)
+            res = '''<ns0:mediaMetadata><ns0:id>Talbumartist__0_0_0__67346f5465fa836fc3e6acf9e8e46115</ns0:id><ns0:itemType>track</ns0:itemType><ns0:title>Babylon</ns0:title><ns0:mimeType>audio/mpeg</ns0:mimeType><ns0:trackMetadata><ns0:aristId>R8:200000043</ns0:aristId><ns0:artist>David Gray</ns0:artist><ns0:albumId>R8:200000043:300000038</ns0:albumId><ns0:album>Greatest Hits</ns0:album><ns0:albumArtistId>R8:200000043</ns0:albumArtistId><ns0:albumArtist>David Gray</ns0:albumArtist><ns0:duration>217</ns0:duration><ns0:canPlay>true</ns0:canPlay><ns0:canSkip>true</ns0:canSkip><ns0:canAddToFavorites>true</ns0:canAddToFavorites></ns0:trackMetadata></ns0:mediaMetadata><ns0:relatedBrowse><ns0:id>ABCDE</ns0:id><ns0:type>RELATED_ARTISTS</ns0:type></ns0:relatedBrowse><ns0:relatedText><ns0:id>R8:200000043</ns0:id><ns0:type>ARTIST_BIO</ns0:type></ns0:relatedText><ns0:relatedText><ns0:id>R8:200000043:300000038</ns0:id><ns0:type>ALBUM_NOTES</ns0:type></ns0:relatedText>'''
+            res = unicode(res)
+
+
+
+#<ns0:relatedBrowse><ns0:id>ABCDE</ns0:id><ns0:type>RELATED_ARTISTS</ns0:type></ns0:relatedBrowse>
+#<ns0:relatedText><ns0:id>R8:200000043</ns0:id><ns0:type>ARTIST_BIO</ns0:type></ns0:relatedText>
+#<ns0:relatedText><ns0:id>R8:200000043:300000038</ns0:id><ns0:type>ALBUM_NOTES</ns0:type></ns0:relatedText>
+
+        '''
+            ret = u''
+            ret += '<ns0:mediaMetadata>'
+            ret += '<ns0:id>%s</ns0:id>' % (id)
+            ret += '<ns0:title>Eat for Two</ns0:title>'
+            ret += '<ns0:mimeType>audio/mpeg</ns0:mimeType>'
+            ret += '<ns0:itemType>track</ns0:itemType>'
+            ret += '<ns0:trackMetadata>'
+            ret += '<ns0:aristId></ns0:aristId>'
+            ret += '<ns0:artist>artist</ns0:artist>'
+            ret += '<ns0:composerId></ns0:composerId>'
+            ret += '<ns0:composer>composer</ns0:composer>'
+            ret += '<ns0:albumId></ns0:albumId>'
+            ret += '<ns0:album>album</ns0:album>'
+            ret += '<ns0:albumArtURI></ns0:albumArtURI>'
+            ret += '<ns0:albumArtistId></ns0:albumArtistId>'
+            ret += '<ns0:albumArtist>albumartist</ns0:albumArtist>'
+            ret += '<ns0:genreId></ns0:genreId>'
+            ret += '<ns0:genre>genre</ns0:genre>'
+            ret += '<ns0:duration>100</ns0:duration>'
+            ret += '</ns0:trackMetadata>'
+            ret += '</ns0:mediaMetadata>'
+#            ret += '<ns0:relatedBrowse>'
+#            ret += '<ns0:id>ABCDE</ns0:id>'
+#            ret += '<ns0:type>RELATED_ARTISTS</ns0:type>'
+#            ret += '</ns0:relatedBrowse>'
+#            ret += '<ns0:relatedText>'
+#            ret += '<ns0:id>%s</ns0:id>' % (id)
+#            ret += '<ns0:type>ARTIST_BIO</ns0:type>'
+#            ret += '</ns0:relatedText>'
+#            ret += '<ns0:relatedText>'
+#            ret += '<ns0:id>%s</ns0:id>' % (id)
+#            ret += '<ns0:type>ALBUM_NOTES</ns0:type>'
+#            ret += '</ns0:relatedText>'
+            res = ret
+        '''
+        result = {'{http://www.sonos.com/Services/1.1}getExtendedMetadataResult': '%s' % res}
+        log.debug("SMAPI_GETEXTENDEDMETADATA ret: %s\n", result)
+        return result
+
+    def soap_getExtendedMetadataText(self, *args, **kwargs):
+
+        log.debug("SMAPI_GETEXTENDEDMETADATATEXT: %s", kwargs)
+#        res = self.processExtendedMetadataText(kwargs)
+        res = 'This is extended metadata text.\nHopefully it will be displayed on multiple lines.\n.\n.\nEnd.'
+        result = {'{http://www.sonos.com/Services/1.1}getExtendedMetadataTextResult': '%s' % res}
+        log.debug("SMAPI_GETEXTENDEDMETADATATEXT ret: %s\n", result)
+        return result
+
     ####################
     # SMAPI soap helpers
     ####################

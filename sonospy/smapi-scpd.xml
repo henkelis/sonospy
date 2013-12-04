@@ -201,6 +201,61 @@
             </argumentList>
         </action>
         <action>
+            <name>getExtendedMetadata</name>
+            <argumentList>
+                <argument>
+                    <name>Controller</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>controller</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>Address</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>address</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>{http://www.sonos.com/Services/1.1}id</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>id</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>{http://www.sonos.com/Services/1.1}getExtendedMetadataResult</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>getextendedmetadataresult</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+        <action>
+            <name>getExtendedMetadataText</name>
+            <argumentList>
+                <argument>
+                    <name>Controller</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>controller</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>Address</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>address</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>{http://www.sonos.com/Services/1.1}id</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>id</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>{http://www.sonos.com/Services/1.1}type</name>
+                    <direction>in</direction>
+                    <relatedStateVariable>type</relatedStateVariable>
+                </argument>
+                <argument>
+                    <name>{http://www.sonos.com/Services/1.1}getExtendedMetadataTextResult</name>
+                    <direction>out</direction>
+                    <relatedStateVariable>getextendedmetadatatextresult</relatedStateVariable>
+                </argument>
+            </argumentList>
+        </action>
+        <action>
             <name>search</name>
             <argumentList>
                 <argument>
@@ -303,6 +358,10 @@
             <dataType>string</dataType>
         </stateVariable>
         <stateVariable sendEvents="no">
+            <name>type</name>
+            <dataType>string</dataType>
+        </stateVariable>
+        <stateVariable sendEvents="no">
             <name>controller</name>
             <dataType>string</dataType>
         </stateVariable>
@@ -336,6 +395,14 @@
         </stateVariable>
         <stateVariable sendEvents="no">
             <name>getmediametadataresult</name>
+            <dataType>string</dataType>
+        </stateVariable>
+        <stateVariable sendEvents="no">
+            <name>getextendedmetadataresult</name>
+            <dataType>string</dataType>
+        </stateVariable>
+        <stateVariable sendEvents="no">
+            <name>getextendedmetadatatextresult</name>
             <dataType>string</dataType>
         </stateVariable>
         <stateVariable sendEvents="no">

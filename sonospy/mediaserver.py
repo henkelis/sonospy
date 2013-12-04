@@ -138,7 +138,7 @@ class MediaServer(object):
     artist_class = 'object.container.person.musicArtist'
     album_class = 'object.container.album.musicAlbum'
     composer_class = 'object.container.person.musicArtist'
-    genre_class = 'object.container.person.musicArtist'
+    genre_class = 'object.container.genre.musicGenre'
     track_class = 'object.item.audioItem.musicTrack'
     playlist_class = 'object.container.playlistContainer'
 
@@ -4418,6 +4418,7 @@ class MediaServer(object):
                 # is a user defined path index
                 
                 user_index = True
+                recordtype = 'userindex'
                 index_entries = self.path_index_entries[path_name]
                 totalMatches = len(index_entries)
                 rowid = 1
@@ -4677,7 +4678,7 @@ class MediaServer(object):
 
                 for row in c:
 
-                    log.debug("row: %s", row)
+#                    log.debug("row: %s", row)
                     log.debug("keys: %s", row.keys())
 
                     recordtype = row['recordtype']
@@ -5025,7 +5026,24 @@ class MediaServer(object):
                     id, title = entry
                     ret += '<container id="%s" parentID="%s" restricted="true">' % (id, queryID)
                     ret += '<dc:title>%s</dc:title>' % (title)
-                    ret += '<upnp:class>object.container</upnp:class>'
+                    
+                    # recordtype will contain type of last entry - assume all entries are the same type
+                    if recordtype == 'artist':
+                        classtype = 'object.container.person.musicArtist'
+                    elif recordtype == 'albumartist':
+                        classtype = 'object.container.person.musicArtist'
+                    elif recordtype == 'album':
+                        classtype = 'object.container.album.musicAlbum'
+                    elif recordtype == 'composer':
+                        classtype = 'object.container.person.musicArtist'
+                    elif recordtype == 'genre':
+                        classtype = 'object.container.genre.musicGenre'
+                    elif recordtype == 'playlist':
+                        classtype = 'object.container.playlistContainer'
+                    else:
+                        classtype = 'object.container'
+
+                    ret += '<upnp:class>%s</upnp:class>' % (classtype)
                     ret += '</container>'
                     # TODO: cover?
                 else:
