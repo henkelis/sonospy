@@ -4604,8 +4604,12 @@ class MediaServer(object):
 
             # tracks
 
-            sorttype = '%s_%s%s' % (idhierarchy[0], idhierarchy[-1], indexsuffix)
-            log.debug(sorttype)
+#            sorttype = '%s_%s%s' % (idhierarchy[0], idhierarchy[-1], indexsuffix)
+            ids += [self.index_ids[rootname][len(idhierarchy) - 1]]
+            log.debug("ids: %s" % ids)
+            sorttype = self.get_index_key(ids, idhierarchy)
+            log.debug("sorttype: %s" % sorttype)
+
             # get sort data
             rangefield, indexrange, sortorder, entryprefix, entrysuffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=True)
             numprefix = 0
@@ -4862,29 +4866,40 @@ class MediaServer(object):
                         # TODO: other variable fields
 
 #                        log.debug(title)
+#                        log.debug(prefixes)
+#                        log.debug(suffixes)
 #                        log.debug(numprefix)
 #                        log.debug(numsuffix)
 #                        log.debug(prefixstart)
 #                        log.debug(suffixstart)
 #                        log.debug(row.keys())
-                        
+
 #                        if searchtype == 'multi':
-                        if prefixstart < 25:
-                            prefixstart += 25
-                            suffixstart += 25
+                        # TODO - do we need to do anything special for searches?
+                        # TODO - what about playlist fields?
+  
+##                      # Why this?                      
+##                        if prefixstart < 25:
+##                            prefixstart += 25
+##                            suffixstart += 25
                         
                         if numprefix:
 #                            prefixdata = list(row[prefixstart:prefixstart+numprefix])
                             prefixdata = []
-                            for i in range(numprefix):
-                                prefixdata.append(row[prefixstart+i])
+#                            for i in range(numprefix):
+#                                prefixdata.append(row[prefixstart+i])
+                            for k in prefixes:
+                                # TODO: does sqlite3.Row not support unicode field names?
+                                prefixdata.append(row[k.encode('ascii','ignore')])
                             prefix = self.dynamic_makepresuffix(prefixes, self.replace_pre, prefixdata, 'P')
                             if prefix: title = '%s%s' % (prefix, title)
                         if numsuffix:
 #                            suffixdata = list(row[suffixstart:suffixstart+numsuffix])
                             suffixdata = []
-                            for i in range(numsuffix):
-                                suffixdata.append(row[suffixstart+i])
+#                            for i in range(numsuffix):
+#                                suffixdata.append(row[suffixstart+i])
+                            for k in suffixes:
+                                suffixdata.append(row[k.encode('ascii','ignore')])
                             suffix = self.dynamic_makepresuffix(suffixes, self.replace_suf, suffixdata, 'S')
                             if suffix: title = '%s%s' % (title, suffix)
 
