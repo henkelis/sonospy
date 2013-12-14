@@ -4625,6 +4625,33 @@ class MediaServer(object):
                 numsuffix = len(suffixes)
                 suffixstart = 3 + numprefix
 
+
+            # TODO: check whether search processing needs adding from non-tracks section
+
+
+            if not searchcontainer:
+
+                # if not search, process any range
+
+                if indexrange:
+
+                    if rangefield == '': rangefield = field
+
+                    rangetype, rangewhere = self.format_range(rangefield, indexrange)
+                    
+                    if rangetype == 'where':
+
+                        # add it to the start of the where clause
+                        if where.startswith('where'):
+                            where = 'and %s' % where[5:]
+                        where = 'where %s %s' % (rangewhere, where)
+                        log.debug('where: %s' % where)
+
+
+
+
+
+
             countstatement = "select count(title) from %s %s" % (browsetable, where)
             statement = "select 'track' as recordtype, rowid, id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid from %s %s order by discnumber, tracknumber, title limit ?, ?" % (browsetable, where)
             log.debug("countstatement: %s", countstatement)
