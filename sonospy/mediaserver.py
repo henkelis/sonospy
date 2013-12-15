@@ -4648,12 +4648,18 @@ class MediaServer(object):
                         log.debug('where: %s' % where)
 
 
+            selectfield = 'id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid'
+            if numprefix:
+                selectfield += ',' + entryprefix
+            if numsuffix:
+                selectfield += ',' + entrysuffix
 
-
-
-
+            orderfield = 'discnumber, tracknumber, title'
+            if sortorder:
+                orderfield = sortorder
+            
             countstatement = "select count(title) from %s %s" % (browsetable, where)
-            statement = "select 'track' as recordtype, rowid, id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid from %s %s order by discnumber, tracknumber, title limit ?, ?" % (browsetable, where)
+            statement = "select 'track' as recordtype, rowid, %s from %s %s order by %s limit ?, ?" % (selectfield, browsetable, where, orderfield)
             log.debug("countstatement: %s", countstatement)
             log.debug("statement: %s", statement)
 
