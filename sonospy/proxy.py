@@ -89,6 +89,7 @@ class Proxy(object):
         self.proxytype = proxytype
         self.proxytrans = proxytrans
         self.udn = udn
+        self.presentation_map_file = '%s.xml' % self.udn[5:]
         self.config = config
         self.port = port
         self.mediaserver = mediaserver
@@ -256,11 +257,20 @@ class Proxy(object):
         self.wmpcontroller2 = ProxyServerController(self, 'wmp')
         self.wmpwebserver.add_resource(self.wmpcontroller2)
 
+    def _serve_pm_file(self):
+        # serve presentation map XML from Proxy
+        pm_xml_path = os.path.join(os.getcwd(), self.presentation_map_file)
+        log.debug("pm file: %s" % pm_xml_path)
+        pmstaticfile = webserver.StaticFile(self.presentation_map_file, pm_xml_path)
+        self.root_device.webserver.add_static_file(pmstaticfile)
+
     def _load(self):
         self._add_root_device()
         self._add_services()
         if self.startwmp == True:
             self._create_webserver(self.wmpurl)
+            if self.wmptype == 'Service':
+                self._serve_pm_file()
 
     def start(self):
 #        self.stop()

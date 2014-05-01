@@ -162,6 +162,23 @@ class MediaServer(object):
     user_index_key_dict = default_index_key_dict.copy()
     user_index_key_dict.update(range_index_key_dict)
 
+    SMAPI_CanonicalSearchIds = {
+        'albumartist': 'artists',
+        'album': 'albums',
+        'composer': 'composers',
+#        '': 'date',
+        'genre': 'genres',
+#        '': 'hosts',
+#        '': 'location',
+#        '': 'podcasts',
+#        '': 'people',
+        'playlist': 'playlists',
+#        '': 'shows',
+#        '': 'stations',
+#        '': 'tags',
+        'track': 'tracks',
+    }
+
     ######
     # init
     ######
@@ -695,12 +712,17 @@ class MediaServer(object):
         # create search entries for user defined search entries
         # TODO: fix the fixed width of the format strings below
         self.searchitems = []
+        self.pmitems = []
         for searchid, (searchtype, searchname, searchfields) in self.user_search_entries.iteritems():
             if searchtype == 'root':
                 rootid, indexentrystart, indexentrytable = searchfields[0]
-                self.searchitems += [('%s:%09i' % (rootid, indexentrystart), searchname)]
+                searchitemid = '%s:%09i' % (rootid, indexentrystart)
+                self.searchitems += [(searchitemid, searchname)]
+                self.pmitems += [(searchtype, indexentrytable, searchitemid, searchname)]
             else:            
-                self.searchitems += [('R0:%09i' % searchid, searchname)]
+                searchitemid = 'R0:%09i' % searchid
+                self.searchitems += [(searchitemid, searchname)]
+                self.pmitems += [(searchtype, '', searchitemid, searchname)]
 
         if index_type == 'DEFAULT':
             # create search entries for all root entries
@@ -709,9 +731,37 @@ class MediaServer(object):
                 path_name = '%s_%s' % (rootid, firstindex)
                 if path_name not in self.path_index_entries.keys():
                     firstindexstart = self.index_ids[rootid][0]
-                    self.searchitems += [('%s:%09i' % (rootid, firstindexstart), rootname)]
-
+                    searchitemid = '%s:%09i' % (rootid, firstindexstart)
+                    self.searchitems += [(searchitemid, rootname)]
+                    self.pmitems += [('root', firstindex, searchitemid, rootname)]
+                    
         self.debugout('searchitems', self.searchitems)
+        self.debugout('pmitems', self.pmitems)
+
+        # create presentation map XML from search settings, and save to file
+        pm_xml  = '<Presentation>\n'
+        pm_xml += '<PresentationMap type="Search">\n'
+        pm_xml += '<Match>\n'
+        pm_xml += '<SearchCategories>\n'
+
+        for (searchtype, indexentrytable, searchitemid, searchname) in self.pmitems:
+            if searchtype == 'root' and indexentrytable in self.SMAPI_CanonicalSearchIds.keys():
+                pm_xml += '<Category id="%s" mappedId="%s" />\n' % (self.SMAPI_CanonicalSearchIds[indexentrytable], searchitemid)
+            else:
+                pm_xml += '<CustomCategory mappedId="%s" stringId="%s" />\n' % (searchitemid, searchname)
+
+        pm_xml += '</SearchCategories>\n'
+        pm_xml += '</Match>\n'
+        pm_xml += '</PresentationMap>\n'
+        pm_xml += '</Presentation>\n'
+  
+        pm_xml_path = os.path.join(os.getcwd(), self.proxy.presentation_map_file)
+        log.debug("pm file: %s" % pm_xml_path)
+        try:
+            with open(pm_xml_path, 'w+') as f:
+                f.write(str(pm_xml))
+        except IOError:
+            log.debug('Failed to create presentation map file')
 
     def load_hierarchy(self, index_type):
 
@@ -4828,7 +4878,9 @@ class MediaServer(object):
                         if searchtype == 'lower':
 
                             log.debug('itemidprefixes: %s' % itemidprefixes)
-
+                            # TODO - fix this search on lower levels
+                            rowitemidprefix = itemidprefixes[recordtype]
+                            
                         elif searchtype == 'multi':
 #                        if searchcontainer and len(searchlist) > 1:
                             # if we are processing multiple containers, we need

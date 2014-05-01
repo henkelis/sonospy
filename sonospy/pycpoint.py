@@ -752,7 +752,7 @@ Music/Rating                101     object.container
                         service_count += 1
                         # reset service credentials using customsd
                         if self.options.zpip:
-                            post_customsd(self.options.zpip[0], self.smapi_sid, name, ip, port)
+                            post_customsd(self.options.zpip[0], self.smapi_sid, name, ip, port, proxyuuid[5:])
                         self.smapi_sid += 1
                     elif wmptype == 'Proxy':
                         proxy_count += 1

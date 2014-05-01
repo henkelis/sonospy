@@ -3,7 +3,23 @@ import urllib
 import time
 from brisa.core import log
 
-def post_customsd(zpip, sid, servicename, localip, localport):
+def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
+
+    # update presentation map version
+    filename = 'pm.ver'
+    try:
+        with open(filename, 'r+') as f:
+            ver = f.read().strip()
+            if ver == '':
+                ver = 1
+            else:
+                ver = int(ver) + 1
+            f.seek(0)
+            f.write(str(ver))
+    except IOError:
+        with open(filename, 'w+') as f:
+            ver = 1
+            f.write(str(ver))
 
     url = 'http://%s:1400/customsd' % zpip
 
@@ -30,8 +46,8 @@ def post_customsd(zpip, sid, servicename, localip, localport):
                 'authType': 'Anonymous',
 #                'stringsVersion': '0',
 #                'stringsUri': 'file:///home/mark/sonospy/sonospy/strings.xml',
-#                'presentationMapVersion': '0',
-#                'presentationMapUri': 'file:///home/mark/sonospy/sonospy/pm.xml',
+                'presentationMapVersion': '%s' % ver,
+                'presentationMapUri': 'http://%s:%s/%s.xml' % (localip, localport, proxyuuid),
                 'containerType': 'MService',
 #                'caps': ['search', 'trFavorites', 'alFavorites', 'arFavorites', 'extendedMD', 'ucPlaylists']}
                 'caps': ['search', 'trFavorites', 'alFavorites', 'arFavorites', 'ucPlaylists']}
