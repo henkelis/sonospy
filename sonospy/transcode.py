@@ -5,7 +5,7 @@ import codecs
 from brisa.core import log
 
 transcodetable_extension = {'mp2': 'mp3', 'pc': 'wav', 'ac3': 'mp3'}
-smapitranscodetable_extension = {'mp2': 'mp3', 'pc': 'wav', 'ac3': 'mp3'}
+smapitranscodetable_extension = {'mp2': 'mp3', 'pc': 'wav', 'ac3': 'mp3', 'mp4': 'mp3', 'm4a': 'mp3'}
 #smapitranscodetable_extension = {'flac': 'mp3'}
 #smapitranscodetable_extension = {'flac': 'ogg'}
 transcodetable_resolution = {'flac': ((48000, 16, 2, 'flac'),(48000, 16, 6, 'flac'))} # tuple = samplerate, bitspersample, channels, fileextension
@@ -132,6 +132,21 @@ def transcode(inputfile, transcodetype):
                 inputfile,
                 "-acodec", "libmp3lame",
                 "-ab", "320k",
+                "-f", "mp3",
+                "-"],
+                stdout=subprocess.PIPE,
+                stderr=devnull)
+        return sub.stdout
+
+    if transcodetype == 'mp4.mp3' or transcodetype == 'm4a.mp3':
+        # transcode using ffmpeg
+        # ffmpeg -i <inputfile.mp4> -q:a 0 -map a -f mp3 -
+        sub = subprocess.Popen([
+                "ffmpeg",
+                "-i",
+                inputfile,
+                "-q:a", "0",
+                "-map", "a",
                 "-f", "mp3",
                 "-"],
                 stdout=subprocess.PIPE,
