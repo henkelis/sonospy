@@ -1095,13 +1095,21 @@ class MediaServer(object):
 
     def extract_key_value(self, line):
         # extract valid key/value pair
+        # value can include code snippets, which can include '='
         key = value = None
-        entries = line.split('=')
-        if len(entries) == 2:
-            key = entries[0].strip().lower()
+#        entries = line.split('=')
+#        if len(entries) == 2:
+#            key = entries[0].strip().lower()
+#            if key == '': key = None
+#            else:
+#                value = entries[1].strip()
+#                if value == '': value = None
+        equalpos = line.find('=')
+        if equalpos != -1:
+            key = line[:equalpos].strip().lower()
             if key == '': key = None
             else:
-                value = entries[1].strip()
+                value = line[equalpos+1:].strip()
                 if value == '': value = None
         if not key or not value:
             return None, None
@@ -4440,15 +4448,18 @@ class MediaServer(object):
 
                 numprefix = 0
                 prefixstart = 0
-                prefixes = self.split_sql_fields(entryprefix)
+
+                prefixsnippets, prefixlist, prefixstring = self.get_code_snippets(entryprefix)
+#                prefixlist = self.split_sql_fields(entryprefix)
                 if entryprefix != '':
-                    numprefix = len(prefixes)
+                    numprefix = len(prefixlist)
                     prefixstart = 3
                 numsuffix = 0
                 suffixstart = 0
-                suffixes = self.split_sql_fields(entrysuffix)
+                suffixsnippets, suffixlist, suffixstring = self.get_code_snippets(entrysuffix)
+#                suffixlist = self.split_sql_fields(entrysuffix)
                 if entrysuffix != '':
-                    numsuffix = len(suffixes)
+                    numsuffix = len(suffixlist)
                     suffixstart = 3 + numprefix
                 # TODO: albumtype
 
@@ -4456,8 +4467,8 @@ class MediaServer(object):
                     maxfields = numprefix + numsuffix
 
                 # save data for this field
-                metadata.append((rangefield, indexrange, sortorder, entryprefix, entrysuffix, containerstart,
-                                 prefixes, numprefix, prefixstart, suffixes, numsuffix, suffixstart))
+                metadata.append((rangefield, indexrange, sortorder, prefixstring, suffixstring, containerstart,
+                                 prefixlist, numprefix, prefixstart, suffixlist, numsuffix, suffixstart))
                 log.debug(metadata)
 
             log.debug(field)
@@ -4477,10 +4488,10 @@ class MediaServer(object):
                     itemid = ':'.join(filter(None,(itemidprefix, str(itemid))))
 
                     if numprefix:
-                        prefix = self.dynamic_makepresuffix([prefixes[0]], self.replace_pre, [prevtitle], 'P')
+                        prefix = self.dynamic_makepresuffix([prefixsnippets[0]], self.replace_pre, [prevtitle], 'P')
                         if prefix: title = '%s%s' % (prefix, title)
                     if numsuffix:
-                        suffix = self.dynamic_makepresuffix([suffixes[0]], self.replace_suf, [prevtitle], 'S')
+                        suffix = self.dynamic_makepresuffix([suffixsnippets[0]], self.replace_suf, [prevtitle], 'S')
                         if suffix: title = '%s%s' % (title, suffix)
 
                     items += [(itemid, escape(title))]
@@ -4520,14 +4531,14 @@ class MediaServer(object):
                         field = searchitem
                         where = searchwhere
 
-                        rangefield, indexrange, sortorder, entryprefix, entrysuffix, containerstart, \
-                        prefixes, numprefix, prefixstart, suffixes, numsuffix, suffixstart = searchmetadata
+                        rangefield, indexrange, sortorder, prefixstring, suffixstring, containerstart, \
+                        prefixlist, numprefix, prefixstart, suffixlist, numsuffix, suffixstart = searchmetadata
 
                         selectfield = field
                         if numprefix:
-                            selectfield += ',' + entryprefix
+                            selectfield += ',' + prefixstring
                         if numsuffix:
-                            selectfield += ',' + entrysuffix
+                            selectfield += ',' + suffixstring
 
                         # pad out to largest number of fields
                         if numprefix + numsuffix < maxfields:
@@ -4585,9 +4596,9 @@ class MediaServer(object):
                     
                     selectfield = field
                     if numprefix:
-                        selectfield += ',' + entryprefix
+                        selectfield += ',' + prefixstring
                     if numsuffix:
-                        selectfield += ',' + entrysuffix
+                        selectfield += ',' + suffixstring
 
                     groupfield = field
                     if groupfield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
@@ -4664,15 +4675,18 @@ class MediaServer(object):
             rangefield, indexrange, sortorder, entryprefix, entrysuffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=True)
             numprefix = 0
             prefixstart = 0
-            prefixes = self.split_sql_fields(entryprefix)
+            
+            prefixsnippets, prefixlist, prefixstring = self.get_code_snippets(entryprefix)
+#            prefixlist = self.split_sql_fields(entryprefix)
             if entryprefix != '':
-                numprefix = len(prefixes)
+                numprefix = len(prefixlist)
                 prefixstart = 3
             numsuffix = 0
             suffixstart = 0
-            suffixes = self.split_sql_fields(entrysuffix)
+            suffixsnippets, suffixlist, suffixstring = self.get_code_snippets(entrysuffix)
+#            suffixlist = self.split_sql_fields(entrysuffix)
             if entrysuffix != '':
-                numsuffix = len(suffixes)
+                numsuffix = len(suffixlist)
                 suffixstart = 3 + numprefix
 
 
@@ -4700,9 +4714,9 @@ class MediaServer(object):
 
             selectfield = 'id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid'
             if numprefix:
-                selectfield += ',' + entryprefix
+                selectfield += ',' + prefixstring
             if numsuffix:
-                selectfield += ',' + entrysuffix
+                selectfield += ',' + suffixstring
 
             orderfield = 'discnumber, tracknumber, title'
             if sortorder:
@@ -4793,8 +4807,8 @@ class MediaServer(object):
                             else:
                                 pos = 0
 
-                            rangefield, indexrange, sortorder, entryprefix, entrysuffix, containerstart, \
-                            prefixes, numprefix, prefixstart, suffixes, numsuffix, suffixstart = metadata[pos]
+                            rangefield, indexrange, sortorder, prefixstring, suffixstring, containerstart, \
+                            prefixlist, numprefix, prefixstart, suffixlist, numsuffix, suffixstart = metadata[pos]
 #                            log.debug(containerstart)
 
 #                        log.debug(field)
@@ -4814,14 +4828,14 @@ class MediaServer(object):
                             prefixdata = []
                             for i in range(numprefix):
                                 prefixdata.append(row[prefixstart+i])
-                            prefix = self.dynamic_makepresuffix(prefixes, self.replace_pre, prefixdata, 'P')
+                            prefix = self.dynamic_makepresuffix(prefixsnippets, self.replace_pre, prefixdata, 'P')
                             if prefix: title = '%s%s' % (prefix, title)
                         if numsuffix:
     #                        suffixdata = list(row[suffixstart:suffixstart+numsuffix])
                             suffixdata = []
                             for i in range(numsuffix):
                                 suffixdata.append(row[suffixstart+i])
-                            suffix = self.dynamic_makepresuffix(suffixes, self.replace_suf, suffixdata, 'S')
+                            suffix = self.dynamic_makepresuffix(suffixsnippets, self.replace_suf, suffixdata, 'S')
                             if suffix: title = '%s%s' % (title, suffix)
 
                         title = escape(title)
@@ -4951,8 +4965,8 @@ class MediaServer(object):
                         # TODO: other variable fields
 
 #                        log.debug(title)
-#                        log.debug(prefixes)
-#                        log.debug(suffixes)
+#                        log.debug(prefixlist)
+#                        log.debug(suffixlist)
 #                        log.debug(numprefix)
 #                        log.debug(numsuffix)
 #                        log.debug(prefixstart)
@@ -4973,19 +4987,19 @@ class MediaServer(object):
                             prefixdata = []
 #                            for i in range(numprefix):
 #                                prefixdata.append(row[prefixstart+i])
-                            for k in prefixes:
+                            for k in prefixlist:
                                 # TODO: does sqlite3.Row not support unicode field names?
                                 prefixdata.append(row[k.encode('ascii','ignore')])
-                            prefix = self.dynamic_makepresuffix(prefixes, self.replace_pre, prefixdata, 'P')
+                            prefix = self.dynamic_makepresuffix(prefixsnippets, self.replace_pre, prefixdata, 'P')
                             if prefix: title = '%s%s' % (prefix, title)
                         if numsuffix:
 #                            suffixdata = list(row[suffixstart:suffixstart+numsuffix])
                             suffixdata = []
 #                            for i in range(numsuffix):
 #                                suffixdata.append(row[suffixstart+i])
-                            for k in suffixes:
+                            for k in suffixlist:
                                 suffixdata.append(row[k.encode('ascii','ignore')])
-                            suffix = self.dynamic_makepresuffix(suffixes, self.replace_suf, suffixdata, 'S')
+                            suffix = self.dynamic_makepresuffix(suffixsnippets, self.replace_suf, suffixdata, 'S')
                             if suffix: title = '%s%s' % (title, suffix)
 
                         cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
@@ -6120,13 +6134,79 @@ class MediaServer(object):
         EMPTY = '__EMPTY__'
         outfix = ''
         if fix and fix != '':
-            fix = fix.replace(' ', '')
-            fixes = fix.lower().split(',')
-            for fix in fixes:
+        
+            fixes, entries, entrystring = self.get_code_snippets(fix)
+            log.debug('fixes: %s' % fixes)
+            log.debug('entries: %s' % entries)
+            log.debug('entrystring: %s' % entrystring)
+#            fix = fix.replace(' ', '')
+#            fixes = fix.lower().split(',')
+
+            for (fix, snippet) in fixes:
                 if fix in fixdict:
                     data = fixdict[fix]
-                    if fix in ['lastplayed', 'inserted', 'created', 'lastmodified', 'lastscanned']:
+                    if snippet:
                         if data == '':
+                            data = EMPTY
+                    else:
+                        if fix in ['lastplayed', 'inserted', 'created', 'lastmodified', 'lastscanned']:
+                            if data == '':
+                                data = EMPTY
+                            else:
+                                try:
+                                    data = float(data)
+                                    data = time.strftime(self.metadata_date_format, time.gmtime(data))
+                                except TypeError:
+                                    data = EMPTY
+                        elif fix == 'playcount':
+                            if data == '': data = '0'
+                        elif fix == 'year':
+                            if data == '':
+                                data = EMPTY
+                            else:
+                                try:
+                                    data = datetime.date.fromordinal(data).strftime(self.metadata_date_format)
+                                except TypeError:
+                                    data = EMPTY
+                        else:
+                            # other tags just pass through
+                            if data == '': data = EMPTY
+                        
+                    if data == EMPTY and ps == 'P' and self.dont_display_separator_for_empty_prefix == False:
+                        pass
+                    elif data == EMPTY and ps == 'S' and self.dont_display_separator_for_empty_suffix == False:
+                        pass
+                    else:
+                        if data == EMPTY: 
+                            data = self.metadata_empty
+                        else:
+                            if snippet:
+                                log.debug('data before: %s' % data)
+                                log.debug('%s=%s' % (fix, data))
+                                log.debug('data=%s' % snippet)
+                                exec('%s=%s' % (fix, data))
+                                exec('data=%s' % snippet)
+                                log.debug('data after: %s' % data)
+                        outfix += replace % data
+        return outfix
+
+    def dynamic_makepresuffix(self, snippetlist, replace, fixdata, ps):
+        log.debug('snippetlist: %s' % snippetlist)
+#        log.debug(replace)
+#        log.debug(fixdata)
+    
+        EMPTY = '__EMPTY__'
+        outfix = ''
+        if snippetlist and snippetlist != []:
+            fixcount = 0
+            for (fix, snippet) in snippetlist:
+                data = fixdata[fixcount]
+                if snippet:
+                    if data == '':
+                        data = EMPTY
+                else:
+                    if fix in ['lastplayed', 'inserted', 'created', 'lastmodified', 'lastscanned']:
+                        if data == '' or data == 0:
                             data = EMPTY
                         else:
                             try:
@@ -6147,59 +6227,75 @@ class MediaServer(object):
                     else:
                         # other tags just pass through
                         if data == '': data = EMPTY
-                        
-                    if data == EMPTY and ps == 'P' and self.dont_display_separator_for_empty_prefix == False:
-                        pass
-                    elif data == EMPTY and ps == 'S' and self.dont_display_separator_for_empty_suffix == False:
-                        pass
-                    else:
-                        if data == EMPTY: data = self.metadata_empty
-                        outfix += replace % data
-        return outfix
-
-    def dynamic_makepresuffix(self, fixes, replace, fixdata, ps):
-#        log.debug(fixes)
-#        log.debug(replace)
-#        log.debug(fixdata)
-    
-        EMPTY = '__EMPTY__'
-        outfix = ''
-        if fixes and fixes != []:
-            fixcount = 0
-            for fix in fixes:
-                data = fixdata[fixcount]
-                if fix in ['lastplayed', 'inserted', 'created', 'lastmodified', 'lastscanned']:
-                    if data == '' or data == 0:
-                        data = EMPTY
-                    else:
-                        try:
-                            data = float(data)
-                            data = time.strftime(self.metadata_date_format, time.gmtime(data))
-                        except TypeError:
-                            data = EMPTY
-                elif fix == 'playcount':
-                    if data == '': data = '0'
-                elif fix == 'year':
-                    if data == '':
-                        data = EMPTY
-                    else:
-                        try:
-                            data = datetime.date.fromordinal(data).strftime(self.metadata_date_format)
-                        except TypeError:
-                            data = EMPTY
-                else:
-                    # other tags just pass through
-                    if data == '': data = EMPTY
 
                 if data == EMPTY and ps == 'P' and self.dont_display_separator_for_empty_prefix == False:
                     pass
                 elif data == EMPTY and ps == 'S' and self.dont_display_separator_for_empty_suffix == False:
                     pass
                 else:
-                    if data == EMPTY: data = self.metadata_empty
+                    if data == EMPTY: 
+                        data = self.metadata_empty
+                    else:
+                        if snippet:
+                            log.debug('data before: %s' % data)
+                            log.debug('%s=%s' % (fix, data))
+                            log.debug('data=%s' % snippet)
+                            exec('%s=%s' % (fix, data))
+                            exec('data=%s' % snippet)
+                            log.debug('data after: %s' % data)
                     outfix += replace % data
                 fixcount += 1
         return outfix
+
+    def get_code_snippets(self, fix):
+    
+        # entries are separated by comma
+        # code snippets are surrounded by braces
+        # create list of entry/code tuples, list of entries and string of entries
+        # fix = "year, year{year[-2:]}, year{'--' if year == '' else year[-2:]}, year"
+        # snippetlist = [('year', None), ('year', 'year[-2:]'), ('year', "'--' if year == '' else year[-2:]"), ('year', None)]
+        # entrylist = ['year','year','year','year']
+        # entrystring = 'year,year,year,year'
+
+        # add character to start of any code snippet
+        fix = fix.replace('{', '{@')
+
+        # split out code snippets
+        fixlist = re.split('{|}', fix)
+
+        # split out entries
+        fixlist = [f.split(',') if not f.startswith('@') else [f] for f in fixlist]
+
+        # flatten entries
+        fixlist = sum(fixlist,[])
+
+        # remove redundant empty strings
+        fixlist = [f for f in fixlist if f != '']
+
+        # remove redundant whitespace from entries
+        fixlist = [f.lower().strip() if not f.startswith('@') else f for f in fixlist]
+        print fixlist
+
+        # pair entries and code snippets
+        entrylist = []
+        snippetlist = []
+        i = 0
+        while i < len(fixlist):
+            entry = fixlist[i]
+            if len(fixlist) > i+1 and fixlist[i+1].startswith('@'):
+                snippet = fixlist[i+1][1:]
+                i += 1
+            else:
+                snippet = None
+            i += 1
+            entrylist += [entry]
+            snippetlist += [(entry, snippet)]
+
+        log.debug('snippetlist: %s' % snippetlist)
+        log.debug('entrylist: %s' % entrylist)
+        log.debug('entrystring: %s' % ','.join(entrylist))
+
+        return snippetlist, entrylist, ','.join(entrylist)
 
     def get_index_parts(self, idkeys):
         # split root name from keys and return both separately
@@ -6290,6 +6386,7 @@ class MediaServer(object):
     def convert_field_name_back(self, field):
         return self.field_names_back.get(field, field)
 
+    '''
     def split_sql_fields(self, fields):
         count = 0
         out = ''
@@ -6301,6 +6398,7 @@ class MediaServer(object):
             else:
                 out += c
         return out.split('_|_')
+    '''
 
     def translate_dynamic_field(self, field, title, direction):
         if field.lower() == 'year':
