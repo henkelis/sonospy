@@ -4595,11 +4595,14 @@ class MediaServer(object):
 #                    log.debug(sortorder)
                     
                     selectfield = field
+                    
                     if numprefix:
                         selectfield += ',' + prefixstring
                     if numsuffix:
                         selectfield += ',' + suffixstring
 
+                    selectfield = '%s, %s' % (selectfield, 'folderart, trackart, folderartid, trackartid')
+                    
                     groupfield = field
                     if groupfield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
                         groupfield = "date(%s, 'unixepoch')" % groupfield
@@ -4632,7 +4635,7 @@ class MediaServer(object):
                     if browsetable == 'tracks':
 
                         if field.lower() == 'title':
-                        
+
                             if searchtype != '':
                                 countstatement = "select count(%s) from %s %s" % (field, browsetable, where)
                                 statement = "select 'track' as recordtype, rowid, id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid, %s from %s %s order by %s limit ?, ?" % (selectfield, browsetable, where, orderfield)
@@ -4909,7 +4912,7 @@ class MediaServer(object):
 
                         itemid = rowid + containerstart
                         itemid = ':'.join(filter(None,(rowitemidprefix, str(itemid))))
-                        items += [(itemid, title)]
+                        items += [(itemid, title, coverres)]
 
                     else:   # track
 
@@ -5125,7 +5128,7 @@ class MediaServer(object):
 
             if totalMatches == 0:
                 itemtype = 'nothing'    # won't be used
-            elif len(items[0]) == 2:
+            elif len(items[0]) == 2 or len(items[0]) == 3:
                 itemtype = 'container'
             else:
                 itemtype = 'track'
