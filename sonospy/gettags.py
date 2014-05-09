@@ -2,7 +2,7 @@
 
 # gettags.py
 #
-# gettags.py copyright (c) 2010-2013 Mark Henkelis
+# gettags.py copyright (c) 2010-2014 Mark Henkelis
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -51,6 +51,7 @@ errors.catch_errors()
 MULTI_SEPARATOR = '\n'
 fileexclusions = ['.ds_store', 'desktop.ini', 'thumbs.db']
 artextns = ['.jpg', '.bmp', '.png', '.gif']
+tagsextns = ['.ac3']
 #enc = locale.getpreferredencoding()
 enc = sys.getfilesystemencoding()
 
@@ -165,6 +166,8 @@ if work_file_extension == virtual_file_extension:
 else:
     work_virtual_extensions = {work_file_extension: 'work', virtual_file_extension: 'virtual'}
 
+tags_file_extension = '.tags'
+    
 # symlinks
 follow_symlinks = False
 try:        
@@ -178,7 +181,23 @@ except ConfigParser.NoOptionError:
 
 '''
 For the path supplied
-    For tracks
+    For tags files
+        Extract the track files referenced
+        Only process a track file once
+            Reject other references from the same or different tags files
+        For every referenced track
+            For every new file encountered
+                A new record is written to tagsfiles
+                The file is added to the track list
+            For every existing file encountered
+                If there are no changes
+                    The scannumber is tagsfiles is updated
+                Else
+                    The tagsfile record is updated
+                The file is added to the track list
+            For every existing tagsfile record where no file is encountered
+                The tagsfile record is deleted
+    For tracks, and tracks referenced by tags files
         For every new file encountered
             a new record is written to tags
             a blank record is written to tags_update (I, 0)
@@ -273,21 +292,286 @@ def process_dir(scanpath, options, database):
             for ex in options.exclude:
                 if ex in filepath:
                     continue
-        
-        files.sort()
 
+        # check for any .tags files found and expand them
+        tagfiles = []
+        for fn in files:
+            ff, ex = os.path.splitext(fn)
+            if ex.lower() == tags_file_extension:
+                ffn = os.path.join(filepath, fn)
+                success, created, lastmodified, fsize, filler = getfilestat(ffn)
+
+                # check whether file has changed
+                save_tagsfile_tags = None
+                try:
+                    c.execute("""select created, lastmodified from tagsfiles where path=? and filename=?""",
+                                (filepath, fn))
+                    row = c.fetchone()
+                    if not row:
+                        # file is new
+                        save_tagsfile_tags = 'I'
+                    else:
+                        create, lastmod = row
+                        if create == created and lastmod == lastmodified:
+                            # file has not been updated
+                            save_tagsfile_tags = 'S'
+                        else:
+                            # file has been updated
+                            save_tagsfile_tags = 'U'
+                               
+                except sqlite3.Error, e:
+                    errorstring = "Error reading tagsfile record: %s" % e.args[0]
+                    filelog.write_error(errorstring)
+
+                # extract file contents
+                tagfiletracks = read_workvirtualfile(ffn, ex.lower(), filepath, database)
+
+                for tagfile in tagfiletracks:
+
+#                    print "----tagfile---- %s " % str(tagfile)
+
+                    wvnumber, wvfile, wvfilecreated, wvfilelastmodified, plfile, plfilecreated, plfilelastmodified, trackfile, trackfilecreated, trackfilelastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvgenre, wvcover, wvdiscnumber, wvoccurs, wvinserted, wvcreated, wvlastmodified, wvtitlesort, wvalbumsort, wvartistsort, wvalbumartistsort, wvcomposersort, tracktitle, tracklength, wvtracknumber = tagfile
+                    trackfilepath, trackfilename = os.path.split(trackfile)
+                    wvcoverartid = str(get_art_id(c, wvcover))
+                    wvtracknumber = str(wvtracknumber)
+
+                    # tracks can only appear in the database once, unless via a virtual.
+                    # We need to check whether the current track has been created before
+                    # a) in this .tags file (use wvoccurs)
+                    # b) in another .tags file (check database)
+                    # If we find a duplicate skip it
+                    if wvoccurs != 0:
+                        logstring = "Tagsfile track duplicate encountered in this tagsfile, skipping. Track: %s  Tagsfile: %s, %s" % (trackfile, fn, filepath)
+                        filelog.write_verbose_log(logstring)
+                        continue
+                    else:
+                        try:
+                            # get the existing record for this track if it exists
+                            c.execute("""select path, filename from tagsfiles 
+                                         where trackfile=?""",
+                                         (trackfile, ))
+                            crow = c.fetchone()
+                            if crow:
+                                epath, efilename = crow
+                                if epath != filepath or efilename != fn:
+                                    logstring = "Tagsfile track duplicate encountered, skipping. Track: %s  Existing tagsfile: %s, %s  New tagsfile: %s, %s" % (trackfile, efilename, epath, fn, filepath)
+                                    filelog.write_verbose_log(logstring)
+                                    continue
+                        except sqlite3.Error, e:
+                            errorstring = "Error checking overridden file duplicates: %s" % e.args[0]
+                            filelog.write_error(errorstring)
+
+                    currenttime = time.time()
+                    inserted = currenttime
+                    lastscanned = currenttime
+
+                    # process tagsfile tracks if tagsfile is new or updated
+                    # - new tracks to this tagsfile could already exist in database
+                    if save_tagsfile_tags == 'S':
+
+                        save_tagsfile_track_tags = 'S'
+
+                    else:                    
+
+                        # check whether the tags for this track changed
+                        try:
+                            # get the existing record for this file if it exists
+                            c.execute("""select * from tagsfiles 
+                                         where trackfile=?""",
+                                         (trackfile, ))
+                            crow = c.fetchone()
+                            if not crow:
+                                save_tagsfile_track_tags = 'I'
+                            else:
+                                # track exists, get data
+                                o_path, o_filename, \
+                                o_tracknumber, o_tracktitle, \
+                                o_tracklength, o_trackfile, \
+                                o_artist, o_album, o_albumartist, o_composer, \
+                                o_year, o_genre, \
+                                o_coverart, o_coverartid, \
+                                o_discnumber, \
+                                o_titlesort, o_albumsort, o_artistsort, \
+                                o_albumartistsort, o_composersort, \
+                                o_inserted, o_created, o_lastmodified, \
+                                o_scannumber, o_lastscanned = crow
+
+                                # check whether data has changed
+                                # don't check file dates as any change will flag a change
+                                # to a track when it may not have been updated
+                                if o_tracknumber == wvtracknumber and \
+                                   o_tracktitle == tracktitle and \
+                                   o_tracklength == tracklength and \
+                                   o_artist == wvartist and \
+                                   o_album == wvtitle and \
+                                   o_albumartist == wvalbumartist and \
+                                   o_composer == wvcomposer and \
+                                   o_year == wvyear and \
+                                   o_genre == wvgenre and \
+                                   o_coverart == wvcover and \
+                                   o_coverartid == wvcoverartid and \
+                                   o_discnumber == wvdiscnumber and \
+                                   o_titlesort == wvtitlesort and \
+                                   o_albumsort == wvalbumsort and \
+                                   o_artistsort == wvartistsort and \
+                                   o_albumartistsort == wvalbumartistsort and \
+                                   o_composersort == wvcomposersort:
+
+                                    # as data has not changed, just set to flag scan
+                                    save_tagsfile_track_tags = 'S'
+
+                                else:
+                                    # track data exists but has changed
+                                    save_tagsfile_track_tags = 'U'
+
+                        except sqlite3.Error, e:
+                            errorstring = "Error checking overridden file tags: %s" % e.args[0]
+                            filelog.write_error(errorstring)
+
+                    if save_tagsfile_track_tags == 'S':
+
+                        try:
+                            tags = (scannumber, lastscanned, trackfile)
+                            logstring = "UPDATE SCAN DETAILS TAGSFILE TRACK: " + str(tags)
+                            filelog.write_verbose_log(logstring)
+                            
+                            # TODO: check whether we should set created/lastmod too
+                            
+                            c.execute("""update tagsfiles set
+                                         scannumber=?, lastscanned=? 
+                                         where trackfile=?""",
+                                         tags)
+
+                        except sqlite3.Error, e:
+                            errorstring = "Error updating tagsfile scan details: %s" % e.args[0]
+                            filelog.write_error(errorstring)
+
+                    elif save_tagsfile_track_tags == 'U':
+
+                        try:
+                            data = (wvtracknumber, tracktitle, 
+                                    tracklength, 
+                                    wvartist, wvtitle, wvalbumartist, wvcomposer,
+                                    wvyear, wvgenre,
+                                    wvcover, wvcoverartid,
+                                    wvdiscnumber,
+                                    wvtitlesort, wvalbumsort, wvartistsort,
+                                    wvalbumartistsort, wvcomposersort,
+                                    wvfilecreated, wvfilelastmodified,
+                                    scannumber, lastscanned, 
+                                    trackfile)
+                            logstring = "Existing tags file track updated: %s, %s, %s" % (fn, trackfilename, filepath)
+                            filelog.write_log(logstring)
+                            logstring = "UPDATE: " + str(data)
+                            filelog.write_verbose_log(logstring)
+                            c.execute("""update tagsfiles set
+                                         tracknumber=?, tracktitle=?,
+                                         tracklength=?, 
+                                         artist=?, album=?, albumartist=?, composer=?,
+                                         year=?, genre=?,
+                                         cover=?, coverartid=?,
+                                         discnumber=?,
+                                         titlesort=?, albumsort=?, artistsort=?,
+                                         albumartistsort=?, composersort=?,
+                                         created=?, lastmodified=?,
+                                         scannumber=?, lastscanned=? 
+                                         where trackfile=?""",
+                                         data)
+                        except sqlite3.Error, e:
+                            errorstring = "Error updating tagsfile details: %s" % e.args[0]
+                            filelog.write_error(errorstring)
+
+                    else:   # must be 'I'
+
+                        try:
+                            data = (filepath, fn,
+                                    wvtracknumber, tracktitle, 
+                                    tracklength, trackfile, 
+                                    wvartist, wvtitle, wvalbumartist, wvcomposer,
+                                    wvyear, wvgenre,
+                                    wvcover, wvcoverartid,
+                                    wvdiscnumber,
+                                    wvtitlesort, wvalbumsort, wvartistsort,
+                                    wvalbumartistsort, wvcomposersort,
+                                    inserted, wvfilecreated, wvfilelastmodified,
+                                    scannumber, lastscanned)
+                            logstring = "New tagsfile track found: %s, %s, %s" % (fn, trackfilename, filepath)
+                            filelog.write_log(logstring)
+                            logstring = "INSERT: " + str(data)
+                            filelog.write_verbose_log(logstring)
+                            c.execute("""insert into tagsfiles values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", data)
+                        except sqlite3.Error, e:
+                            errorstring = "Error inserting tagsfile details: %s" % e.args[0]
+                            filelog.write_error(errorstring)
+
+                    tagfiles += [tagfile + (save_tagsfile_track_tags,)]
+
+        db.commit()
+
+        # now look for tagfile tracks for this path that we didn't encounter 
+        # - they must have been deleted or moved so delete them
+        try:
+            scanpathlike = "%s%s" % (scanpath, '%')
+            c2.execute("""select rowid, path, filename, trackfile, scannumber from tagsfiles where scannumber != ? and path like ?""",
+                        (scannumber, scanpathlike))
+            for crow in c2:
+                # track exists, get file data
+                o_rowid, o_path, o_filename, o_trackfile, o_s = crow
+                # check if we have matched a partial path
+                if scanpath != o_path:
+                    if o_path[len(scanpath)] != os.sep:
+                        continue
+                # delete record from tagsfiles
+                logstring = "Existing tagsfile file not found: %s, %s, %s" % (o_trackfile, o_filename, o_path)
+                filelog.write_log(logstring)
+                logstring = "DELETE: " + str(crow)
+                filelog.write_verbose_log(logstring)
+                c.execute("""delete from tagsfiles where rowid=?""", (o_rowid,))
+
+        except sqlite3.Error, e:
+            errorstring = "Error processing tagefile track deletions: %s" % e.args[0]
+            filelog.write_error(errorstring)
+
+        db.commit()
+
+        # get any folderart for tracks in this directory
         folderart = get_folderart(files)
         if folderart:
             folderart = os.path.join(filepath, folderart)
 
-        for fn in files:
-            ff, ex = os.path.splitext(fn)
-            if fn.lower() in file_name_exclusions: continue
-            if ex.lower() in playlist_extensions: continue
-            if ex.lower() in work_virtual_extensions: continue
-            if ex.lower() in artextns: continue
-            if ex.lower() in file_extn_exclusions: continue
-            ffn = os.path.join(filepath, fn)
+        files.sort()
+        # add tagfile track entries to files list
+        files += tagfiles
+
+#        print 'files: %s' % files
+
+        for entry in files:
+            
+            if type(entry) is tuple:
+                # have a tagfiles entry rather than a file
+                # - get trackfiles field (the file we are providing tags for)
+                ffn = entry[7]
+                fpath, fn = os.path.split(ffn)
+                ff, ex = os.path.splitext(fn)
+                # get art field (can have different art from folder art for .tags files)
+                folderart = entry[17]
+#                print 'ffn: %s' % ffn
+#                print 'fn: %s' % fn
+#                save_tagsfile_tags = entry[31]
+                
+            else:
+                fn = entry
+                ff, ex = os.path.splitext(fn)
+                if fn.lower() in file_name_exclusions: continue
+                if ex.lower() in playlist_extensions: continue
+                if ex.lower() in work_virtual_extensions: continue
+                if ex.lower() in artextns: continue
+                if ex.lower() in file_extn_exclusions: continue
+                # new two will be processed via tuple entry above
+                if ex.lower() in tagsextns: continue    
+                if ex.lower() == tags_file_extension: continue
+                ffn = os.path.join(filepath, fn)
+                
             if not os.access(ffn, os.R_OK): continue
 
             try:
@@ -300,123 +584,163 @@ def process_dir(scanpath, options, database):
                 success, created, lastmodified, fsize, filler = getfilestat(ffn)
                 
                 get_tags = True
-                # don't process file if it hasn't changed, unless art has been added/changed
-                try:
-                    c.execute("""select created, lastmodified, folderart from tags where path=? and filename=?""",
-                                (filepath, fn))
-                    row = c.fetchone()
-                    if row:
-                        create, lastmod, art = row
-                        if create == created and lastmod == lastmodified and art == folderart:
-                            get_tags = False
-                except sqlite3.Error, e:
-                    errorstring = "Error checking file created: %s" % e.args[0]
-                    filelog.write_error(errorstring)
-
-                if get_tags:                    
                 
+#                print '**** fn: %s' % fn
+                
+                # don't process file if it hasn't changed, unless art has been added/changed
+                if type(entry) is not tuple:
                     try:
-                        kind = File(ffn, easy=True)
-                    except Exception:
-                        # note - Mutagen raises exceptions as various types, including Exception
-                        #        but we shouldn't really use Exception as the lowest common denominator here
-                        etype, value, tb = sys.exc_info()
-                        error = traceback.format_exception_only(etype, value)[0].strip()
-                        errorstring = "Error processing file: %s : %s" % (ffn, error)
+                        c.execute("""select created, lastmodified, folderart from tags where path=? and filename=?""",
+                                    (filepath, fn))
+                        row = c.fetchone()
+                        if row:
+                            create, lastmod, art = row
+                            if create == created and lastmod == lastmodified and art == folderart:
+                                get_tags = False
+                    except sqlite3.Error, e:
+                        errorstring = "Error checking file created: %s" % e.args[0]
                         filelog.write_error(errorstring)
-                        continue
-                        
-                    tags = {}
+
+#                print "get_tags: %s, %s" % (get_tags, fn)
+
+                tags = {}
+                if get_tags:                    
+
                     trackart = None
 
-                    if isinstance(kind, mutagen.flac.FLAC):
-                        if len(kind.pictures) > 0:
-                            trackart_offset, trackart_length = kind.find_picture_offset()
-                            trackart = 'EMBEDDED_%s,%s' % (trackart_offset, trackart_length)
-                        if kind.tags:
-                            tags.update(kind.tags)
-                        # assume these attributes exist (note these will overwrite kind.tags)
-                        tags['type'] = 'FLAC'
-                        tags['length'] = kind.info.length               # seconds
-                        tags['sample_rate'] = kind.info.sample_rate     # Hz
-                        tags['bits_per_sample'] = kind.info.bits_per_sample     # bps
-                        tags['channels'] = kind.info.channels
-                        tags['mime'] = kind.mime[0]
+                    # if tags have been provided separately for a file via .tags, don't try to get tags from track file
+                    if type(entry) is tuple:
 
-                    elif isinstance(kind, mutagen.mp3.EasyMP3):
-                        if kind.tags:
-                            picture, trackart_offset, trackart_length = kind.ID3.getpicture(kind.tags)
+                        # create tags from those read from file
+                        wvnumber, wvfile, wvfilecreated, wvfilelastmodified, plfile, plfilecreated, plfilelastmodified, trackfile, trackfilecreated, trackfilelastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvgenre, wvcover, wvdiscnumber, wvoccurs, wvinserted, wvcreated, wvlastmodified, wvtitlesort, wvalbumsort, wvartistsort, wvalbumartistsort, wvcomposersort, tracktitle, tracklength, tracknumber, save_tagsfile_tags = entry
+
+                        tags['type'] = 'tags'
+                        if tracktitle: tags['title'] = [tracktitle]
+                        if tracklength: tags['length'] = tracklength
+                        if wvtitle: tags['album'] = [wvtitle]
+                        if wvartist: tags['artist'] = [wvartist]
+                        if wvalbumartist: 
+                            tags['albumartist'] = [wvalbumartist]
+                        else:
+                            if wvartist: tags['albumartist'] = [wvartist]
+                        if wvcomposer: tags['composer'] = [wvcomposer]
+                        if wvyear: tags['date'] = [wvyear]
+                        if wvgenre: tags['genre'] = [wvgenre]
+                        if wvcover: tags['folderart'] = wvcover
+                        if wvdiscnumber: tags['discnumber'] = [wvdiscnumber]
+                        if wvtitlesort: tags['titlesort'] = [wvtitlesort]
+                        if wvalbumsort: tags['albumsort'] = [wvalbumsort]
+                        if wvartistsort: tags['artistsort'] = [wvartistsort]
+                        if wvalbumartistsort: tags['albumartistsort'] = [wvalbumartistsort]
+                        if wvcomposersort: tags['composersort'] = [wvcomposersort]
+                        tags['tracknumber'] = [str(tracknumber)]
+
+                        # store the dates for the .tags file, rather than the music file
+#                        created = wvfilecreated
+#                        lastmodified = wvfilelastmodified
+                                
+                    else:
+                
+                        try:
+                            kind = File(ffn, easy=True)
+                        except Exception:
+                            # note - Mutagen raises exceptions as various types, including Exception
+                            #        but we shouldn't really use Exception as the lowest common denominator here
+                            etype, value, tb = sys.exc_info()
+                            error = traceback.format_exception_only(etype, value)[0].strip()
+                            errorstring = "Error processing file: %s : %s" % (ffn, error)
+                            filelog.write_error(errorstring)
+                            continue
+                            
+                        if isinstance(kind, mutagen.flac.FLAC):
+                            if len(kind.pictures) > 0:
+                                trackart_offset, trackart_length = kind.find_picture_offset()
+                                trackart = 'EMBEDDED_%s,%s' % (trackart_offset, trackart_length)
+                            if kind.tags:
+                                tags.update(kind.tags)
+                            # assume these attributes exist (note these will overwrite kind.tags)
+                            tags['type'] = 'FLAC'
+                            tags['length'] = kind.info.length               # seconds
+                            tags['sample_rate'] = kind.info.sample_rate     # Hz
+                            tags['bits_per_sample'] = kind.info.bits_per_sample     # bps
+                            tags['channels'] = kind.info.channels
+                            tags['mime'] = kind.mime[0]
+
+                        elif isinstance(kind, mutagen.mp3.EasyMP3):
+                            if kind.tags:
+                                picture, trackart_offset, trackart_length = kind.ID3.getpicture(kind.tags)
+                                if picture:
+                                    trackart = 'EMBEDDED_%s,%s' % (trackart_offset, trackart_length)
+                                tags.update(kind.tags)
+                                if 'performer' in tags:
+                                    tags['albumartist'] = tags['performer']
+
+                            # assume these attributes exist (note these will overwrite kind.tags)
+                            tags['type'] = 'MPEG %s layer %d' % (kind.info.version, kind.info.layer)
+                            tags['length'] = kind.info.length               # seconds
+                            tags['sample_rate'] = kind.info.sample_rate     # Hz
+                            tags['bitrate'] = kind.info.bitrate             # bps
+                            tags['mime'] = kind.mime[0]
+
+                        elif isinstance(kind, mutagen.easymp4.EasyMP4):
+                            if kind.tags:
+                                tags.update(kind.tags)
+                            # assume these attributes exist (note these will overwrite kind.tags)
+                            tags['type'] = 'MPEG-4 audio'
+                            tags['length'] = kind.info.length               # seconds
+                            tags['sample_rate'] = kind.info.sample_rate     # Hz
+                            tags['bits_per_sample'] = kind.info.bits_per_sample     # bps
+                            tags['channels'] = kind.info.channels
+                            tags['bitrate'] = kind.info.bitrate             # bps
+                            tags['mime'] = kind.mime[0]
+
+                        elif isinstance(kind, mutagen.asf.ASF):
+                            picture, trackart_offset, trackart_length = kind.get_picture()
                             if picture:
                                 trackart = 'EMBEDDED_%s,%s' % (trackart_offset, trackart_length)
-                            tags.update(kind.tags)
-                            if 'performer' in tags:
-                                tags['albumartist'] = tags['performer']
+                            # WMA
+                            if kind.tags:
+                                if u'WM/AlbumTitle' in kind.tags: tags['album'] = [v.__str__() for v in kind.tags[u'WM/AlbumTitle']]
+                                if u'WM/AlbumArtist' in kind.tags: tags['albumartist'] = [v.__str__() for v in kind.tags[u'WM/AlbumArtist']]
+                                if 'Author' in kind.tags: tags['artist'] = [v for v in encodeunicode(kind.tags['Author'])]
+                                if 'Title' in kind.tags: tags['title'] = [v for v in encodeunicode(kind.tags['Title'])]
+                                if u'WM/Genre' in kind.tags: tags['genre'] = [v.__str__() for v in kind.tags[u'WM/Genre']]
+                                if u'WM/TrackNumber' in kind.tags: tags['tracknumber'] = [v.__str__() for v in kind.tags[u'WM/TrackNumber']]
+                                if u'WM/Year' in kind.tags: tags['date'] = [v.__str__() for v in kind.tags[u'WM/Year']]
+                                
+                                if u'WM/TitleSortOrder' in kind.tags: tags['titlesort'] = [v.__str__() for v in kind.tags[u'WM/TitleSortOrder']]
+                                if u'WM/AlbumSortOrder' in kind.tags: tags['albumsort'] = [v.__str__() for v in kind.tags[u'WM/AlbumSortOrder']]
+                                if u'WM/ArtistSortOrder' in kind.tags: tags['artistsort'] = [v.__str__() for v in kind.tags[u'WM/ArtistSortOrder']]
+                                
+                            # assume these attributes exist (note these will overwrite kind.tags)
+                            tags['type'] = 'Windows Media Audio'
+                            tags['length'] = kind.info.length               # seconds
+                            tags['sample_rate'] = kind.info.sample_rate     # Hz
+                            tags['channels'] = kind.info.channels
+                            tags['bitrate'] = kind.info.bitrate             # bps
+                            tags['mime'] = kind.mime[0]
 
-                        # assume these attributes exist (note these will overwrite kind.tags)
-                        tags['type'] = 'MPEG %s layer %d' % (kind.info.version, kind.info.layer)
-                        tags['length'] = kind.info.length               # seconds
-                        tags['sample_rate'] = kind.info.sample_rate     # Hz
-                        tags['bitrate'] = kind.info.bitrate             # bps
-                        tags['mime'] = kind.mime[0]
+                        elif isinstance(kind, mutagen.oggvorbis.OggVorbis):
+                            if kind.tags.sections:
+                                sections = ','.join(str(s) for s in kind.tags.sections)
+                                sections += ',base64flac'
+                                trackart = 'EMBEDDED_%s' % sections
+                                kind.tags['metadata_block_picture'] = 'removed'     # remove from tags as not needed
+                            if kind.tags:
+                                tags.update(kind.tags)
+                            # assume these attributes exist (note these will overwrite kind.tags)
+                            tags['type'] = 'Ogg Vorbis'
+                            tags['length'] = kind.info.length               # seconds
+                            tags['sample_rate'] = kind.info.sample_rate     # Hz
+                            tags['bitrate'] = kind.info.bitrate             # bps
+                            tags['mime'] = kind.mime[0]
 
-                    elif isinstance(kind, mutagen.easymp4.EasyMP4):
-                        if kind.tags:
-                            tags.update(kind.tags)
-                        # assume these attributes exist (note these will overwrite kind.tags)
-                        tags['type'] = 'MPEG-4 audio'
-                        tags['length'] = kind.info.length               # seconds
-                        tags['sample_rate'] = kind.info.sample_rate     # Hz
-                        tags['bits_per_sample'] = kind.info.bits_per_sample     # bps
-                        tags['channels'] = kind.info.channels
-                        tags['bitrate'] = kind.info.bitrate             # bps
-                        tags['mime'] = kind.mime[0]
-
-                    elif isinstance(kind, mutagen.asf.ASF):
-                        picture, trackart_offset, trackart_length = kind.get_picture()
-                        if picture:
-                            trackart = 'EMBEDDED_%s,%s' % (trackart_offset, trackart_length)
-                        # WMA
-                        if kind.tags:
-                            if u'WM/AlbumTitle' in kind.tags: tags['album'] = [v.__str__() for v in kind.tags[u'WM/AlbumTitle']]
-                            if u'WM/AlbumArtist' in kind.tags: tags['albumartist'] = [v.__str__() for v in kind.tags[u'WM/AlbumArtist']]
-                            if 'Author' in kind.tags: tags['artist'] = [v for v in encodeunicode(kind.tags['Author'])]
-                            if 'Title' in kind.tags: tags['title'] = [v for v in encodeunicode(kind.tags['Title'])]
-                            if u'WM/Genre' in kind.tags: tags['genre'] = [v.__str__() for v in kind.tags[u'WM/Genre']]
-                            if u'WM/TrackNumber' in kind.tags: tags['tracknumber'] = [v.__str__() for v in kind.tags[u'WM/TrackNumber']]
-                            if u'WM/Year' in kind.tags: tags['date'] = [v.__str__() for v in kind.tags[u'WM/Year']]
-                            
-                            if u'WM/TitleSortOrder' in kind.tags: tags['titlesort'] = [v.__str__() for v in kind.tags[u'WM/TitleSortOrder']]
-                            if u'WM/AlbumSortOrder' in kind.tags: tags['albumsort'] = [v.__str__() for v in kind.tags[u'WM/AlbumSortOrder']]
-                            if u'WM/ArtistSortOrder' in kind.tags: tags['artistsort'] = [v.__str__() for v in kind.tags[u'WM/ArtistSortOrder']]
-                            
-                        # assume these attributes exist (note these will overwrite kind.tags)
-                        tags['type'] = 'Windows Media Audio'
-                        tags['length'] = kind.info.length               # seconds
-                        tags['sample_rate'] = kind.info.sample_rate     # Hz
-                        tags['channels'] = kind.info.channels
-                        tags['bitrate'] = kind.info.bitrate             # bps
-                        tags['mime'] = kind.mime[0]
-
-                    elif isinstance(kind, mutagen.oggvorbis.OggVorbis):
-                        if kind.tags.sections:
-                            sections = ','.join(str(s) for s in kind.tags.sections)
-                            sections += ',base64flac'
-                            trackart = 'EMBEDDED_%s' % sections
-                            kind.tags['metadata_block_picture'] = 'removed'     # remove from tags as not needed
-                        if kind.tags:
-                            tags.update(kind.tags)
-                        # assume these attributes exist (note these will overwrite kind.tags)
-                        tags['type'] = 'Ogg Vorbis'
-                        tags['length'] = kind.info.length               # seconds
-                        tags['sample_rate'] = kind.info.sample_rate     # Hz
-                        tags['bitrate'] = kind.info.bitrate             # bps
-                        tags['mime'] = kind.mime[0]
-
-                    else:
-                        logstring = "Filetype not catered for: %s" % ffn
-                        filelog.write_verbose_log(logstring)
+                        else:
+                            if not ex.lower() in tagsextns and not ex.lower() == tags_file_extension:
+                                logstring = "Filetype not catered for: %s" % ffn
+                                filelog.write_verbose_log(logstring)
                         
-                    if tags:
+                    if any(tags):
                         logstring = tags
                         filelog.write_verbose_log(logstring)
 
@@ -445,7 +769,7 @@ def process_dir(scanpath, options, database):
                         composersort = MULTI_SEPARATOR.join(tags.get('composersort', ''))
 
                         codec = tags['type']
-                        length = int(tags['length'])
+                        length = tags.get('length', 0)
                         size = fsize
                         path = filepath
                         filename = fn
@@ -453,29 +777,137 @@ def process_dir(scanpath, options, database):
                         comment = MULTI_SEPARATOR.join(tags.get('comment', ''))
                         folderartid = None
                         if folderart:
-                            folderartid = get_art_id(c, folderart)
+                            folderartid = str(get_art_id(c, folderart))
                         trackartid = None
                         if trackart:
                             trackspec = os.path.join(path, filename)
                             trackart = '%s_%s' % (trackart, trackspec)         
-                            trackartid = get_art_id(c, trackspec)
-                        bitrate = tags['bitrate'] if 'bitrate' in tags.keys() else ''
-                        bitspersample = tags['bits_per_sample'] if 'bits_per_sample' in tags.keys() else ''
-                        channels = tags['channels'] if 'channels' in tags.keys() else ''
-                        samplerate = tags['sample_rate'] if 'sample_rate' in tags.keys() else ''
-                        mime = tags['mime']
-                
+                            trackartid = str(get_art_id(c, trackspec))
+                        bitrate = tags.get('bitrate', '')
+                        bitspersample = tags.get('bits_per_sample', '')
+                        channels = tags.get('channels', '')
+                        samplerate = tags.get('sample_rate', '')
+                        mime = tags.get('mime', '')
+                                        
                 currenttime = time.time()
                 inserted = currenttime
                 lastscanned = currenttime
 
-                # if we didn't get tags, nothing has changed so we just want to update the scannumber to show we processed the file
+                # if we got tags from a music file, process duplicates if appropriate
+                # (don't process duplicates for .tags file entries
+                if any(tags) and type(entry) is not tuple:
+                    
+                    try:
+                        # check if there is an existing record for these tags if appropriate
+                        if ignore_duplicate_tracks == 'y':
+#                            c.execute("""select path, filename, mime from tags where title=? and album=? and artist=? and track=?""",
+                            c.execute("""select path, filename, mime from tags where title=? collate NOCASE and album=? collate NOCASE and artist=? collate NOCASE and track=?""",
+                                        (title, album, artist, str(track)))
+                            crow = c.fetchone()
+                            if crow:
+                                duppath, dupfilename, dupmime = crow
+                                # check that we haven't just found the track we're processing
+                                if duppath != path or dupfilename != filename:
+                                    # check if the file referred to by the existing record still exists
+                                    dupspec = os.path.join(duppath, dupfilename)
+                                    if os.access(dupspec, os.R_OK):
+                                        # check if the track we are processing has precedence
+                                        try:
+                                            old_prec = mime_precedence.index(dupmime)
+                                        except ValueError:
+                                            # not found, set precedence to high values - 1
+                                            old_prec = 998
+                                        try:
+                                            new_prec = mime_precedence.index(mime)
+                                        except ValueError:
+                                            # not found, set precedence to high values
+                                            new_prec = 999
+                                        if old_prec <= new_prec:
+                                            # ignore the record we are processing
+                                            continue
+                                        # at this point we have a duplicate that needs to replace an existing track
+                                        # we need to delete the old record
+                                        try:
+                                            c.execute("""select * from tags where path=? and filename=?""", (duppath, dupfilename))
+                                            crow = c.fetchone()
+
+                                            # get data
+                                            o_id, o_id2, o_title, o_artist, o_album, \
+                                            o_genre, o_track, o_year, \
+                                            o_albumartist, o_composer, o_codec,  \
+                                            o_length, o_size,  \
+                                            o_created, o_path, o_filename,  \
+                                            o_discnumber, o_comment,  \
+                                            o_folderart, o_trackart,  \
+                                            o_bitrate, o_samplerate,  \
+                                            o_bitspersample, o_channels, o_mime,  \
+                                            o_lastmodified, o_scannumber,  \
+                                            o_folderartid, o_trackartid,  \
+                                            o_inserted, o_lastscanned, \
+                                            o_titlesort, o_albumsort, o_artistsort, \
+                                            o_albumartistsort, o_composersort = crow
+                                            # create audit records
+                                            tags = (o_id, o_id2,
+                                                    o_title, o_artist, o_album,
+                                                    o_genre, o_track, o_year,
+                                                    o_albumartist, o_composer, o_codec, 
+                                                    o_length, o_size, 
+                                                    o_created, o_path, o_filename, 
+                                                    o_discnumber, o_comment, 
+                                                    o_folderart, o_trackart, 
+                                                    o_bitrate, o_samplerate, 
+                                                    o_bitspersample, o_channels, o_mime, 
+                                                    o_lastmodified, scannumber,
+                                                    o_folderartid, o_trackartid,
+                                                    o_inserted, o_lastscanned,
+                                                    o_titlesort, o_albumsort, o_artistsort, 
+                                                    o_albumartistsort, o_composersort)
+                                            # check whether the duplicate we are deleting was created on this scan
+                                            dupauditdelete = True
+                                            c.execute("""select updatetype from tags_update where id=? and scannumber=?""", (o_id, scannumber))
+                                            crow = c.fetchone()
+                                            if crow:
+                                                dupupdatetype, = crow
+                                                if dupupdatetype == 'I':
+                                                    # the duplicate we are deleting was created this scan,
+                                                    # so we should not create audit records for a delete
+                                                    dupauditdelete = False
+                                            # delete any outstanding audit records for this scan
+                                            c.execute("""delete from tags_update where id=? and scannumber=?""", (o_id, scannumber))
+                                            if dupauditdelete:
+                                                # pre
+                                                dtags = tags + (0, 'D')
+                                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
+                                                # post
+                                                dtags = cleartags(tags, lastscanned=lastscanned)
+                                                dtags += (1, 'D')
+                                                c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
+                                            # delete record from tags
+                                            logstring = "Duplicate file replaced: %s, %s" % (o_filename, o_path)
+                                            filelog.write_log(logstring)
+                                            logstring = "DELETE: " + str(tags)
+                                            filelog.write_verbose_log(logstring)
+                                            c.execute("""delete from tags where id=?""", (o_id,))
+
+                                        except sqlite3.Error, e:
+                                            errorstring = "Error processing duplicate deletion: %s" % e.args[0]
+                                            filelog.write_error(errorstring)
+
+                    except sqlite3.Error, e:
+                        errorstring = "Error checking duplicate deletion: %s" % e.args[0]
+                        filelog.write_error(errorstring)
+
+                # if we didn't get tags, nothing has changed so we just want to update the 
+                # scannumber to show we processed the file
+                # for a separate tags file, we stored a flag to show if anything changed for this track
                 # (record must exist as we found it earlier)
-                if not get_tags:
+                
+                if not get_tags or \
+                   (type(entry) is tuple and save_tagsfile_tags == 'S'):
                     try:
                         tags = (scannumber, lastscanned,
                                 filepath, fn)
-                        logstring = "UPDATE SCAN DETAILS: " + str(tags)
+                        logstring = "UPDATE SCAN DETAILS TRACK: " + str(tags)
                         filelog.write_verbose_log(logstring)
                         c.execute("""update tags set
                                      scannumber=?, lastscanned=? 
@@ -484,109 +916,18 @@ def process_dir(scanpath, options, database):
                     except sqlite3.Error, e:
                         errorstring = "Error updating file scan details: %s" % e.args[0]
                         filelog.write_error(errorstring)
+                        
                 else:
                     # if we can process this filetype
                     if tags:
                         # we got tags as either:
                         #   the file timestamp changed (so the record exists)
                         #   the cover changed (so the record exists)
+                        #   the tagsfile record for this track changed (so the record exists)
                         #   it's a new file (so the record doesn't exist)
+                        #   it's a new tagsfile record (so the record doesn't exist)
                         
                         try:
-                            # check if there is an existing record for these tags if appropriate
-                            if ignore_duplicate_tracks == 'y':
-#                                c.execute("""select path, filename, mime from tags where title=? and album=? and artist=? and track=?""",
-                                c.execute("""select path, filename, mime from tags where title=? collate NOCASE and album=? collate NOCASE and artist=? collate NOCASE and track=?""",
-                                            (title, album, artist, str(track)))
-                                crow = c.fetchone()
-                                if crow:
-                                    duppath, dupfilename, dupmime = crow
-                                    # check that we haven't just found the track we're processing
-                                    if duppath != path or dupfilename != filename:
-                                        # check if the file referred to by the existing record still exists
-                                        dupspec = os.path.join(duppath, dupfilename)
-                                        if os.access(dupspec, os.R_OK):
-                                            # check if the track we are processing has precedence
-                                            try:
-                                                old_prec = mime_precedence.index(dupmime)
-                                            except ValueError:
-                                                # not found, set precedence to high values - 1
-                                                old_prec = 998
-                                            try:
-                                                new_prec = mime_precedence.index(mime)
-                                            except ValueError:
-                                                # not found, set precedence to high values
-                                                new_prec = 999
-                                            if old_prec <= new_prec:
-                                                # ignore the record we are processing
-                                                continue
-                                            # at this point we have a duplicate that needs to replace an existing track
-                                            # we need to delete the old record
-                                            try:
-                                                c.execute("""select * from tags where path=? and filename=?""", (duppath, dupfilename))
-                                                crow = c.fetchone()
-
-                                                # get data
-                                                o_id, o_id2, o_title, o_artist, o_album, \
-                                                o_genre, o_track, o_year, \
-                                                o_albumartist, o_composer, o_codec,  \
-                                                o_length, o_size,  \
-                                                o_created, o_path, o_filename,  \
-                                                o_discnumber, o_comment,  \
-                                                o_folderart, o_trackart,  \
-                                                o_bitrate, o_samplerate,  \
-                                                o_bitspersample, o_channels, o_mime,  \
-                                                o_lastmodified, o_scannumber,  \
-                                                o_folderartid, o_trackartid,  \
-                                                o_inserted, o_lastscanned, \
-                                                o_titlesort, o_albumsort, o_artistsort, \
-                                                o_albumartistsort, o_composersort = crow
-                                                # create audit records
-                                                tags = (o_id, o_id2,
-                                                        o_title, o_artist, o_album,
-                                                        o_genre, o_track, o_year,
-                                                        o_albumartist, o_composer, o_codec, 
-                                                        o_length, o_size, 
-                                                        o_created, o_path, o_filename, 
-                                                        o_discnumber, o_comment, 
-                                                        o_folderart, o_trackart, 
-                                                        o_bitrate, o_samplerate, 
-                                                        o_bitspersample, o_channels, o_mime, 
-                                                        o_lastmodified, scannumber,
-                                                        o_folderartid, o_trackartid,
-                                                        o_inserted, o_lastscanned,
-                                                        o_titlesort, o_albumsort, o_artistsort, 
-                                                        o_albumartistsort, o_composersort)
-                                                # check whether the duplicate we are deleting was created on this scan
-                                                dupauditdelete = True
-                                                c.execute("""select updatetype from tags_update where id=? and scannumber=?""", (o_id, scannumber))
-                                                crow = c.fetchone()
-                                                if crow:
-                                                    dupupdatetype, = crow
-                                                    if dupupdatetype == 'I':
-                                                        # the duplicate we are deleting was created this scan,
-                                                        # so we should not create audit records for a delete
-                                                        dupauditdelete = False
-                                                # delete any outstanding audit records for this scan
-                                                c.execute("""delete from tags_update where id=? and scannumber=?""", (o_id, scannumber))
-                                                if dupauditdelete:
-                                                    # pre
-                                                    dtags = tags + (0, 'D')
-                                                    c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
-                                                    # post
-                                                    dtags = cleartags(tags, lastscanned=lastscanned)
-                                                    dtags += (1, 'D')
-                                                    c.execute("""insert into tags_update values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", dtags)
-                                                # delete record from tags
-                                                logstring = "Duplicate file replaced: %s, %s" % (o_filename, o_path)
-                                                filelog.write_log(logstring)
-                                                logstring = "DELETE: " + str(tags)
-                                                filelog.write_verbose_log(logstring)
-                                                c.execute("""delete from tags where id=?""", (o_id,))
-
-                                            except sqlite3.Error, e:
-                                                errorstring = "Error processing duplicate deletion: %s" % e.args[0]
-                                                filelog.write_error(errorstring)
 
                             # get the existing record for this unique path/filename if it exists
                             c.execute("""select * from tags where path=? and filename=?""", (path, filename))
@@ -616,7 +957,7 @@ def process_dir(scanpath, options, database):
                                         bitrate, samplerate, 
                                         bitspersample, channels, mime, 
                                         lastmodified, scannumber,
-                                        folderartid, trackartid,
+                                        str(folderartid), trackartid,
                                         inserted, lastscanned,
                                         titlesort, albumsort, artistsort, 
                                         albumartistsort, composersort)
@@ -746,6 +1087,7 @@ def process_dir(scanpath, options, database):
         c2.execute("""select * from tags where scannumber != ? and path like ?""",
                     (scannumber, scanpathlike))
         for crow in c2:
+        
             lastscanned = time.time()
             # get data
             o_id, o_id2, o_title, o_artist, o_album, \
@@ -898,7 +1240,7 @@ def process_dir(scanpath, options, database):
                 workvirtualtracks = read_workvirtualfile(ffn, ex.lower(), filepath, database)
 
                 # check what has changed
-                # changes include:
+                # for works and virtuals, changes include:
                 #     workvirtual file has changed
                 #     track referred to by workvirtual file has changed
                 #     playlist in workvirtual file has changed
@@ -913,11 +1255,10 @@ def process_dir(scanpath, options, database):
 #                    print workvirtualtrack
 #                    print
 
-                    wvnumber, wvfile, wvfilecreated, wvfilelastmodified, plfile, plfilecreated, plfilelastmodified, trackfile, trackfilecreated, trackfilelastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvgenre, wvcover, wvdiscnumber, wvoccurs, wvinserted, wvcreated, wvlastmodified, wvtitlesort, wvalbumsort, wvartistsort, wvalbumartistsort, wvcomposersort = workvirtualtrack
+                    wvnumber, wvfile, wvfilecreated, wvfilelastmodified, plfile, plfilecreated, plfilelastmodified, trackfile, trackfilecreated, trackfilelastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvgenre, wvcover, wvdiscnumber, wvoccurs, wvinserted, wvcreated, wvlastmodified, wvtitlesort, wvalbumsort, wvartistsort, wvalbumartistsort, wvcomposersort, tracktitle, tracklength, wvtrack = workvirtualtrack
 
                     # check whether we have a new workvirtual (there can be more than one in a file)
                     if wvnumber != prev_wvnumber:
-                        wvtrack = 0
                         prev_wvnumber = wvnumber
                         # process workvirtual cover
                         wvcoverartid = 0
@@ -951,8 +1292,8 @@ def process_dir(scanpath, options, database):
                         errorstring = "Error processing %s: %s : %s : %s : track does not exist in database" % (wvtype, wvfile, plfile, trackfile)
                         filelog.write_error(errorstring)
                         continue
-                    # get track data
                     
+                    # get track data
                     tr_id, tr_id2, tr_title, tr_artist, tr_album, \
                     tr_genre, tr_track, tr_year, \
                     tr_albumartist, tr_composer, tr_codec,  \
@@ -967,7 +1308,6 @@ def process_dir(scanpath, options, database):
                     tr_inserted, tr_lastscanned, \
                     tr_titlesort, tr_albumsort, tr_artistsort, \
                     tr_albumartistsort, tr_composersort = crow
-                    wvtrack += 1
 
                     wv_change = None
                     try:
@@ -1005,7 +1345,7 @@ def process_dir(scanpath, options, database):
                         # (record must exist as we found it earlier)
                         try:
                             wv = (scannumber, lastscanned, wvtitle, wvfile, plfile, trackfile, wvoccurs)
-                            logstring = "UPDATE SCAN DETAILS: " + str(wv)
+                            logstring = "UPDATE SCAN DETAILS WORKVIRTUAL: " + str(wv)
                             filelog.write_verbose_log(logstring)
                             c.execute("""update workvirtuals set
                                          scannumber=?, lastscanned=? 
@@ -1036,6 +1376,7 @@ def process_dir(scanpath, options, database):
                         wvartistsort = checktag(wvartistsort, tr_artistsort)
                         wvalbumartistsort = checktag(wvalbumartistsort, tr_albumartistsort)
                         wvcomposersort = checktag(wvcomposersort, tr_composersort)
+
                         # process the track
 
                         if wv_change == 'I':
@@ -1381,7 +1722,7 @@ def process_dir(scanpath, options, database):
                         # (record must exist as we found it earlier)
                         try:
                             pl = (scannumber, lastscanned, pltitle, plfile, trackfile, ploccurs)
-                            logstring = "UPDATE SCAN DETAILS: " + str(pl)
+                            logstring = "UPDATE SCAN DETAILS PLAYLIST: " + str(pl)
                             filelog.write_verbose_log(logstring)
                             c.execute("""update playlists set
                                          scannumber=?, lastscanned=? 
@@ -1962,6 +2303,7 @@ def getfilestat(filespec):
 workvirtualkeys = {
     'type=': 'wvtype',
     'title=': 'wvtitle',
+    'album=': 'wvtitle',    # added for .tags
     'artist=': 'wvartist',
     'albumartist=': 'wvalbumartist',
     'composer=': 'wvcomposer',
@@ -1976,7 +2318,8 @@ workvirtualkeys = {
     'albumsort=': 'wvalbumsort',
     'artistsort=': 'wvartistsort',
     'albumartistsort=': 'wvalbumartistsort',
-    'composersort=': 'wvcomposersort'}
+    'composersort=': 'wvcomposersort',
+    }
 
 m3u_playlist_extensions = ['.m3u', '.m3u8']
 pls_playlist_extensions = ['.pls']
@@ -1988,15 +2331,18 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
         read a file containing works and virtuals
         and return a list of work/virtual records
     '''
-    exttype = work_virtual_extensions[wvextension]
-    if exttype == 'workvirtual':
-        wvtype = 'virtual'
-    elif exttype == 'work':
-        wvtype = 'work'
-    elif exttype == 'virtual':
-        wvtype = 'virtual'
+    if wvextension == tags_file_extension:
+        wvtype = 'tags'
+    else:
+        exttype = work_virtual_extensions[wvextension]
+        if exttype == 'workvirtual':
+            wvtype = 'virtual'
+        elif exttype == 'work':
+            wvtype = 'work'
+        elif exttype == 'virtual':
+            wvtype = 'virtual'
     default_wvtype = wvtype
-    wvtitle = wvartist = wvalbumartist = wvcomposer = wvyear = wvgenre = wvcover = wvdiscnumber = wvinserted = wvcreated = wvlastmodified = wvtitlesort = wvalbumsort = wvartistsort = wvalbumartistsort = wvcomposersort = None
+#    wvtitle = wvartist = wvalbumartist = wvcomposer = wvyear = wvgenre = wvcover = wvdiscnumber = wvinserted = wvcreated = wvlastmodified = wvtitlesort = wvalbumsort = wvartistsort = wvalbumartistsort = wvcomposersort = tracktitle = tracklength = None
     tracks = []
     trackcounts = defaultdict(int)
     success, wvfilecreated, wvfilelastmodified, wvfilefsize, filler = getfilestat(wvfilespec)
@@ -2009,14 +2355,13 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
         keyfound = False
         for key in workvirtualkeys:
             if line.lower().startswith(key):
+
                 if newkeyset:
-                    wvtitle = wvartist = wvalbumartist = wvcomposer = wvyear = wvgenre = wvcover = wvdiscnumber = wvinserted = wvcreated = wvlastmodified = wvtitlesort = wvalbumsort = wvartistsort = wvalbumartistsort = wvcomposersort = None
+                    wvtitle = wvartist = wvalbumartist = wvcomposer = wvyear = wvgenre = wvcover = wvdiscnumber = wvinserted = wvcreated = wvlastmodified = wvtitlesort = wvalbumsort = wvartistsort = wvalbumartistsort = wvcomposersort = tracktitle = tracklength = None
+                    wvtracknumber = 0
                     wvtype = default_wvtype
                     newkeyset = False                    
-                value = line[len(key):]
-                value = value.replace('"', '\\"')
-                if value.endswith('\n'): value = value[:-1]
-                if value.endswith('\r'): value = value[:-1]
+                value = get_key_value(key, line)
                 if key == 'type=':
                     if not (value == 'work' or value == 'virtual'): value = wvtype
                     wvtype = None
@@ -2026,10 +2371,18 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
                 else:
                     exec('%s+=u"%s"' % (workvirtualkeys[key], '\\n'))
                     exec('%s+=u"%s"' % (workvirtualkeys[key], value))
-                if key == 'title=': wvcount += 1
+                if key == 'title=' or key == 'album=': wvcount += 1
                 keyfound = True
                 break
         if not keyfound:
+            
+            if line.lower().startswith('tracktitle='):
+                tracktitle = get_key_value('tracktitle=', line)
+                continue
+            if line.lower().startswith('tracklength='):
+                tracklength = get_key_value('tracklength=', line)
+                continue
+                        
             newkeyset = True
             filespec = line.strip()
             filespec = checkpath(filespec, wvfilepath)
@@ -2038,12 +2391,20 @@ def read_workvirtualfile(wvfilespec, wvextension, wvfilepath, database):
 #                    print "============="
 #                    print trackdata
                     if trackdata:
+                        wvtracknumber += 1
                         ftrack = trackcountdata
                         filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified = trackdata
-                        trackdata = (wvcount, wvfilespec, wvfilecreated, wvfilelastmodified, filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvgenre, wvcover, wvdiscnumber, trackcounts[(wvtitle, ftrack)], wvinserted, wvcreated, wvlastmodified, wvtitlesort, wvalbumsort, wvartistsort, wvalbumartistsort, wvcomposersort)
+                        trackdata = (wvcount, wvfilespec, wvfilecreated, wvfilelastmodified, filespec, created, lastmodified, trackspec, trackcreated, tracklastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvgenre, wvcover, wvdiscnumber, trackcounts[(wvtitle, ftrack)], wvinserted, wvcreated, wvlastmodified, wvtitlesort, wvalbumsort, wvartistsort, wvalbumartistsort, wvcomposersort, tracktitle, tracklength, wvtracknumber)
                         trackcounts[(wvtitle, ftrack)] += 1    
                         tracks.append(trackdata)
     return tracks
+
+def get_key_value(key, line):
+    value = line[len(key):]
+    value = value.replace('"', '\\"')
+    if value.endswith('\n'): value = value[:-1]
+    if value.endswith('\r'): value = value[:-1]
+    return value
 
 def read_playlistfile(filespec, filepath):
     '''
@@ -2431,6 +2792,26 @@ def create_database(database):
             c.execute('''create unique index inxPlaylistUpdateIdScanUpdate on playlists_update (playlist, plfile, trackfile, occurs, scannumber, updateorder)''')
             c.execute('''create unique index inxPlaylistUpdateScanUpdateId on playlists_update (scannumber, updatetype, playlist, plfile, trackfile, occurs, updateorder)''')
             c.execute('''create index inxPlaylistUpdateScannumber on playlists_update (scannumber)''')
+
+        # tagsfiles - contain file info for separate .tags files
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="tagsfiles"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table tagsfiles (path text, filename text, 
+                                                 tracknumber text, tracktitle text, 
+                                                 tracklength text, trackfile text,
+                                                 artist text, album text, albumartist text, composer text,
+                                                 year text, genre text,
+                                                 cover text, coverartid text, 
+                                                 discnumber text,
+                                                 titlesort text, albumsort text, artistsort text, 
+                                                 albumartistsort text, composersort text,
+                                                 inserted text, created text, lastmodified text,
+                                                 scannumber integer, lastscanned text)
+                                                 ''')
+            c.execute('''create unique index inxTagsfileFile on tagsfiles (trackfile)''')
+            c.execute('''create index inxTagsfileScannumber on tagsfiles (scannumber)''')
+
 
     except sqlite3.Error, e:
         errorstring = "Error creating database: %s : %s" % (database, e)

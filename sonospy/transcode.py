@@ -56,6 +56,13 @@ def checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec
 
 def checksmapitranscode(filetype, bitrate, samplerate, bitspersample, channels, codec):
 
+    log.debug(filetype)
+    log.debug(bitrate)
+    log.debug(samplerate)
+    log.debug(bitspersample)
+    log.debug(channels)
+    log.debug(codec)
+
     transcode = False
     newtype = None
     ext = None
@@ -125,13 +132,15 @@ def transcode(inputfile, transcodetype):
 
     if transcodetype == 'ac3.mp3':
         # transcode using ffmpeg
-        # ffmpeg -i <inputfile.ac3> -acodec libmp3lame -ab 320k -f mp3 -
+        # ffmpeg -i <inputfile.ac3> -ac 2 -acodec libmp3lame -ab 448k -f mp3 -
+        
         sub = subprocess.Popen([
                 "ffmpeg",
                 "-i",
                 inputfile,
+                "-ac", "2",
                 "-acodec", "libmp3lame",
-                "-ab", "320k",
+                "-ab", "448k",
                 "-f", "mp3",
                 "-"],
                 stdout=subprocess.PIPE,
