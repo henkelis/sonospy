@@ -1,6 +1,9 @@
 ###############################################################################
 # Extract Tab for use with sonospyGUI.py
 ###############################################################################
+# MAR02-2013: With the SMAPI addition, this is deprecated. Keeping it here
+# in case we need it for something in the future.
+###############################################################################
 # extractTab.py copyright (c) 2010-2013 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
 # Sonospy Project copyright (c) 2010-2013 Mark Henkelis

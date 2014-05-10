@@ -102,22 +102,6 @@ class ScanPanel(wx.Panel):
         sizer.Add(self.bt_MainDatabase, pos=(xIndex, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
         self.bt_MainDatabase.Bind(wx.EVT_BUTTON, self.bt_MainDatabaseClick,self.bt_MainDatabase)
         xIndex += 1
-    # [0] INI Overide ----------------------------------------------------------
-#        label_INI = wx.StaticText(panel, label="INI File:")
-#        help_INI = "Override scan.ini with your own INI file."
-#        label_INI.SetToolTip(wx.ToolTip(help_Database))
-#        sizer.Add(label_INI, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-#
-#        self.tc_INI = wx.TextCtrl(panel)
-#        self.tc_INI.SetToolTip(wx.ToolTip(help_INI))
-#        self.tc_INI.Value = guiFunctions.configMe("scan", "inioverride")
-#        sizer.Add(self.tc_INI, pos=(xIndex, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
-#
-#        self.bt_INI = wx.Button(panel, label="Browse...")
-#        self.bt_INI.SetToolTip(wx.ToolTip(help_INI))
-#        sizer.Add(self.bt_INI, pos=(xIndex, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-#        self.bt_INI.Bind(wx.EVT_BUTTON, self.bt_INIClick,self.bt_INI)
-#        xIndex += 1
     # --------------------------------------------------------------------------
     # [1] Paths to scan for new Music ------------------------------------------
         self.sb_FoldersToScan = wx.StaticBox(panel, label="Folders to Scan:", size=(200, 100))
@@ -265,9 +249,6 @@ class ScanPanel(wx.Panel):
         else:
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
-#            if self.tc_INI.Value != "":
-##                iniOverride = ""
-#                iniOverride = "-i " + self.tc_INI.Value
 
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -r"
             startTime = datetime.now()
@@ -302,27 +283,6 @@ class ScanPanel(wx.Panel):
             for selection in selected:
                 self.tc_MainDatabase.Value = selection
                 guiFunctions.statusText(self, "Database: " + selection + " selected...")
-        dialog.Destroy()
-
-        # set back to original working directory
-        os.chdir(owd)
-
-    def bt_INIClick(self, event):
-        filters = "*.ini"
-        wildcards = "INIFiles (" + filters + ")|" + filters + "|All files (*.*)|*.*"
-
-        # back up to the folder below our current one.  save cwd in variable
-        owd = os.getcwd()
-        os.chdir(os.pardir)
-
-        dialog = wx.FileDialog ( None, message = 'Select INI File...', defaultDir=guiFunctions.configMe("general", "default_ini_path"), wildcard = wildcards, style = wxOPEN)
-
-        # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wxID_OK:
-            selected = dialog.GetFilenames()
-            for selection in selected:
-                self.tc_INI.Value = selection
-                guiFunctions.statusText(self, "INI File: " + selection + " selected...")
         dialog.Destroy()
 
         # set back to original working directory
@@ -367,7 +327,7 @@ class ScanPanel(wx.Panel):
             self.bt_ScanUpdate.Enable()
             self.ck_ScanVerbose.Enable()
             self.bt_SaveDefaults.Enable()
-#            self.bt_INI.Enable()
+
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
             Publisher().sendMessage(('setLaunchPanel'), "Enable")
             Publisher().sendMessage(('setExtractPanel'), "Enable")
@@ -381,7 +341,7 @@ class ScanPanel(wx.Panel):
             self.bt_ScanUpdate.Disable()
             self.ck_ScanVerbose.Disable()
             self.bt_SaveDefaults.Disable()
-#            self.bt_INI.Disable()
+            
             Publisher().sendMessage(('setLaunchPanel'), "Disable")
             Publisher().sendMessage(('setExtractPanel'), "Disable")
             Publisher().sendMessage(('setVirtualPanel'), "Disable")
@@ -408,13 +368,11 @@ class ScanPanel(wx.Panel):
 
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
-#            if self.tc_INI.Value != "":
-#                iniOverride = " -i " + self.tc_INI.Value
 
             global scanCMD
             global startTime
 
-            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " "
+            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " "
 
             numLines=0
             maxLines=(int(self.multiText.GetNumberOfLines()))
@@ -457,9 +415,6 @@ class ScanPanel(wx.Panel):
 
         # Database setting
         guiFunctions.configWrite(section, "database", self.tc_MainDatabase.Value)
-
-        # INI Setting
-#        guiFunctions.configWrite(section, "inioverride", self.tc_INI.Value)
 
         # Folder setting, comma delineate multiple folder entries
         folders = ""

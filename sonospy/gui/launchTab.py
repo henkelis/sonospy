@@ -27,11 +27,7 @@
 # TODO:
 # - Connect Show Duplicates (i.e. read in from Mark's INI and then override
 #   without overwriting.
-# - Windowsify the commands to run properly -- namely pOpen and how
-#   to capture stdout?
-#
-# Windows Command:
-# Launch: python pycpoint.py -p -wSonospy=Henk,virtualsdatabase
+# - Make Web work with Windows
 ###############################################################################
 
 import wx
