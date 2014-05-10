@@ -46,6 +46,7 @@ list_checkboxLabel = []
 list_txtctrlID = []
 list_txtctrlLabel = []
 list_buttonID = []
+list_userindex = []
 
 class LaunchPanel(wx.Panel):
     """
@@ -66,13 +67,14 @@ class LaunchPanel(wx.Panel):
         global sizer
 
         panel = self
-        sizer = wx.GridBagSizer(13, 3)
+        sizer = wx.GridBagSizer(13, 4)
 
         xIndex = 0
         yIndex = 0
 
     # [0] Make Header Columns --------------------------
         self.label_ProxyName = wx.StaticText(panel, label="Display Name")
+        self.label_UserIndexName = wx.StaticText(panel, label="User Index")
         self.ck_EnableAll = wxCheckBox(panel, label="Enable All")
         help_EnableAll = "Click here to enable or disable all the databases below."
         self.ck_EnableAll.SetToolTip(wx.ToolTip(help_EnableAll))
@@ -89,15 +91,16 @@ class LaunchPanel(wx.Panel):
         self.ck_EnableAll.Bind(wx.EVT_CHECKBOX, self.enableAllChecks, self.ck_EnableAll)
         sizer.Add(self.ck_EnableAll, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
         sizer.Add(self.label_ProxyName, pos=(xIndex, 1), flag=wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-        sizer.Add(self.bt_Clear, pos=(xIndex, 2), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.ALIGN_RIGHT, border=10)
-        sizer.Add(self.bt_AutoPopulate, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        sizer.Add(self.label_UserIndexName, pos=(xIndex, 2), flag=wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        sizer.Add(self.bt_Clear, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.bt_AutoPopulate, pos=(xIndex, 4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
 
         xIndex +=1
     # --------------------------------------------------------------------------
     # [1] Separator line ------------------------------------------------------
 
         hl_SepLine1 = wx.StaticLine(panel, 0, (250, 50), (300,1))
-        sizer.Add(hl_SepLine1, pos=(xIndex, 0), span=(1, 4), flag=wx.EXPAND)
+        sizer.Add(hl_SepLine1, pos=(xIndex, 0), span=(1, 5), flag=wx.EXPAND)
         xIndex +=1
 
     # --------------------------------------------------------------------------
@@ -109,13 +112,17 @@ class LaunchPanel(wx.Panel):
         self.tc_DB1 = wx.TextCtrl(panel)
         self.tc_DB1.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
 
+        self.tc2_DB1 = wx.TextCtrl(panel)
+        self.tc2_DB1.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
         self.bt_DB1 = wx.Button(self, label="Browse")
         self.bt_DB1.tc = self.tc_DB1
         self.bt_DB1.ck = self.ck_DB1
 
         sizer.Add(self.ck_DB1, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB1, pos=(xIndex,1), span=(1,2),flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_DB1, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.tc_DB1, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
+        sizer.Add(self.tc2_DB1, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.bt_DB1, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         self.ck_DB1.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB1)
         self.bt_DB1.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB1)
@@ -136,6 +143,7 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB1.GetLabel())
         list_txtctrlID.append(self.tc_DB1.GetId())
         list_txtctrlLabel.append(self.tc_DB1.Value)
+        #list_userindex.append(self.tc2_DB1.Value)
 
         xIndex +=1
 
@@ -146,12 +154,17 @@ class LaunchPanel(wx.Panel):
         self.tc_DB2 = wx.TextCtrl(panel)
         self.tc_DB2.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
         self.bt_DB2 = wx.Button(self, label="Browse")
+        
+        self.tc2_DB2 = wx.TextCtrl(panel)
+        self.tc2_DB2.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))        
+
         self.bt_DB2.tc = self.tc_DB2
         self.bt_DB2.ck = self.ck_DB2
 
         sizer.Add(self.ck_DB2, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB2, pos=(xIndex,1), span=(1,2),flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_DB2, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.tc_DB2, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
+        sizer.Add(self.tc2_DB2, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.bt_DB2, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         self.ck_DB2.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB2)
         self.bt_DB2.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB2)
@@ -172,6 +185,7 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB2.GetLabel())
         list_txtctrlID.append(self.tc_DB2.GetId())
         list_txtctrlLabel.append(self.tc_DB2.Value)
+        #list_userindex.append(self.tc2_DB2.Value)
 
         xIndex +=1
 
@@ -181,13 +195,18 @@ class LaunchPanel(wx.Panel):
 
         self.tc_DB3 = wx.TextCtrl(panel)
         self.tc_DB3.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
+
+        self.tc2_DB3 = wx.TextCtrl(panel)
+        self.tc2_DB3.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
         self.bt_DB3 = wx.Button(self, label="Browse")
         self.bt_DB3.tc = self.tc_DB3
         self.bt_DB3.ck = self.ck_DB3
 
         sizer.Add(self.ck_DB3, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB3, pos=(xIndex,1), span=(1,2),flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_DB3, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.tc_DB3, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
+        sizer.Add(self.tc2_DB3, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.bt_DB3, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         self.ck_DB3.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB3)
         self.bt_DB3.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB3)
@@ -208,6 +227,7 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB3.GetLabel())
         list_txtctrlID.append(self.tc_DB3.GetId())
         list_txtctrlLabel.append(self.tc_DB3.Value)
+        #list_userindex.append(self.tc2_DB3.Value)
 
         xIndex +=1
 
@@ -217,13 +237,18 @@ class LaunchPanel(wx.Panel):
 
         self.tc_DB4 = wx.TextCtrl(panel)
         self.tc_DB4.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
+
+        self.tc2_DB4 = wx.TextCtrl(panel)
+        self.tc2_DB4.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
         self.bt_DB4 = wx.Button(self, label="Browse")
         self.bt_DB4.tc = self.tc_DB4
         self.bt_DB4.ck = self.ck_DB4
 
         sizer.Add(self.ck_DB4, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB4, pos=(xIndex,1), span=(1,2),flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_DB4, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.tc_DB4, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
+        sizer.Add(self.tc2_DB4, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.bt_DB4, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         self.ck_DB4.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB4)
         self.bt_DB4.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB4)
@@ -244,7 +269,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB4.GetLabel())
         list_txtctrlID.append(self.tc_DB4.GetId())
         list_txtctrlLabel.append(self.tc_DB4.Value)
-
+        #list_userindex.append(self.tc2_DB4.Value)
+        
         xIndex +=1
 
     #   [6]
@@ -253,13 +279,18 @@ class LaunchPanel(wx.Panel):
 
         self.tc_DB5 = wx.TextCtrl(panel)
         self.tc_DB5.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
+
+        self.tc2_DB5 = wx.TextCtrl(panel)
+        self.tc2_DB5.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
         self.bt_DB5 = wx.Button(self, label="Browse")
         self.bt_DB5.tc = self.tc_DB5
         self.bt_DB5.ck = self.ck_DB5
 
         sizer.Add(self.ck_DB5, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB5, pos=(xIndex,1), span=(1,2),flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_DB5, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.tc_DB5, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
+        sizer.Add(self.tc2_DB5, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.bt_DB5, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         self.ck_DB5.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB5)
         self.bt_DB5.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB5)
@@ -280,7 +311,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB5.GetLabel())
         list_txtctrlID.append(self.tc_DB5.GetId())
         list_txtctrlLabel.append(self.tc_DB5.Value)
-
+        #list_userindex.append(self.tc2_DB5.Value)
+        
         xIndex +=1
 
     #   [7]
@@ -289,13 +321,18 @@ class LaunchPanel(wx.Panel):
 
         self.tc_DB6 = wx.TextCtrl(panel)
         self.tc_DB6.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
+
+        self.tc2_DB6 = wx.TextCtrl(panel)
+        self.tc2_DB6.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
         self.bt_DB6 = wx.Button(self, label="Browse")
         self.bt_DB6.tc = self.tc_DB6
         self.bt_DB6.ck = self.ck_DB6
 
         sizer.Add(self.ck_DB6, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB6, pos=(xIndex,1), span=(1,2),flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_DB6, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.tc_DB6, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
+        sizer.Add(self.tc2_DB6, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.bt_DB6, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         self.ck_DB6.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB6)
         self.bt_DB6.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB6)
@@ -316,7 +353,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB6.GetLabel())
         list_txtctrlID.append(self.tc_DB6.GetId())
         list_txtctrlLabel.append(self.tc_DB6.Value)
-
+        #list_userindex.append(self.tc2_DB6.Value)
+        
         xIndex +=1
 
     #   [8]
@@ -325,13 +363,18 @@ class LaunchPanel(wx.Panel):
 
         self.tc_DB7 = wx.TextCtrl(panel)
         self.tc_DB7.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
+
+        self.tc2_DB7 = wx.TextCtrl(panel)
+        self.tc2_DB7.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
         self.bt_DB7 = wx.Button(self, label="Browse")
         self.bt_DB7.tc = self.tc_DB7
         self.bt_DB7.ck = self.ck_DB7
 
         sizer.Add(self.ck_DB7, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB7, pos=(xIndex,1), span=(1,2),flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_DB7, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.tc_DB7, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
+        sizer.Add(self.tc2_DB7, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.bt_DB7, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         self.ck_DB7.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB7)
         self.bt_DB7.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB7)
@@ -352,6 +395,7 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB7.GetLabel())
         list_txtctrlID.append(self.tc_DB7.GetId())
         list_txtctrlLabel.append(self.tc_DB7.Value)
+        #list_userindex.append(self.tc2_DB7.Value)
 
         xIndex +=1
 
@@ -361,13 +405,18 @@ class LaunchPanel(wx.Panel):
 
         self.tc_DB8 = wx.TextCtrl(panel)
         self.tc_DB8.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
+
+        self.tc2_DB8 = wx.TextCtrl(panel)
+        self.tc2_DB8.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
         self.bt_DB8 = wx.Button(self, label="Browse")
         self.bt_DB8.tc = self.tc_DB8
         self.bt_DB8.ck = self.ck_DB8
 
         sizer.Add(self.ck_DB8, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB8, pos=(xIndex,1), span=(1,2),flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_DB8, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        sizer.Add(self.tc_DB8, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
+        sizer.Add(self.tc2_DB8, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.bt_DB8, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         self.ck_DB8.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB8)
         self.bt_DB8.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB8)
@@ -388,6 +437,7 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB8.GetLabel())
         list_txtctrlID.append(self.tc_DB8.GetId())
         list_txtctrlLabel.append(self.tc_DB8.Value)
+        #list_userindex.append(self.tc2_DB8.Value)
 
         xIndex +=1
 
@@ -395,19 +445,23 @@ class LaunchPanel(wx.Panel):
     # [12] Separator line ------------------------------------------------------
 
         hl_SepLine1 = wx.StaticLine(panel, 0, (250, 50), (300,1))
-        sizer.Add(hl_SepLine1, pos=(xIndex, 0), span=(1, 4), flag=wx.EXPAND)
+        sizer.Add(hl_SepLine1, pos=(xIndex, 0), span=(1, 5), flag=wx.EXPAND)
 
         xIndex +=1
     # --------------------------------------------------------------------------
     # [13] Create and add a launch button and radios for Proxy vs. Web
     # Eventually add "Use Sorts" and "Remove Dupes"
+
+    # - LAUNCH BUTTON
         self.bt_Launch = wx.Button(panel, label="Launch")
         help_bt_Launch = "Click here to launch the Sonospy service."
         self.bt_Launch.SetToolTip(wx.ToolTip(help_bt_Launch))
         self.bt_Launch.Bind(wx.EVT_BUTTON, self.bt_LaunchClick, self.bt_Launch)
+    # - PROXY RADIO BUTTON
         self.rd_Proxy = wx.RadioButton(panel, label="Proxy")
         help_rd_Proxy = "Run only as a proxy service in the background."
         self.rd_Proxy.SetToolTip(wx.ToolTip(help_rd_Proxy))
+    # - WEB RADIO BUTTON
         self.rd_Web = wx.RadioButton(panel, label="Web")
         help_rd_Web = "Run as the web interface to Sonospy."
         self.rd_Web.SetToolTip(wx.ToolTip(help_rd_Web))
@@ -419,7 +473,7 @@ class LaunchPanel(wx.Panel):
 
         self.rd_Proxy.Bind(wx.EVT_RADIOBUTTON, self.updateScratchPad, self.rd_Proxy)
         self.rd_Web.Bind(wx.EVT_RADIOBUTTON, self.updateScratchPad, self.rd_Web)
-
+                
         # SAVE AS DEFAULTS
         self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
         help_SaveDefaults = "Save current settings as default."
@@ -427,9 +481,9 @@ class LaunchPanel(wx.Panel):
         self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
 
         sizer.Add(self.bt_Launch, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.rd_Proxy, pos=(xIndex,1), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.rd_Web, pos=(xIndex,2), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_SaveDefaults, pos=(xIndex,3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.rd_Proxy, pos=(xIndex,2), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.rd_Web, pos=(xIndex,3), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.bt_SaveDefaults, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
         xIndex +=1
 
@@ -440,6 +494,14 @@ class LaunchPanel(wx.Panel):
         self.ck_ServicesMode.Bind(wx.EVT_CHECKBOX, self.enableServices, self.ck_ServicesMode)
         sizer.Add(self.ck_ServicesMode, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
+    # - SMAPI CHECK BUTTON
+        self.ck_SMAPI = wx.CheckBox(panel, label="Run as SMAPI service.")
+        help_ck_SMAPI = "Run as the SMAPI interface to Sonospy."
+        self.ck_SMAPI.SetToolTip(wx.ToolTip(help_ck_SMAPI))
+        self.ck_SMAPI.Bind(wx.EVT_CHECKBOX, self.enableSMAPI, self.ck_SMAPI)
+        self.ck_SMAPI.Value = guiFunctions.configMe("launch", "smapi", bool=True)
+        sizer.Add(self.ck_SMAPI, pos=(xIndex,1), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+
         xIndex +=1
 
     # --------------------------------------------------------------------------
@@ -448,14 +510,14 @@ class LaunchPanel(wx.Panel):
         self.sb_Scratchpad = wx.StaticBox(panel, label="Scratchpad:", size=(200, 160))
         help_Scratchpad = "You can cut and paste this into a command/shell window..."
         scratchpadSizer = wx.StaticBoxSizer(self.sb_Scratchpad, wx.VERTICAL)
-        self.tc_Scratchpad = wx.TextCtrl(panel, -1,"",size=(300, 130), style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.tc_Scratchpad = wx.TextCtrl(panel, -1,"",size=(300, 200), style=wx.TE_MULTILINE|wx.TE_READONLY)
         self.tc_Scratchpad.SetToolTip(wx.ToolTip(help_Scratchpad))
         self.tc_Scratchpad.SetInsertionPoint(0)
         LogFont = wx.Font(7.5, wx.SWISS, wx.NORMAL, wx.NORMAL, False)
         self.tc_Scratchpad.SetFont(LogFont)
 
         scratchpadSizer.Add(self.tc_Scratchpad, flag=wx.EXPAND)
-        sizer.Add(scratchpadSizer, pos=(xIndex, 0), span=(1,4), flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.BOTTOM|wx.ALIGN_BOTTOM, border=10)
+        sizer.Add(scratchpadSizer, pos=(xIndex, 0), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.BOTTOM|wx.ALIGN_BOTTOM, border=10)
 
         # Bind a text event to autoupdate the scratchpad if the user decides
         # to edit the proxy name manually.
@@ -533,6 +595,9 @@ class LaunchPanel(wx.Panel):
     def enableServices(self, event):
         self.buildLaunch()
 
+    def enableSMAPI(self, event):
+        self.buildLaunch()
+
     def bt_LaunchClick(self, event):
         # back up to the folder below our current one.  save cwd in variable
         owd = os.getcwd()
@@ -592,6 +657,7 @@ class LaunchPanel(wx.Panel):
         guiFunctions.configWrite(section, "db8_check", self.ck_DB8.Value)
         guiFunctions.configWrite(section, "db8_dbname", self.ck_DB8.Label)
         guiFunctions.configWrite(section, "db8_proxyname", self.tc_DB8.Value)
+        guiFunctions.configWrite(section, "SMAPI", self.ck_SMAPI.Value)
         guiFunctions.configWrite(section, "services_mode", self.ck_ServicesMode.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
@@ -620,27 +686,35 @@ class LaunchPanel(wx.Panel):
                 if curCount == 0:
                     ck = self.ck_DB1
                     tc = self.tc_DB1
+                    tc2 = self.tc2_DB1
                 if curCount == 1:
                     ck = self.ck_DB2
                     tc = self.tc_DB2
+                    tc2 = self.tc2_DB2
                 if curCount == 2:
                     ck = self.ck_DB3
                     tc = self.tc_DB3
+                    tc2 = self.tc2_DB3
                 if curCount == 3:
                     ck = self.ck_DB4
                     tc = self.tc_DB4
+                    tc2 = self.tc2_DB4
                 if curCount == 4:
                     ck = self.ck_DB5
                     tc = self.tc_DB5
+                    tc2 = self.tc2_DB5
                 if curCount == 5:
                     ck = self.ck_DB6
                     tc = self.tc_DB6
+                    tc2 = self.tc2_DB6
                 if curCount == 6:
                     ck = self.ck_DB7
                     tc = self.tc_DB7
+                    tc2 = self.tc2_DB7
                 if curCount == 7:
                     ck = self.ck_DB8
                     tc = self.tc_DB8
+                    tc2 = self.tc2_DB8
 
                 basename, extension = os.path.splitext(db)
                 tc.Value = basename
@@ -676,15 +750,24 @@ class LaunchPanel(wx.Panel):
         event.Skip()
         self.buildLaunch()
 
+        # MARK: Is SMAPI something that can run in either Web or Proxy?
+        
     def buildLaunch(self):
         # Check for OS
         if os.name == 'nt':
             cmdroot = 'sonospy_'
             launchME = cmdroot
+            launchMode = '-wSonospy='
+            
+            if self.ck_SMAPI.Value == True:
+                launchMode = '-sSonospy='
+            else:
+                lauchMode = '-wSonospy='
+            
             # which version are we running?
             if self.rd_Proxy.Value == True:
                 launchME += "p "
-            else:
+            if self.rd_Web.Value == True:
                 launchME += "w "
 
         else:
@@ -693,13 +776,14 @@ class LaunchPanel(wx.Panel):
             # which version are we running?
             if self.rd_Proxy.Value == True:
                 launchME += "proxy "
-            else:
+            if self.rd_Web.Value == True:
                 launchME += "web "
 
         # rebuild text labels now, user may have changed them
         for item in range(len(list_checkboxID)):
             list_txtctrlLabel[item] = wxFindWindowById(list_txtctrlID[item]).Value
             list_checkboxLabel[item] = wxFindWindowById(list_checkboxID[item]).Label
+            #list_userindex[item]= wxFindWindowById(list_userindex[item]).Label
 
         # build out the command
         if self.bt_Launch.Label == "Stop":
@@ -708,7 +792,10 @@ class LaunchPanel(wx.Panel):
         else:
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
-                    launchME += "-wSonospy=" + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
+                    if self.ck_SMAPI.Value == True:
+                        launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + "," #+ list_userindex[item]
+                    else:
+                        launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
 
         if self.ck_ServicesMode.Value == True:
             launchME = launchME + " -s"
@@ -753,6 +840,7 @@ class LaunchPanel(wx.Panel):
             self.rd_Web.Enable()
             self.label_ProxyName.Enable()
             self.ck_ServicesMode.Enable()
+            self.ck_SMAPI.Enable()
         else:
             self.ck_DB1.Disable()
             self.tc_DB1.Disable()
@@ -786,4 +874,5 @@ class LaunchPanel(wx.Panel):
             self.rd_Web.Disable()
             self.label_ProxyName.Disable()
             self.ck_ServicesMode.Disable()
+            self.ck_SMAPI().Disable()
 
