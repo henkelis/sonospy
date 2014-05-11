@@ -493,8 +493,8 @@ class LaunchPanel(wx.Panel):
         self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
 
         sizer.Add(self.bt_Launch, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.rd_Proxy, pos=(xIndex,2), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.rd_Web, pos=(xIndex,3), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.rd_Proxy, pos=(xIndex,1), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.rd_Web, pos=(xIndex,2), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_SaveDefaults, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
         xIndex +=1
