@@ -38,10 +38,9 @@ KNOWN ISSUES
 TO DO
 ----------------------------------------------------------------------------
 [GENERAL]
- - Look at installers for entire sonospy project (not just GUI)
- - Minimize to tray?
-
-[EXTRACT]
- - Scrub SQL database for valid entries to limit user error.  Blue did this, but I am of split mind on whether or not we want to limit the user this way.  In thoery, we could do "contains" on Genre to get a extract with ROCK, CLASSIC ROCK, etc. if "ROCK" is provided.
- - Lots of error checking, I am sure, to make sure people don't enter a string when the query will expect an int.
- - Add scheduler functionality (i.e. push command to scheduler tab)
+ - Look at the PIP installer.
+ - Force userindex ini entries to look for *.ini files in sonospy/sonospy.
+ - Update for wxPython3.0?
+ 
+[USERINDEX.INI]
+ - Consider a tab to allow for generation of a userindex.ini file.
