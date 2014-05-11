@@ -824,7 +824,7 @@ class LaunchPanel(wx.Panel):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
                     if self.ck_SMAPI.Value == True:
                         if list_userindexLabel[item] == '':
-                            userindexLabel = 'default.ini'
+                            userindexLabel = 'defaultindex.ini'
                         else:
                             userindexLabel = list_userindexLabel[item]
                             
