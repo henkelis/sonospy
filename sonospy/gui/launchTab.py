@@ -1,9 +1,10 @@
 ###############################################################################
 # Launch Tab for use with sonospyGUI.py
 ###############################################################################
-# launchTab.py copyright (c) 2010-2011 John Chowanec
-# mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
-# Sonospy Project copyright (c) 2010-2011 Mark Henkelis
+# launchTab.py copyright (c) 2010-2014 John Chowanec
+# mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed
+# under GPL version 2.0)
+# Sonospy Project copyright (c) 2010-2014 Mark Henkelis
 #   (specifics for this file: sonospy_proxy, sonospy_web, sonospy_stop)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -25,10 +26,7 @@
 # sonospy_web Author: Mark Henkelis <mark.henkelis@tesco.net>
 ###############################################################################
 # TODO:
-# - Connect Show Duplicates (i.e. read in from Mark's INI and then override
-#   without overwriting.
-# - Windowsify the commands to run properly -- namely pOpen and how
-#   to capture stdout?
+# - Look at the README file.
 #
 # Windows Command:
 # Launch: python pycpoint.py -p -wSonospy=Henk,virtualsdatabase

@@ -1,9 +1,9 @@
 ###############################################################################
 # Scan Tab for use with sonospyGUI.py
 ###############################################################################
-# scanTab.py copyright (c) 2010-2011 John Chowanec
+# scanTab.py copyright (c) 2010-2014 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
-# Sonospy Project copyright (c) 2010-2011 Mark Henkelis
+# Sonospy Project copyright (c) 2010-2014 Mark Henkelis
 #   (specifics for this file: scan.py)
 #
 # This program is free software: you can redistribute it and/or modify
