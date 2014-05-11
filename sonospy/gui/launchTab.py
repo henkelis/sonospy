@@ -825,7 +825,12 @@ class LaunchPanel(wx.Panel):
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
                     if self.ck_SMAPI.Value == True:
-                        launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + "," + list_userindexLabel[item] + " "
+                        if list_userindexLabel[item] == '':
+                            userindexLabel = 'default.ini'
+                        else:
+                            userindexLabel = list_userindexLabel[item]
+                            
+                        launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + "," + userindexLabel + " "
                     else:
                         launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
 
@@ -837,6 +842,9 @@ class LaunchPanel(wx.Panel):
 
         self.tc_Scratchpad.Value = launchME
         return launchME
+        
+        #DEBUG:
+        #print launchME
 
     def setButtons(self, state):
         """
