@@ -46,7 +46,8 @@ list_checkboxLabel = []
 list_txtctrlID = []
 list_txtctrlLabel = []
 list_buttonID = []
-list_userindex = []
+list_userindexLabel = []
+list_userindexID = []
 
 class LaunchPanel(wx.Panel):
     """
@@ -116,7 +117,9 @@ class LaunchPanel(wx.Panel):
         self.tc2_DB1.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
         
         self.bt_DB1 = wx.Button(self, label="Browse")
+        
         self.bt_DB1.tc = self.tc_DB1
+        self.bt_DB1.tc2 = self.tc2_DB1
         self.bt_DB1.ck = self.ck_DB1
 
         sizer.Add(self.ck_DB1, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
@@ -131,6 +134,7 @@ class LaunchPanel(wx.Panel):
         self.ck_DB1.Value = guiFunctions.configMe("launch", "db1_check", bool=True)
         self.ck_DB1.Label =  guiFunctions.configMe("launch", "db1_dbname")
         self.tc_DB1.Value = guiFunctions.configMe("launch", "db1_proxyname")
+        self.tc2_DB1.Value = guiFunctions.configMe("launch", "db1_userindex")
 
         if self.ck_DB1.Label == "":
             self.ck_DB1.Label = "<add database>"
@@ -143,7 +147,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB1.GetLabel())
         list_txtctrlID.append(self.tc_DB1.GetId())
         list_txtctrlLabel.append(self.tc_DB1.Value)
-        #list_userindex.append(self.tc2_DB1.Value)
+        list_userindexID.append(self.tc2_DB1.GetId())
+        list_userindexLabel.append(self.tc2_DB1.Value)
 
         xIndex +=1
 
@@ -185,7 +190,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB2.GetLabel())
         list_txtctrlID.append(self.tc_DB2.GetId())
         list_txtctrlLabel.append(self.tc_DB2.Value)
-        #list_userindex.append(self.tc2_DB2.Value)
+        list_userindexID.append(self.tc2_DB2.GetId())
+        list_userindexLabel.append(self.tc2_DB2.Value)
 
         xIndex +=1
 
@@ -227,7 +233,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB3.GetLabel())
         list_txtctrlID.append(self.tc_DB3.GetId())
         list_txtctrlLabel.append(self.tc_DB3.Value)
-        #list_userindex.append(self.tc2_DB3.Value)
+        list_userindexID.append(self.tc2_DB3.GetId())
+        list_userindexLabel.append(self.tc2_DB3.Value)
 
         xIndex +=1
 
@@ -269,7 +276,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB4.GetLabel())
         list_txtctrlID.append(self.tc_DB4.GetId())
         list_txtctrlLabel.append(self.tc_DB4.Value)
-        #list_userindex.append(self.tc2_DB4.Value)
+        list_userindexID.append(self.tc2_DB4.GetId())
+        list_userindexLabel.append(self.tc2_DB4.Value)
         
         xIndex +=1
 
@@ -311,7 +319,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB5.GetLabel())
         list_txtctrlID.append(self.tc_DB5.GetId())
         list_txtctrlLabel.append(self.tc_DB5.Value)
-        #list_userindex.append(self.tc2_DB5.Value)
+        list_userindexID.append(self.tc2_DB5.GetId())
+        list_userindexLabel.append(self.tc2_DB5.Value)
         
         xIndex +=1
 
@@ -353,7 +362,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB6.GetLabel())
         list_txtctrlID.append(self.tc_DB6.GetId())
         list_txtctrlLabel.append(self.tc_DB6.Value)
-        #list_userindex.append(self.tc2_DB6.Value)
+        list_userindexID.append(self.tc2_DB6.GetId())
+        list_userindexLabel.append(self.tc2_DB6.Value)
         
         xIndex +=1
 
@@ -395,7 +405,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB7.GetLabel())
         list_txtctrlID.append(self.tc_DB7.GetId())
         list_txtctrlLabel.append(self.tc_DB7.Value)
-        #list_userindex.append(self.tc2_DB7.Value)
+        list_userindexID.append(self.tc2_DB7.GetId())
+        list_userindexLabel.append(self.tc2_DB7.Value)
 
         xIndex +=1
 
@@ -437,7 +448,8 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB8.GetLabel())
         list_txtctrlID.append(self.tc_DB8.GetId())
         list_txtctrlLabel.append(self.tc_DB8.Value)
-        #list_userindex.append(self.tc2_DB8.Value)
+        list_userindexID.append(self.tc2_DB8.GetId())
+        list_userindexLabel.append(self.tc2_DB8.Value)
 
         xIndex +=1
 
@@ -529,6 +541,16 @@ class LaunchPanel(wx.Panel):
         self.tc_DB6.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB6)
         self.tc_DB7.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB7)
         self.tc_DB8.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB8)
+        
+        # And the user index fields now...
+        self.tc2_DB1.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB1)
+        self.tc2_DB2.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB2)
+        self.tc2_DB3.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB3)
+        self.tc2_DB4.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB4)
+        self.tc2_DB5.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB5)
+        self.tc2_DB6.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB6)
+        self.tc2_DB7.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB7)
+        self.tc2_DB8.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB8)        
 
         Publisher().subscribe(self.setLaunchPanel, 'setLaunchPanel')
 
@@ -576,9 +598,10 @@ class LaunchPanel(wx.Panel):
     def OnCheck(self, event):
 # DEBUG ------------------------------------------------------------------------
 #        for item in range(len(list_checkboxID)):
-#            print "Checkbox " + str(item) + ":\t\t\tID:" + str(list_checkboxID[item]) + "\tLABEL:" + list_checkboxLabel[item]
+#            print "Checkbox " + str(item) + ":\t\tID:" + str(list_checkboxID[item]) + "\tLABEL:" + list_checkboxLabel[item]
 #            print "Text Control " + str(item) + ":\t\tID:" + str(list_txtctrlID[item]) + "\tLABEL:" + list_txtctrlLabel[item]
-# ------------------------------------------------------------------------------
+#            print "User Index " + str(item) + ":\t\tID:" + str(list_userindexID[item]) + "\tLABEL:" + list_userindexLabel[item]
+#------------------------------------------------------------------------------
         self.buildLaunch()
 
     def enableAllChecks(self, event):
@@ -636,27 +659,35 @@ class LaunchPanel(wx.Panel):
         guiFunctions.configWrite(section, "db1_check", self.ck_DB1.Value)
         guiFunctions.configWrite(section, "db1_dbname", self.ck_DB1.Label)
         guiFunctions.configWrite(section, "db1_proxyname", self.tc_DB1.Value)
+        guiFunctions.configWrite(section, "db1_userindex", self.tc2_DB1.Value)
         guiFunctions.configWrite(section, "db2_check", self.ck_DB2.Value)
         guiFunctions.configWrite(section, "db2_dbname", self.ck_DB2.Label)
         guiFunctions.configWrite(section, "db2_proxyname", self.tc_DB2.Value)
+        guiFunctions.configWrite(section, "db2_userindex", self.tc2_DB1.Value)
         guiFunctions.configWrite(section, "db3_check", self.ck_DB3.Value)
         guiFunctions.configWrite(section, "db3_dbname", self.ck_DB3.Label)
         guiFunctions.configWrite(section, "db3_proxyname", self.tc_DB3.Value)
+        guiFunctions.configWrite(section, "db3_userindex", self.tc2_DB1.Value)
         guiFunctions.configWrite(section, "db4_check", self.ck_DB4.Value)
         guiFunctions.configWrite(section, "db4_dbname", self.ck_DB4.Label)
         guiFunctions.configWrite(section, "db4_proxyname", self.tc_DB4.Value)
+        guiFunctions.configWrite(section, "db4_userindex", self.tc2_DB1.Value)
         guiFunctions.configWrite(section, "db5_check", self.ck_DB5.Value)
         guiFunctions.configWrite(section, "db5_dbname", self.ck_DB5.Label)
         guiFunctions.configWrite(section, "db5_proxyname", self.tc_DB5.Value)
+        guiFunctions.configWrite(section, "db5_userindex", self.tc2_DB1.Value)
         guiFunctions.configWrite(section, "db6_check", self.ck_DB6.Value)
         guiFunctions.configWrite(section, "db6_dbname", self.ck_DB6.Label)
         guiFunctions.configWrite(section, "db6_proxyname", self.tc_DB6.Value)
+        guiFunctions.configWrite(section, "db6_userindex", self.tc2_DB1.Value)
         guiFunctions.configWrite(section, "db7_check", self.ck_DB7.Value)
         guiFunctions.configWrite(section, "db7_dbname", self.ck_DB7.Label)
         guiFunctions.configWrite(section, "db7_proxyname", self.tc_DB7.Value)
+        guiFunctions.configWrite(section, "db7_userindex", self.tc2_DB1.Value)
         guiFunctions.configWrite(section, "db8_check", self.ck_DB8.Value)
         guiFunctions.configWrite(section, "db8_dbname", self.ck_DB8.Label)
         guiFunctions.configWrite(section, "db8_proxyname", self.tc_DB8.Value)
+        guiFunctions.configWrite(section, "db8_userindex", self.tc2_DB1.Value)
         guiFunctions.configWrite(section, "SMAPI", self.ck_SMAPI.Value)
         guiFunctions.configWrite(section, "services_mode", self.ck_ServicesMode.Value)
 
@@ -744,6 +775,7 @@ class LaunchPanel(wx.Panel):
             wxFindWindowById(list_checkboxID[item]).Label = "<add database>"
             wxFindWindowById(list_checkboxID[item]).Value = False
             wxFindWindowById(list_checkboxID[item]).Disable()
+            wxFindWindowById(list_userindexID[item]).Value = ""
         self.buildLaunch()
 
     def updateScratchPad(self, event):
@@ -783,8 +815,8 @@ class LaunchPanel(wx.Panel):
         for item in range(len(list_checkboxID)):
             list_txtctrlLabel[item] = wxFindWindowById(list_txtctrlID[item]).Value
             list_checkboxLabel[item] = wxFindWindowById(list_checkboxID[item]).Label
-            #list_userindex[item]= wxFindWindowById(list_userindex[item]).Label
-
+            list_userindexLabel[item]= wxFindWindowById(list_userindexID[item]).Value
+            
         # build out the command
         if self.bt_Launch.Label == "Stop":
             if os.name != 'nt':
@@ -793,12 +825,15 @@ class LaunchPanel(wx.Panel):
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
                     if self.ck_SMAPI.Value == True:
-                        launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + "," #+ list_userindex[item]
+                        launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + "," + list_userindexLabel[item] + " "
                     else:
                         launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
 
         if self.ck_ServicesMode.Value == True:
             launchME = launchME + " -s"
+
+        if self.ck_SMAPI.Value == True:
+            launchME = launchME + " -p"
 
         self.tc_Scratchpad.Value = launchME
         return launchME

@@ -501,7 +501,6 @@ class ExtractPanel(wx.Panel):
             self.ck_ExtractVerbose.Disable()
             self.ck_OverwriteExisting.Disable()
             self.bt_SaveDefaults.Disable()
-            self.bt_AddSched.Disable()
             Publisher().sendMessage(('setLaunchPanel'), "Disable")
             Publisher().sendMessage(('setScanPanel'), "Disable")
             Publisher().sendMessage(('setVirtualPanel'), "Disable")
@@ -613,7 +612,7 @@ class ExtractPanel(wx.Panel):
 
                 scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -x " + self.tc_TargetDatabase.Value + " -w " + searchCMD
                 startTime = datetime.now()
-                self.LogWindow.AppendText("[ Starting Extract ] (" + startTime.strftime("%T") + ")\n")
+                self.LogWindow.AppendText("[ Starting Extract ]")
                 self.LogWindow.AppendText("Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "\n")
                 self.LogWindow.AppendText("Command: " + scanCMD + "\n\n")
                 guiFunctions.statusText(self, "Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "...")
