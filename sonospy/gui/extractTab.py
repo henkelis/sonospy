@@ -537,55 +537,55 @@ class ExtractPanel(wx.Panel):
                 if searchCMD == "":
                     searchCMD = "where (julianday(datetime(\'now\')) - julianday(datetime(created, \'unixepoch\'))) " + self.combo_LogicalCreated.Value + " " + self.tc_DaysAgoCreated.Value
                 else:
-                    searchCMD += " AND where (julianday(datetime(\'now\')) - julianday(datetime(created, \'unixepoch\'))) " + self.combo_LogicalCreated.Value + " " + self.tc_DaysAgoCreated.Value
+                    searchCMD += " AND (julianday(datetime(\'now\')) - julianday(datetime(created, \'unixepoch\'))) " + self.combo_LogicalCreated.Value + " " + self.tc_DaysAgoCreated.Value
 
             if self.tc_DaysAgoInserted.Value != "":
                 if searchCMD == "":
                     searchCMD = "where (julianday(datetime(\'now\')) - julianday(datetime(inserted, \'unixepoch\'))) " + self.combo_LogicalInserted.Value + " " + self.tc_DaysAgoInserted.Value
                 else:
-                    searchCMD += " AND where (julianday(datetime(\'now\')) - julianday(datetime(inserted, \'unixepoch\'))) " + self.combo_LogicalInserted.Value + " " + self.tc_DaysAgoInserted.Value
+                    searchCMD += " AND (julianday(datetime(\'now\')) - julianday(datetime(inserted, \'unixepoch\'))) " + self.combo_LogicalInserted.Value + " " + self.tc_DaysAgoInserted.Value
 
             if self.tc_DaysAgoModified.Value != "":
                 if searchCMD == "":
                     searchCMD = "where (julianday(datetime(\'now\')) - julianday(datetime(lastmodified, \'unixepoch\'))) " + self.combo_LogicalModified.Value + " " + self.tc_DaysAgoModified.Value
                 else:
-                    searchCMD += " AND where (julianday(datetime(\'now\')) - julianday(datetime(lastmodified, \'unixepoch\'))) " + self.combo_LogicalModified.Value + " " + self.tc_DaysAgoModified.Value
+                    searchCMD += " AND (julianday(datetime(\'now\')) - julianday(datetime(lastmodified, \'unixepoch\'))) " + self.combo_LogicalModified.Value + " " + self.tc_DaysAgoModified.Value
 
             if self.tc_DaysAgoAccessed.Value != "":
                 if searchCMD == "":
                     searchCMD = "where (julianday(datetime(\'now\')) - julianday(datetime(lastaccessed, \'unixepoch\'))) " + self.combo_LogicalAccessed.Value + " " + self.tc_DaysAgoAccessed.Value
                 else:
-                    searchCMD += " AND where (julianday(datetime(\'now\')) - julianday(datetime(lastaccessed, \'unixepoch\'))) " + self.combo_LogicalAccessed.Value + " " + self.tc_DaysAgoAccessed.Value
+                    searchCMD += " AND (julianday(datetime(\'now\')) - julianday(datetime(lastaccessed, \'unixepoch\'))) " + self.combo_LogicalAccessed.Value + " " + self.tc_DaysAgoAccessed.Value
 
             if self.tc_Year.Value != "":
                 if searchCMD == "":
                     searchCMD = "where year " + self.combo_LogicalYear.Value + " " + self.tc_Year.Value
                 else:
-                    searchCMD += " AND where year " + self.combo_LogicalYear.Value + " " + self.tc_Year.Value
+                    searchCMD += " AND year " + self.combo_LogicalYear.Value + " " + self.tc_Year.Value
 
             if self.tc_Genre.Value != "":
                 if searchCMD == "":
                     searchCMD = "where genre=\'" + self.tc_Genre.Value + "\'"
                 else:
-                    searchCMD += " AND where genre=\'" + self.tc_Genre.Value + "\'"
+                    searchCMD += " AND genre=\'" + self.tc_Genre.Value + "\'"
 
             if self.tc_Artist.Value != "":
                 if searchCMD == "":
                     searchCMD = "where artist=\'" + self.tc_Artist.Value + "\'"
                 else:
-                    searchCMD += " AND where artist=\'" + self.tc_Artist.Value + "\'"
+                    searchCMD += " AND artist=\'" + self.tc_Artist.Value + "\'"
 
             if self.tc_Composer.Value != "":
                 if searchCMD == "":
-                    searchCMD = " AND where composer=\'" + self.tc_Composer.Value + "\'"
+                    searchCMD = "where composer=\'" + self.tc_Composer.Value + "\'"
                 else:
-                    searchCMD += " AND where composer=\'" + self.tc_Composer.Value + "\'"
+                    searchCMD += " AND composer=\'" + self.tc_Composer.Value + "\'"
 
             if self.tc_Bitrate.Value != "":
                 if searchCMD == "":
                     searchCMD = "where bitrate " + self.combo_LogicalBitrate.Value + " " + self.tc_Bitrate.Value
                 else:
-                    searchCMD += "AND where bitrate " + self.combo_LogicalBitrate.Value + " " + self.tc_Bitrate.Value
+                    searchCMD += "AND bitrate " + self.combo_LogicalBitrate.Value + " " + self.tc_Bitrate.Value
 
             if self.tc_Last.Value != "":
                 if searchCMD != "":
@@ -609,8 +609,8 @@ class ExtractPanel(wx.Panel):
                 getOpts = ""
                 if self.ck_ExtractVerbose.Value == True:
                     getOpts = "-v "
-
-                scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -x " + self.tc_TargetDatabase.Value + " -w " + searchCMD
+                                
+                scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -x " + self.tc_TargetDatabase.Value + " -w " + searchCMD                
                 startTime = datetime.now()
                 self.LogWindow.AppendText("[ Starting Extract ]")
                 self.LogWindow.AppendText("Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "\n")
