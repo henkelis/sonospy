@@ -626,10 +626,16 @@ class LaunchPanel(wx.Panel):
         os.chdir(os.pardir)
 
         launchCMD = self.buildLaunch()
+        
+        # TO DO: Find a way to suppress this if the user wants to.
+        
+        if launchCMD.count("-sSonospy=") > 1:
+            wx.MessageBox('Please make sure that you have enough ports open to run multiple SMAPI services in pycpoint.ini', 'Warning!', wx.OK | wx.ICON_INFORMATION)
 
 # DEBUG ------------------------------------------------------------------------
 #            print launchCMD
 # ------------------------------------------------------------------------------
+
         if os.name != 'nt':
             proc = subprocess.Popen([launchCMD],shell=True)
             if self.bt_Launch.Label == "Stop":
@@ -784,6 +790,7 @@ class LaunchPanel(wx.Panel):
         
     def buildLaunch(self):
         # Check for OS
+        dbCount = 0
         if os.name == 'nt':
             cmdroot = 'sonospy_'
             launchME = cmdroot
@@ -822,6 +829,7 @@ class LaunchPanel(wx.Panel):
         else:
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
+                    dbCount += 1
                     if self.ck_SMAPI.Value == True:
                         if list_userindexLabel[item] == '':
                             userindexLabel = 'defaultindex.ini'
@@ -831,14 +839,15 @@ class LaunchPanel(wx.Panel):
                         launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + "," + userindexLabel + " "
                     else:
                         launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
-
+                    
         if self.ck_ServicesMode.Value == True:
             launchME = launchME + " -s"
 
         if self.ck_SMAPI.Value == True:
             launchME = launchME + " -p"
-
+            
         self.tc_Scratchpad.Value = launchME
+        
         return launchME
         
         #DEBUG:
