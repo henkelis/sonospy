@@ -817,7 +817,7 @@ class LaunchPanel(wx.Panel):
             wxFindWindowById(list_checkboxID[item]).Label = "<add database>"
             wxFindWindowById(list_checkboxID[item]).Value = False
             wxFindWindowById(list_checkboxID[item]).Disable()
-            wxFindWindowById(list_userindexID[item]).Value = ""
+            wxFindWindowById(list_userindexID[item]).Selection = 0
         self.buildLaunch()
 
     def updateScratchPad(self, event):
