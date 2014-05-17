@@ -379,7 +379,6 @@ class ScanPanel(wx.Panel):
             # Set Original Working Directory so we can get back to here.
             owd = os.getcwd()
             os.chdir(os.pardir)
-
             getOpts = ""
             iniOverride = ""
 
@@ -418,8 +417,8 @@ class ScanPanel(wx.Panel):
                     self.worker = WorkerThread(self)
                     self.setButtons(False)
 
-                # set back to original working directory
-                os.chdir(owd)
+            # set back to original working directory
+            os.chdir(owd)
 
 
     def bt_SaveDefaultsClick(self, event):
