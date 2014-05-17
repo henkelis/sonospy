@@ -851,10 +851,10 @@ class LaunchPanel(wx.Panel):
             if self.rd_Web.Value == True:
                 launchME += "web "
 
-            if self.ck_SMAPI.Value == True:
-                launchMode = '-sSonospy='
-            else:
-                lauchMode = '-wSonospy='
+        if self.ck_SMAPI.Value == True:
+            launchMode = '-sSonospy='
+        else:
+            lauchMode = '-wSonospy='
 
         # rebuild text labels now, user may have changed them
         for item in range(len(list_checkboxID)):
