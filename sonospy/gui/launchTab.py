@@ -27,9 +27,6 @@
 ###############################################################################
 # TODO:
 # - Look at the README file.
-#
-# Windows Command:
-# Launch: python pycpoint.py -p -wSonospy=Henk,virtualsdatabase
 ###############################################################################
 
 import wx
@@ -46,6 +43,7 @@ list_txtctrlLabel = []
 list_buttonID = []
 list_userindexLabel = []
 list_userindexID = []
+
 
 class LaunchPanel(wx.Panel):
     """
@@ -64,12 +62,21 @@ class LaunchPanel(wx.Panel):
     def initialize(self):
 
         global sizer
-
+        
         panel = self
+        
+        # SET THE SIZER OBJECT UP
         sizer = wx.GridBagSizer(13, 4)
 
+        # SET BASELINE INDEX VARIABLES
         xIndex = 0
         yIndex = 0
+
+        # GET INI LIST FOR USER INDEXES
+        owd = os.getcwd()
+        os.chdir(os.pardir)
+        iniList = guiFunctions.scrubINI(os.getcwd(), "*.ini")
+        os.chdir(owd)        
 
     # [0] Make Header Columns --------------------------
         self.label_ProxyName = wx.StaticText(panel, label="Display Name")
@@ -108,23 +115,23 @@ class LaunchPanel(wx.Panel):
         self.ck_DB1 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB1.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
 
-        self.tc_DB1 = wx.TextCtrl(panel)
+        self.tc_DB1 = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
         self.tc_DB1.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
 
-        self.tc2_DB1 = wx.TextCtrl(panel)
-        self.tc2_DB1.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        self.comboDB1 = wx.ComboBox(panel, -1, "", (25,25), (60,20), iniList, wx.CB_DROPDOWN)
+        self.comboDB1.Bind(wx.EVT_COMBOBOX, self.updateCombo, self.comboDB1)
+        self.comboDB1.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
         
         self.bt_DB1 = wx.Button(self, label="Browse")
         
         self.bt_DB1.tc = self.tc_DB1
-        self.bt_DB1.tc2 = self.tc2_DB1
         self.bt_DB1.ck = self.ck_DB1
 
         sizer.Add(self.ck_DB1, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB1, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
-        sizer.Add(self.tc2_DB1, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.tc_DB1, pos=(xIndex,1), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,22))
+        sizer.Add(self.comboDB1, pos=(xIndex,2), span=(1,2), flag=wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_DB1, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-
+        
         self.ck_DB1.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB1)
         self.bt_DB1.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB1)
 
@@ -132,7 +139,7 @@ class LaunchPanel(wx.Panel):
         self.ck_DB1.Value = guiFunctions.configMe("launch", "db1_check", bool=True)
         self.ck_DB1.Label =  guiFunctions.configMe("launch", "db1_dbname")
         self.tc_DB1.Value = guiFunctions.configMe("launch", "db1_proxyname")
-        self.tc2_DB1.Value = guiFunctions.configMe("launch", "db1_userindex")
+        self.comboDB1.Select(guiFunctions.configMe("launch", "db1_userindex", integer=True))
 
         if self.ck_DB1.Label == "":
             self.ck_DB1.Label = "<add database>"
@@ -145,312 +152,333 @@ class LaunchPanel(wx.Panel):
         list_checkboxLabel.append(self.ck_DB1.GetLabel())
         list_txtctrlID.append(self.tc_DB1.GetId())
         list_txtctrlLabel.append(self.tc_DB1.Value)
-        list_userindexID.append(self.tc2_DB1.GetId())
-        list_userindexLabel.append(self.tc2_DB1.Value)
+        list_userindexID.append(self.comboDB1.GetId())
+        list_userindexLabel.append(self.comboDB1.Value)
 
         xIndex +=1
 
     #   [3]
         self.ck_DB2 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB2.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
-
-        self.tc_DB2 = wx.TextCtrl(panel)
+        
+        self.tc_DB2 = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
         self.tc_DB2.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
+        
+        self.comboDB2 = wx.ComboBox(panel, -1, "", (25,25), (60,20), iniList, wx.CB_DROPDOWN)
+        self.comboDB2.Bind(wx.EVT_COMBOBOX, self.updateCombo, self.comboDB2)
+        self.comboDB2.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
         self.bt_DB2 = wx.Button(self, label="Browse")
         
-        self.tc2_DB2 = wx.TextCtrl(panel)
-        self.tc2_DB2.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))        
-
         self.bt_DB2.tc = self.tc_DB2
         self.bt_DB2.ck = self.ck_DB2
-
+        
         sizer.Add(self.ck_DB2, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB2, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
-        sizer.Add(self.tc2_DB2, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.tc_DB2, pos=(xIndex,1), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,22))
+        sizer.Add(self.comboDB2, pos=(xIndex,2), span=(1,2), flag=wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_DB2, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-
+        
         self.ck_DB2.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB2)
         self.bt_DB2.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB2)
-
+        
         # Read in config
         self.ck_DB2.Value = guiFunctions.configMe("launch", "db2_check", bool=True)
         self.ck_DB2.Label =  guiFunctions.configMe("launch", "db2_dbname")
         self.tc_DB2.Value = guiFunctions.configMe("launch", "db2_proxyname")
-
+        self.comboDB2.Select(guiFunctions.configMe("launch", "db2_userindex", integer=True))
+        
         if self.ck_DB2.Label == "":
             self.ck_DB2.Label = "<add database>"
-
+        
         if self.ck_DB2.Label == "<add database>":
             self.ck_DB2.Disable()
-
+        
         # Add items to lists
         list_checkboxID.append(self.ck_DB2.GetId())
         list_checkboxLabel.append(self.ck_DB2.GetLabel())
         list_txtctrlID.append(self.tc_DB2.GetId())
         list_txtctrlLabel.append(self.tc_DB2.Value)
-        list_userindexID.append(self.tc2_DB2.GetId())
-        list_userindexLabel.append(self.tc2_DB2.Value)
-
+        list_userindexID.append(self.comboDB2.GetId())
+        list_userindexLabel.append(self.comboDB2.Value)
+        
         xIndex +=1
 
     #   [4]
         self.ck_DB3 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB3.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
-
-        self.tc_DB3 = wx.TextCtrl(panel)
+    
+        self.tc_DB3 = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
         self.tc_DB3.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
-
-        self.tc2_DB3 = wx.TextCtrl(panel)
-        self.tc2_DB3.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+    
+        self.comboDB3 = wx.ComboBox(panel, -1, "", (25,25), (60,20), iniList, wx.CB_DROPDOWN)
+        self.comboDB3.Bind(wx.EVT_COMBOBOX, self.updateCombo, self.comboDB3)
+        self.comboDB3.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
         
         self.bt_DB3 = wx.Button(self, label="Browse")
+        
         self.bt_DB3.tc = self.tc_DB3
         self.bt_DB3.ck = self.ck_DB3
-
+        
         sizer.Add(self.ck_DB3, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB3, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
-        sizer.Add(self.tc2_DB3, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.tc_DB3, pos=(xIndex,1), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,22))
+        sizer.Add(self.comboDB3, pos=(xIndex,2), span=(1,2), flag=wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_DB3, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-
+        
         self.ck_DB3.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB3)
         self.bt_DB3.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB3)
-
+        
         # Read in config
-        self.ck_DB3.Value = guiFunctions.configMe("launch", "db3_check", bool=True)
-        self.ck_DB3.Label =  guiFunctions.configMe("launch", "db3_dbname")
-        self.tc_DB3.Value = guiFunctions.configMe("launch", "db3_proxyname")
-
+        self.ck_DB3.Value = guiFunctions.configMe("launch", "DB3_check", bool=True)
+        self.ck_DB3.Label =  guiFunctions.configMe("launch", "DB3_dbname")
+        self.tc_DB3.Value = guiFunctions.configMe("launch", "DB3_proxyname")
+        self.comboDB3.Select(guiFunctions.configMe("launch", "DB3_userindex", integer=True))
+        
         if self.ck_DB3.Label == "":
             self.ck_DB3.Label = "<add database>"
-
+        
         if self.ck_DB3.Label == "<add database>":
             self.ck_DB3.Disable()
-
+        
         # Add items to lists
         list_checkboxID.append(self.ck_DB3.GetId())
         list_checkboxLabel.append(self.ck_DB3.GetLabel())
         list_txtctrlID.append(self.tc_DB3.GetId())
         list_txtctrlLabel.append(self.tc_DB3.Value)
-        list_userindexID.append(self.tc2_DB3.GetId())
-        list_userindexLabel.append(self.tc2_DB3.Value)
-
+        list_userindexID.append(self.comboDB3.GetId())
+        list_userindexLabel.append(self.comboDB3.Value)
+        
         xIndex +=1
 
     #   [5]
         self.ck_DB4 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB4.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
-
-        self.tc_DB4 = wx.TextCtrl(panel)
+    
+        self.tc_DB4 = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
         self.tc_DB4.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
-
-        self.tc2_DB4 = wx.TextCtrl(panel)
-        self.tc2_DB4.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+    
+        self.comboDB4 = wx.ComboBox(panel, -1, "", (25,25), (60,20), iniList, wx.CB_DROPDOWN)
+        self.comboDB4.Bind(wx.EVT_COMBOBOX, self.updateCombo, self.comboDB4)
+        self.comboDB4.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
         
         self.bt_DB4 = wx.Button(self, label="Browse")
+        
         self.bt_DB4.tc = self.tc_DB4
         self.bt_DB4.ck = self.ck_DB4
-
+        
         sizer.Add(self.ck_DB4, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB4, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
-        sizer.Add(self.tc2_DB4, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.tc_DB4, pos=(xIndex,1), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,22))
+        sizer.Add(self.comboDB4, pos=(xIndex,2), span=(1,2), flag=wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_DB4, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-
+        
         self.ck_DB4.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB4)
         self.bt_DB4.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB4)
-
+        
         # Read in config
-        self.ck_DB4.Value = guiFunctions.configMe("launch", "db4_check", bool=True)
-        self.ck_DB4.Label =  guiFunctions.configMe("launch", "db4_dbname")
-        self.tc_DB4.Value = guiFunctions.configMe("launch", "db4_proxyname")
-
+        self.ck_DB4.Value = guiFunctions.configMe("launch", "DB4_check", bool=True)
+        self.ck_DB4.Label =  guiFunctions.configMe("launch", "DB4_dbname")
+        self.tc_DB4.Value = guiFunctions.configMe("launch", "DB4_proxyname")
+        self.comboDB4.Select(guiFunctions.configMe("launch", "DB4_userindex", integer=True))
+        
         if self.ck_DB4.Label == "":
             self.ck_DB4.Label = "<add database>"
-
+        
         if self.ck_DB4.Label == "<add database>":
             self.ck_DB4.Disable()
-
+        
         # Add items to lists
         list_checkboxID.append(self.ck_DB4.GetId())
         list_checkboxLabel.append(self.ck_DB4.GetLabel())
         list_txtctrlID.append(self.tc_DB4.GetId())
         list_txtctrlLabel.append(self.tc_DB4.Value)
-        list_userindexID.append(self.tc2_DB4.GetId())
-        list_userindexLabel.append(self.tc2_DB4.Value)
+        list_userindexID.append(self.comboDB4.GetId())
+        list_userindexLabel.append(self.comboDB4.Value)
         
         xIndex +=1
 
     #   [6]
         self.ck_DB5 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB5.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
-
-        self.tc_DB5 = wx.TextCtrl(panel)
+    
+        self.tc_DB5 = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
         self.tc_DB5.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
-
-        self.tc2_DB5 = wx.TextCtrl(panel)
-        self.tc2_DB5.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+    
+        self.comboDB5 = wx.ComboBox(panel, -1, "", (25,25), (60,20), iniList, wx.CB_DROPDOWN)
+        self.comboDB5.Bind(wx.EVT_COMBOBOX, self.updateCombo, self.comboDB5)
+        self.comboDB5.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
         
         self.bt_DB5 = wx.Button(self, label="Browse")
+        
         self.bt_DB5.tc = self.tc_DB5
         self.bt_DB5.ck = self.ck_DB5
-
+        
         sizer.Add(self.ck_DB5, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB5, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
-        sizer.Add(self.tc2_DB5, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.tc_DB5, pos=(xIndex,1), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,22))
+        sizer.Add(self.comboDB5, pos=(xIndex,2), span=(1,2), flag=wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_DB5, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-
+        
         self.ck_DB5.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB5)
         self.bt_DB5.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB5)
-
+        
         # Read in config
-        self.ck_DB5.Value = guiFunctions.configMe("launch", "db5_check", bool=True)
-        self.ck_DB5.Label =  guiFunctions.configMe("launch", "db5_dbname")
-        self.tc_DB5.Value = guiFunctions.configMe("launch", "db5_proxyname")
-
+        self.ck_DB5.Value = guiFunctions.configMe("launch", "DB5_check", bool=True)
+        self.ck_DB5.Label =  guiFunctions.configMe("launch", "DB5_dbname")
+        self.tc_DB5.Value = guiFunctions.configMe("launch", "DB5_proxyname")
+        self.comboDB5.Select(guiFunctions.configMe("launch", "DB5_userindex", integer=True))
+        
         if self.ck_DB5.Label == "":
             self.ck_DB5.Label = "<add database>"
-
+        
         if self.ck_DB5.Label == "<add database>":
             self.ck_DB5.Disable()
-
+        
         # Add items to lists
         list_checkboxID.append(self.ck_DB5.GetId())
         list_checkboxLabel.append(self.ck_DB5.GetLabel())
         list_txtctrlID.append(self.tc_DB5.GetId())
         list_txtctrlLabel.append(self.tc_DB5.Value)
-        list_userindexID.append(self.tc2_DB5.GetId())
-        list_userindexLabel.append(self.tc2_DB5.Value)
+        list_userindexID.append(self.comboDB5.GetId())
+        list_userindexLabel.append(self.comboDB5.Value)
         
         xIndex +=1
 
-    #   [7]
+    #   [7] ------------------------------------------------------------------------------------------------------------
         self.ck_DB6 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB6.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
-
-        self.tc_DB6 = wx.TextCtrl(panel)
+        
+        self.tc_DB6 = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
         self.tc_DB6.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
-
-        self.tc2_DB6 = wx.TextCtrl(panel)
-        self.tc2_DB6.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
+        self.comboDB6 = wx.ComboBox(panel, -1, "", (25,25), (60,20), iniList, wx.CB_DROPDOWN)
+        self.comboDB6.Bind(wx.EVT_COMBOBOX, self.updateCombo, self.comboDB6)
+        self.comboDB6.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
         
         self.bt_DB6 = wx.Button(self, label="Browse")
+        
         self.bt_DB6.tc = self.tc_DB6
         self.bt_DB6.ck = self.ck_DB6
-
+        
         sizer.Add(self.ck_DB6, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB6, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
-        sizer.Add(self.tc2_DB6, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.tc_DB6, pos=(xIndex,1), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,22))
+        sizer.Add(self.comboDB6, pos=(xIndex,2), span=(1,2), flag=wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_DB6, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-
+        
         self.ck_DB6.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB6)
         self.bt_DB6.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB6)
-
+        
         # Read in config
-        self.ck_DB6.Value = guiFunctions.configMe("launch", "db6_check", bool=True)
-        self.ck_DB6.Label =  guiFunctions.configMe("launch", "db6_dbname")
-        self.tc_DB6.Value = guiFunctions.configMe("launch", "db6_proxyname")
-
+        self.ck_DB6.Value = guiFunctions.configMe("launch", "DB6_check", bool=True)
+        self.ck_DB6.Label =  guiFunctions.configMe("launch", "DB6_dbname")
+        self.tc_DB6.Value = guiFunctions.configMe("launch", "DB6_proxyname")
+        self.comboDB6.Select(guiFunctions.configMe("launch", "DB6_userindex", integer=True))
+        
         if self.ck_DB6.Label == "":
             self.ck_DB6.Label = "<add database>"
-
+        
         if self.ck_DB6.Label == "<add database>":
             self.ck_DB6.Disable()
-
+        
         # Add items to lists
         list_checkboxID.append(self.ck_DB6.GetId())
         list_checkboxLabel.append(self.ck_DB6.GetLabel())
         list_txtctrlID.append(self.tc_DB6.GetId())
         list_txtctrlLabel.append(self.tc_DB6.Value)
-        list_userindexID.append(self.tc2_DB6.GetId())
-        list_userindexLabel.append(self.tc2_DB6.Value)
+        list_userindexID.append(self.comboDB6.GetId())
+        list_userindexLabel.append(self.comboDB6.Value)
         
         xIndex +=1
 
     #   [8]
         self.ck_DB7 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB7.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
-
-        self.tc_DB7 = wx.TextCtrl(panel)
+        
+        self.tc_DB7 = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
         self.tc_DB7.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
-
-        self.tc2_DB7 = wx.TextCtrl(panel)
-        self.tc2_DB7.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
+        self.comboDB7 = wx.ComboBox(panel, -1, "", (25,25), (60,20), iniList, wx.CB_DROPDOWN)
+        self.comboDB7.Bind(wx.EVT_COMBOBOX, self.updateCombo, self.comboDB7)
+        self.comboDB7.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
         
         self.bt_DB7 = wx.Button(self, label="Browse")
+        
         self.bt_DB7.tc = self.tc_DB7
         self.bt_DB7.ck = self.ck_DB7
-
+        
         sizer.Add(self.ck_DB7, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB7, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
-        sizer.Add(self.tc2_DB7, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.tc_DB7, pos=(xIndex,1), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,22))
+        sizer.Add(self.comboDB7, pos=(xIndex,2), span=(1,2), flag=wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_DB7, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-
+        
         self.ck_DB7.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB7)
         self.bt_DB7.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB7)
-
+        
         # Read in config
-        self.ck_DB7.Value = guiFunctions.configMe("launch", "db7_check", bool=True)
-        self.ck_DB7.Label =  guiFunctions.configMe("launch", "db7_dbname")
-        self.tc_DB7.Value = guiFunctions.configMe("launch", "db7_proxyname")
-
+        self.ck_DB7.Value = guiFunctions.configMe("launch", "DB7_check", bool=True)
+        self.ck_DB7.Label =  guiFunctions.configMe("launch", "DB7_dbname")
+        self.tc_DB7.Value = guiFunctions.configMe("launch", "DB7_proxyname")
+        self.comboDB7.Select(guiFunctions.configMe("launch", "DB7_userindex", integer=True))
+        
         if self.ck_DB7.Label == "":
             self.ck_DB7.Label = "<add database>"
-
+        
         if self.ck_DB7.Label == "<add database>":
             self.ck_DB7.Disable()
-
+        
         # Add items to lists
         list_checkboxID.append(self.ck_DB7.GetId())
         list_checkboxLabel.append(self.ck_DB7.GetLabel())
         list_txtctrlID.append(self.tc_DB7.GetId())
         list_txtctrlLabel.append(self.tc_DB7.Value)
-        list_userindexID.append(self.tc2_DB7.GetId())
-        list_userindexLabel.append(self.tc2_DB7.Value)
-
+        list_userindexID.append(self.comboDB7.GetId())
+        list_userindexLabel.append(self.comboDB7.Value)
+        
         xIndex +=1
 
     #   [9]
         self.ck_DB8 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB8.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
-
-        self.tc_DB8 = wx.TextCtrl(panel)
+        
+        self.tc_DB8 = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
         self.tc_DB8.SetToolTip(wx.ToolTip("Enter a name for display on your Sonos Controller."))
-
-        self.tc2_DB8 = wx.TextCtrl(panel)
-        self.tc2_DB8.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
+        
+        self.comboDB8 = wx.ComboBox(panel, -1, "", (25,25), (60,20), iniList, wx.CB_DROPDOWN)
+        self.comboDB8.Bind(wx.EVT_COMBOBOX, self.updateCombo, self.comboDB8)
+        self.comboDB8.SetToolTip(wx.ToolTip("Set user index file if using SMAPI."))
         
         self.bt_DB8 = wx.Button(self, label="Browse")
+        
         self.bt_DB8.tc = self.tc_DB8
         self.bt_DB8.ck = self.ck_DB8
-
+        
         sizer.Add(self.ck_DB8, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.tc_DB8, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,10))
-        sizer.Add(self.tc2_DB8, pos=(xIndex,2), span=(1, 2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((100,10))
+        sizer.Add(self.tc_DB8, pos=(xIndex,1), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,22))
+        sizer.Add(self.comboDB8, pos=(xIndex,2), span=(1,2), flag=wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_DB8, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-
+        
         self.ck_DB8.Bind(wx.EVT_CHECKBOX, self.OnCheck, self.ck_DB8)
         self.bt_DB8.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DB8)
-
+        
         # Read in config
-        self.ck_DB8.Value = guiFunctions.configMe("launch", "db8_check", bool=True)
-        self.ck_DB8.Label =  guiFunctions.configMe("launch", "db8_dbname")
-        self.tc_DB8.Value = guiFunctions.configMe("launch", "db8_proxyname")
-
+        self.ck_DB8.Value = guiFunctions.configMe("launch", "DB8_check", bool=True)
+        self.ck_DB8.Label =  guiFunctions.configMe("launch", "DB8_dbname")
+        self.tc_DB8.Value = guiFunctions.configMe("launch", "DB8_proxyname")
+        self.comboDB8.Select(guiFunctions.configMe("launch", "DB8_userindex", integer=True))
+        
         if self.ck_DB8.Label == "":
             self.ck_DB8.Label = "<add database>"
-
+        
         if self.ck_DB8.Label == "<add database>":
             self.ck_DB8.Disable()
-
+        
         # Add items to lists
         list_checkboxID.append(self.ck_DB8.GetId())
         list_checkboxLabel.append(self.ck_DB8.GetLabel())
         list_txtctrlID.append(self.tc_DB8.GetId())
         list_txtctrlLabel.append(self.tc_DB8.Value)
-        list_userindexID.append(self.tc2_DB8.GetId())
-        list_userindexLabel.append(self.tc2_DB8.Value)
-
+        list_userindexID.append(self.comboDB8.GetId())
+        list_userindexLabel.append(self.comboDB8.Value)
+        
         xIndex +=1
-
+    
     # --------------------------------------------------------------------------
     # [12] Separator line ------------------------------------------------------
 
@@ -545,7 +573,7 @@ class LaunchPanel(wx.Panel):
         
         sizer.Add(self.bt_Launch, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_SaveDefaults, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-
+        
         # Bind a text event to autoupdate the scratchpad if the user decides
         # to edit the proxy name manually.
         self.tc_DB1.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB1)
@@ -557,16 +585,6 @@ class LaunchPanel(wx.Panel):
         self.tc_DB7.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB7)
         self.tc_DB8.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB8)
         
-        # And the user index fields now...
-        self.tc2_DB1.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB1)
-        self.tc2_DB2.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB2)
-        self.tc2_DB3.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB3)
-        self.tc2_DB4.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB4)
-        self.tc2_DB5.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB5)
-        self.tc2_DB6.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB6)
-        self.tc2_DB7.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB7)
-        self.tc2_DB8.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB8)        
-
         # And the zoneIP box...
         self.tc_SetupSMAPI.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_SetupSMAPI)
 
@@ -612,7 +630,8 @@ class LaunchPanel(wx.Panel):
 
         # set back to original working directory
         os.chdir(owd)
-
+        self.buildLaunch()
+        
     def OnCheck(self, event):
 # DEBUG ------------------------------------------------------------------------
 #        for item in range(len(list_checkboxID)):
@@ -620,6 +639,12 @@ class LaunchPanel(wx.Panel):
 #            print "Text Control " + str(item) + ":\t\tID:" + str(list_txtctrlID[item]) + "\tLABEL:" + list_txtctrlLabel[item]
 #            print "User Index " + str(item) + ":\t\tID:" + str(list_userindexID[item]) + "\tLABEL:" + list_userindexLabel[item]
 #------------------------------------------------------------------------------
+        self.buildLaunch()
+
+    def updateCombo(self, event):
+        self.buildLaunch()
+        
+    def updateCombo2(self, event):
         self.buildLaunch()
 
     def enableAllChecks(self, event):
@@ -683,44 +708,44 @@ class LaunchPanel(wx.Panel):
         guiFunctions.configWrite(section, "db1_check", self.ck_DB1.Value)
         guiFunctions.configWrite(section, "db1_dbname", self.ck_DB1.Label)
         guiFunctions.configWrite(section, "db1_proxyname", self.tc_DB1.Value)
-        guiFunctions.configWrite(section, "db1_userindex", self.tc2_DB1.Value)
+        guiFunctions.configWrite(section, "db1_userindex", self.comboDB1.GetCurrentSelection())
         guiFunctions.configWrite(section, "db2_check", self.ck_DB2.Value)
         guiFunctions.configWrite(section, "db2_dbname", self.ck_DB2.Label)
         guiFunctions.configWrite(section, "db2_proxyname", self.tc_DB2.Value)
-        guiFunctions.configWrite(section, "db2_userindex", self.tc2_DB1.Value)
+        guiFunctions.configWrite(section, "db1_userindex", self.comboDB2.GetCurrentSelection())
         guiFunctions.configWrite(section, "db3_check", self.ck_DB3.Value)
         guiFunctions.configWrite(section, "db3_dbname", self.ck_DB3.Label)
         guiFunctions.configWrite(section, "db3_proxyname", self.tc_DB3.Value)
-        guiFunctions.configWrite(section, "db3_userindex", self.tc2_DB1.Value)
+        guiFunctions.configWrite(section, "db3_userindex", self.comboDB3.GetCurrentSelection())
         guiFunctions.configWrite(section, "db4_check", self.ck_DB4.Value)
         guiFunctions.configWrite(section, "db4_dbname", self.ck_DB4.Label)
         guiFunctions.configWrite(section, "db4_proxyname", self.tc_DB4.Value)
-        guiFunctions.configWrite(section, "db4_userindex", self.tc2_DB1.Value)
+        guiFunctions.configWrite(section, "db4_userindex", self.comboDB4.GetCurrentSelection())
         guiFunctions.configWrite(section, "db5_check", self.ck_DB5.Value)
         guiFunctions.configWrite(section, "db5_dbname", self.ck_DB5.Label)
         guiFunctions.configWrite(section, "db5_proxyname", self.tc_DB5.Value)
-        guiFunctions.configWrite(section, "db5_userindex", self.tc2_DB1.Value)
+        guiFunctions.configWrite(section, "db5_userindex", self.comboDB5.GetCurrentSelection())
         guiFunctions.configWrite(section, "db6_check", self.ck_DB6.Value)
         guiFunctions.configWrite(section, "db6_dbname", self.ck_DB6.Label)
         guiFunctions.configWrite(section, "db6_proxyname", self.tc_DB6.Value)
-        guiFunctions.configWrite(section, "db6_userindex", self.tc2_DB1.Value)
+        guiFunctions.configWrite(section, "db6_userindex", self.comboDB6.GetCurrentSelection())
         guiFunctions.configWrite(section, "db7_check", self.ck_DB7.Value)
         guiFunctions.configWrite(section, "db7_dbname", self.ck_DB7.Label)
         guiFunctions.configWrite(section, "db7_proxyname", self.tc_DB7.Value)
-        guiFunctions.configWrite(section, "db7_userindex", self.tc2_DB1.Value)
+        guiFunctions.configWrite(section, "db7_userindex", self.comboDB7.GetCurrentSelection())
         guiFunctions.configWrite(section, "db8_check", self.ck_DB8.Value)
         guiFunctions.configWrite(section, "db8_dbname", self.ck_DB8.Label)
         guiFunctions.configWrite(section, "db8_proxyname", self.tc_DB8.Value)
-        guiFunctions.configWrite(section, "db8_userindex", self.tc2_DB1.Value)
+        guiFunctions.configWrite(section, "db8_userindex", self.comboDB8.GetCurrentSelection())
         guiFunctions.configWrite(section, "SMAPI", self.ck_SMAPI.Value)
-        guiFunctions.configWrite(section, "services_mode", self.ck_ServicesMode.Value)
+        #guiFunctions.configWrite(section, "services_mode", self.ck_ServicesMode.Value)
         guiFunctions.configWrite(section, "zoneIP", self.tc_SetupSMAPI.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
 
     def bt_AutoPopulateClick(self, event):
         self.populateMe()
-
+        
     def populateMe(self):
         filters = guiFunctions.configMe("general", "database_extensions").split()
 
@@ -742,35 +767,27 @@ class LaunchPanel(wx.Panel):
                 if curCount == 0:
                     ck = self.ck_DB1
                     tc = self.tc_DB1
-                    tc2 = self.tc2_DB1
                 if curCount == 1:
                     ck = self.ck_DB2
                     tc = self.tc_DB2
-                    tc2 = self.tc2_DB2
                 if curCount == 2:
                     ck = self.ck_DB3
                     tc = self.tc_DB3
-                    tc2 = self.tc2_DB3
                 if curCount == 3:
                     ck = self.ck_DB4
                     tc = self.tc_DB4
-                    tc2 = self.tc2_DB4
                 if curCount == 4:
                     ck = self.ck_DB5
                     tc = self.tc_DB5
-                    tc2 = self.tc2_DB5
                 if curCount == 5:
                     ck = self.ck_DB6
                     tc = self.tc_DB6
-                    tc2 = self.tc2_DB6
                 if curCount == 6:
                     ck = self.ck_DB7
                     tc = self.tc_DB7
-                    tc2 = self.tc2_DB7
                 if curCount == 7:
                     ck = self.ck_DB8
                     tc = self.tc_DB8
-                    tc2 = self.tc2_DB8
 
                 basename, extension = os.path.splitext(db)
                 tc.Value = basename

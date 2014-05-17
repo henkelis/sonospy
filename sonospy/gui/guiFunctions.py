@@ -98,6 +98,31 @@ def scrubDB(path, ext=False):
     return asps
 
 #-------------------------------------------------------------------------------
+# scrubINI
+#
+# Scours the provided path for *.ini files to return back to the app so that we
+# can dynamically create dropdowns for the user index on the launch tab
+#
+# TO DO: Add error handling for mark's files: pycpoint.ini and scan.ini
+#        so that they don't display in the dropdown.
+#-------------------------------------------------------------------------------
+import os
+
+def scrubINI(path, ext=False):
+    inifiles = [""]
+    ignoreIni = ["pycpoint", "scan"]
+    filters = ext
+
+    for file in os.listdir(path):
+        basename, extension = os.path.splitext(file)
+
+        if len(extension) > 0:
+            extension = "*" + extension
+            if extension in filters and basename not in ignoreIni:
+                    inifiles.append(file)
+    return inifiles
+
+#-------------------------------------------------------------------------------
 # statusText
 #
 # Simple function to set the status text in any of the other notebook tabs.
