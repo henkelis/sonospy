@@ -109,8 +109,10 @@ class ExtractPanel(wx.Panel):
         self.bt_MainDatabase = wx.Button(panel, label="Browse...")
         self.bt_MainDatabase.SetToolTip(wx.ToolTip(help_MainDatabase))
 
-        sizer.Add(self.tc_MainDatabase, pos=(sizerIndexX, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_MainDatabase, pos=(sizerIndexX, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        buttonLocationY = 4
+
+        sizer.Add(self.tc_MainDatabase, pos=(sizerIndexX, 1), span=(1, buttonLocationY), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((460,20))
+        sizer.Add(self.bt_MainDatabase, pos=(sizerIndexX, buttonLocationY+1), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         self.bt_MainDatabase.Bind(wx.EVT_BUTTON, self.bt_MainDatabaseClick, self.bt_MainDatabase)
     # --------------------------------------------------------------------------
@@ -130,9 +132,10 @@ class ExtractPanel(wx.Panel):
         self.bt_TargetDatabase.SetToolTip(wx.ToolTip(help_TargetDatabase))
 
         # Add them to the sizer.
+        buttonLocationY = 4
         sizer.Add(label_TargetDatabase, pos=(sizerIndexX, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-        sizer.Add(self.tc_TargetDatabase, pos=(sizerIndexX, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_TargetDatabase, pos=(sizerIndexX, 5), flag=wx.LEFT|wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=10)
+        sizer.Add(self.tc_TargetDatabase, pos=(sizerIndexX, 1), span=(1, buttonLocationY), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((460,20))
+        sizer.Add(self.bt_TargetDatabase, pos=(sizerIndexX, buttonLocationY+1), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         # Bind the button to a click event
         self.bt_TargetDatabase.Bind(wx.EVT_BUTTON, self.bt_TargetDatabaseClick,self.bt_TargetDatabase)
@@ -140,7 +143,7 @@ class ExtractPanel(wx.Panel):
     # [2] Options Static Box ---------------------------------------------------
 
         # Create static box
-        self.sb_ExtractOptions = wx.StaticBox(panel, label="Options for Extract", size=(100,100))
+        self.sb_ExtractOptions = wx.StaticBox(panel, label="Options for Extract", size=(300,100))
         sbs_ExtractOptions = wx.StaticBoxSizer(self.sb_ExtractOptions, wx.VERTICAL)
         OptionBoxSizer = wx.GridBagSizer(7, 9)
 
@@ -154,7 +157,7 @@ class ExtractPanel(wx.Panel):
         help_Created = "Extract files to the Target Database based on the CREATION DATE of the music files in the Source Database."
         label_OptionsCreated.SetToolTip(wx.ToolTip(help_Created))
 
-        self.combo_LogicalCreated = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalCreated = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalCreated.SetToolTip(wx.ToolTip(help_Created))
         self.combo_LogicalCreated.Select(guiFunctions.configMe("extract", "createdidx", integer=True))
 
@@ -168,7 +171,7 @@ class ExtractPanel(wx.Panel):
         # Add them to the sizer (optionBoxSizer)
         OptionBoxSizer.Add(label_OptionsCreated, pos=(optSizerIndexX, 0), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=0)
         OptionBoxSizer.Add(self.combo_LogicalCreated, pos=(optSizerIndexX,1), flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border=1)
-        OptionBoxSizer.Add(self.tc_DaysAgoCreated, pos=(optSizerIndexX, 2), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=0)
+        OptionBoxSizer.Add(self.tc_DaysAgoCreated, pos=(optSizerIndexX, 2), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=1)
         OptionBoxSizer.Add(label_DaysAgoCreated, pos=(optSizerIndexX,3), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=0)
 
         # Bit-rate
@@ -176,7 +179,7 @@ class ExtractPanel(wx.Panel):
         help_Bitrate = "Extract files to the Target Database based on the BIT-RATE of the music files in the Source Database."
         label_OptionsBitrate.SetToolTip(wx.ToolTip(help_Bitrate))
 
-        self.combo_LogicalBitrate = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalBitrate = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalBitrate.Select(guiFunctions.configMe("extract", "bitrateIdx", integer=True))
         self.combo_LogicalBitrate.SetToolTip(wx.ToolTip(help_Bitrate))
 
@@ -195,7 +198,7 @@ class ExtractPanel(wx.Panel):
         help_Inserted = "Extract files to the Target Database based on the INSERTED DATE (i.e. when the file was first added to the database) of the entries in the Source Database."
         label_OptionsInserted.SetToolTip(wx.ToolTip(help_Inserted))
 
-        self.combo_LogicalInserted = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalInserted = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalInserted.SetToolTip(wx.ToolTip(help_Inserted))
         self.combo_LogicalInserted.Select(guiFunctions.configMe("extract", "insertedIdx", integer=True))
         self.tc_DaysAgoInserted = wx.TextCtrl(panel)
@@ -230,7 +233,7 @@ class ExtractPanel(wx.Panel):
         help_Modified= "Extract files to the Target Database based on the LAST MODIFIED DATE of the music files in the Source Database."
         label_OptionsModified.SetToolTip(wx.ToolTip(help_Modified))
 
-        self.combo_LogicalModified = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalModified = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalModified.SetToolTip(wx.ToolTip(help_Modified))
         self.combo_LogicalModified.Select(guiFunctions.configMe("extract", "modifiedidx", integer=True))
 
@@ -266,7 +269,7 @@ class ExtractPanel(wx.Panel):
         help_Accessed= "Extract files to the Target Database based on the LAST ACCESSED DATE of the music files in the Source Database."
         label_OptionsAccessed.SetToolTip(wx.ToolTip(help_Accessed))
 
-        self.combo_LogicalAccessed = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalAccessed = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalAccessed.Select(guiFunctions.configMe("extract", "accessedIdx", integer=True))
         self.combo_LogicalAccessed.SetToolTip(wx.ToolTip(help_Accessed))
 
@@ -319,7 +322,7 @@ class ExtractPanel(wx.Panel):
         help_Year = "Extract files to the Target Database based on the YEAR RECORDED tag of the music files in the Source Database."
         label_OptionsYear.SetToolTip(wx.ToolTip(help_Year))
 
-        self.combo_LogicalYear = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalYear = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalYear.Select(guiFunctions.configMe("extract", "yearIdx", integer=True))
         self.combo_LogicalYear.SetToolTip(wx.ToolTip(help_Year))
 
