@@ -90,7 +90,7 @@ class SonospyFrame(wx.Frame):
     #----------------------------------------------------------------------
     def __init__(self):
         """Constructor"""
-        wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(710,750))
+        wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(730,770))
         panel = wx.Panel(self)
 
 
