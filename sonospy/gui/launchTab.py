@@ -524,7 +524,7 @@ class LaunchPanel(wx.Panel):
 
         sizer.Add(self.ck_SMAPI, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)        
         sizer.Add(self.tc_SetupSMAPI, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,20))
-        sizer.Add(self.label_launchMode, pos=(xIndex, 2), flag=wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, border=10)
+        sizer.Add(self.label_launchMode, pos=(xIndex, 2), flag=wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT|wx.RIGHT, border=1)
         sizer.Add(self.rd_Proxy, pos=(xIndex,3), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.rd_Web, pos=(xIndex,4), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
 
@@ -712,7 +712,7 @@ class LaunchPanel(wx.Panel):
         guiFunctions.configWrite(section, "db2_check", self.ck_DB2.Value)
         guiFunctions.configWrite(section, "db2_dbname", self.ck_DB2.Label)
         guiFunctions.configWrite(section, "db2_proxyname", self.tc_DB2.Value)
-        guiFunctions.configWrite(section, "db1_userindex", self.comboDB2.GetCurrentSelection())
+        guiFunctions.configWrite(section, "db2_userindex", self.comboDB2.GetCurrentSelection())
         guiFunctions.configWrite(section, "db3_check", self.ck_DB3.Value)
         guiFunctions.configWrite(section, "db3_dbname", self.ck_DB3.Label)
         guiFunctions.configWrite(section, "db3_proxyname", self.tc_DB3.Value)
