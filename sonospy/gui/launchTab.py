@@ -882,10 +882,29 @@ class LaunchPanel(wx.Panel):
 #            launchME = launchME + " -s"
 
         if self.ck_SMAPI.Value == True:
+            self.comboDB1.Enable()
+            self.comboDB2.Enable()
+            self.comboDB3.Enable()
+            self.comboDB4.Enable()
+            self.comboDB5.Enable()
+            self.comboDB6.Enable()
+            self.comboDB7.Enable()
+            self.comboDB8.Enable()
+            self.tc_SetupSMAPI.Enable()
             launchME = launchME + " -p"
             if len(self.tc_SetupSMAPI.Label) >0:
                 launchME = launchME + " -z" + self.tc_SetupSMAPI.Label
-                
+        else:
+            self.comboDB1.Disable()
+            self.comboDB2.Disable()
+            self.comboDB3.Disable()
+            self.comboDB4.Disable()
+            self.comboDB5.Disable()
+            self.comboDB6.Disable()
+            self.comboDB7.Disable()
+            self.comboDB8.Disable()
+            self.tc_SetupSMAPI.Disable()
+            
         self.tc_Scratchpad.Value = launchME
         
         return launchME
@@ -932,6 +951,14 @@ class LaunchPanel(wx.Panel):
             self.ck_ServicesMode.Enable()
             self.ck_SMAPI.Enable()
             self.tc_SetupSMAPI.Enable()
+            self.comboDB1.Enable()
+            self.comboDB2.Enable()
+            self.comboDB3.Enable()
+            self.comboDB4.Enable()
+            self.comboDB5.Enable()
+            self.comboDB6.Enable()
+            self.comboDB7.Enable()
+            self.comboDB8.Enable()
         else:
             self.ck_DB1.Disable()
             self.tc_DB1.Disable()
@@ -967,4 +994,13 @@ class LaunchPanel(wx.Panel):
             self.ck_ServicesMode.Disable()
             self.ck_SMAPI.Disable()
             self.tc_SetupSMAPI.Disable()
+            self.comboDB1.Disable()
+            self.comboDB2.Disable()
+            self.comboDB3.Disable()
+            self.comboDB4.Disable()
+            self.comboDB5.Disable()
+            self.comboDB6.Disable()
+            self.comboDB7.Disable()
+            self.comboDB8.Disable()
+            
 
