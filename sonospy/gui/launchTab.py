@@ -834,11 +834,6 @@ class LaunchPanel(wx.Panel):
             launchME = cmdroot
             launchMode = '-wSonospy='
             
-            if self.ck_SMAPI.Value == True:
-                launchMode = '-sSonospy='
-            else:
-                lauchMode = '-wSonospy='
-            
             # which version are we running?
             if self.rd_Proxy.Value == True:
                 launchME += "p "
@@ -848,11 +843,18 @@ class LaunchPanel(wx.Panel):
         else:
             cmdroot = './'
             launchME = cmdroot + "sonospy_"
+            launchMode = "-wSonospy="
+            
             # which version are we running?
             if self.rd_Proxy.Value == True:
                 launchME += "proxy "
             if self.rd_Web.Value == True:
                 launchME += "web "
+
+            if self.ck_SMAPI.Value == True:
+                launchMode = '-sSonospy='
+            else:
+                lauchMode = '-wSonospy='
 
         # rebuild text labels now, user may have changed them
         for item in range(len(list_checkboxID)):
