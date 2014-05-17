@@ -93,7 +93,7 @@ class LaunchPanel(wx.Panel):
         sizer.Add(self.label_UserIndexName, pos=(xIndex, 2), flag=wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
         sizer.Add(self.bt_Clear, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.ALIGN_RIGHT, border=10)
         sizer.Add(self.bt_AutoPopulate, pos=(xIndex, 4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-
+      
         xIndex +=1
     # --------------------------------------------------------------------------
     # [1] Separator line ------------------------------------------------------
@@ -462,11 +462,21 @@ class LaunchPanel(wx.Panel):
     # [13] Create and add a launch button and radios for Proxy vs. Web
     # Eventually add "Use Sorts" and "Remove Dupes"
 
-    # - LAUNCH BUTTON
-        self.bt_Launch = wx.Button(panel, label="Launch")
-        help_bt_Launch = "Click here to launch the Sonospy service."
-        self.bt_Launch.SetToolTip(wx.ToolTip(help_bt_Launch))
-        self.bt_Launch.Bind(wx.EVT_BUTTON, self.bt_LaunchClick, self.bt_Launch)
+    # - SMAPI CHECK BUTTON
+        self.ck_SMAPI = wx.CheckBox(panel, label="Run as SMAPI service.")
+        help_ck_SMAPI = "Run as the SMAPI interface to Sonospy."
+        self.ck_SMAPI.SetToolTip(wx.ToolTip(help_ck_SMAPI))
+        self.ck_SMAPI.Bind(wx.EVT_CHECKBOX, self.enableSMAPI, self.ck_SMAPI)
+        self.ck_SMAPI.Value = guiFunctions.configMe("launch", "smapi", bool=True)
+
+    # - SMAPI IP ADDRESS FOR SETUP
+        self.tc_SetupSMAPI = wx.TextCtrl(panel)
+        self.tc_SetupSMAPI.SetToolTip(wx.ToolTip("Enter an IP address for one of your Sonos devices to bind it to a service."))      
+        self.tc_SetupSMAPI.Value = guiFunctions.configMe("launch", "zoneIP")
+
+    # - LAUNCH MODE LABEL
+        self.label_launchMode = wx.StaticText(panel, label="Select Launch Mode:")
+
     # - PROXY RADIO BUTTON
         self.rd_Proxy = wx.RadioButton(panel, label="Proxy")
         help_rd_Proxy = "Run only as a proxy service in the background."
@@ -480,20 +490,15 @@ class LaunchPanel(wx.Panel):
             self.rd_Proxy.SetValue(True)
         else:
             self.rd_Web.SetValue(True)
-
+    
         self.rd_Proxy.Bind(wx.EVT_RADIOBUTTON, self.updateScratchPad, self.rd_Proxy)
         self.rd_Web.Bind(wx.EVT_RADIOBUTTON, self.updateScratchPad, self.rd_Web)
-                
-        # SAVE AS DEFAULTS
-        self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
-        help_SaveDefaults = "Save current settings as default."
-        self.bt_SaveDefaults.SetToolTip(wx.ToolTip(help_SaveDefaults))
-        self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
 
-        sizer.Add(self.bt_Launch, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.rd_Proxy, pos=(xIndex,1), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.rd_Web, pos=(xIndex,2), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_SaveDefaults, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.ck_SMAPI, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)        
+        sizer.Add(self.tc_SetupSMAPI, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,20))
+        sizer.Add(self.label_launchMode, pos=(xIndex, 2), flag=wx.ALIGN_CENTER_VERTICAL|wx.RIGHT, border=10)
+        sizer.Add(self.rd_Proxy, pos=(xIndex,3), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.rd_Web, pos=(xIndex,4), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
 
         xIndex +=1
 
@@ -504,14 +509,6 @@ class LaunchPanel(wx.Panel):
         self.ck_ServicesMode.Bind(wx.EVT_CHECKBOX, self.enableServices, self.ck_ServicesMode)
         sizer.Add(self.ck_ServicesMode, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
-    # - SMAPI CHECK BUTTON
-        self.ck_SMAPI = wx.CheckBox(panel, label="Run as SMAPI service.")
-        help_ck_SMAPI = "Run as the SMAPI interface to Sonospy."
-        self.ck_SMAPI.SetToolTip(wx.ToolTip(help_ck_SMAPI))
-        self.ck_SMAPI.Bind(wx.EVT_CHECKBOX, self.enableSMAPI, self.ck_SMAPI)
-        self.ck_SMAPI.Value = guiFunctions.configMe("launch", "smapi", bool=True)
-        sizer.Add(self.ck_SMAPI, pos=(xIndex,1), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-
         xIndex +=1
 
     # --------------------------------------------------------------------------
@@ -520,7 +517,7 @@ class LaunchPanel(wx.Panel):
         self.sb_Scratchpad = wx.StaticBox(panel, label="Scratchpad:", size=(200, 160))
         help_Scratchpad = "You can cut and paste this into a command/shell window..."
         scratchpadSizer = wx.StaticBoxSizer(self.sb_Scratchpad, wx.VERTICAL)
-        self.tc_Scratchpad = wx.TextCtrl(panel, -1,"",size=(300, 200), style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.tc_Scratchpad = wx.TextCtrl(panel, -1,"",size=(300, 150), style=wx.TE_MULTILINE|wx.TE_READONLY)
         self.tc_Scratchpad.SetToolTip(wx.ToolTip(help_Scratchpad))
         self.tc_Scratchpad.SetInsertionPoint(0)
         LogFont = wx.Font(7.5, wx.SWISS, wx.NORMAL, wx.NORMAL, False)
@@ -528,6 +525,26 @@ class LaunchPanel(wx.Panel):
 
         scratchpadSizer.Add(self.tc_Scratchpad, flag=wx.EXPAND)
         sizer.Add(scratchpadSizer, pos=(xIndex, 0), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.BOTTOM|wx.ALIGN_BOTTOM, border=10)
+
+        xIndex += 1
+
+# --------------------------------------------------------------------------
+# [14] Launch Button and Save Default Button
+
+        # - LAUNCH BUTTON
+        self.bt_Launch = wx.Button(panel, label="Launch")
+        help_bt_Launch = "Click here to launch the Sonospy service."
+        self.bt_Launch.SetToolTip(wx.ToolTip(help_bt_Launch))
+        self.bt_Launch.Bind(wx.EVT_BUTTON, self.bt_LaunchClick, self.bt_Launch)    
+
+        # SAVE AS DEFAULTS
+        self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
+        help_SaveDefaults = "Save current settings as default."
+        self.bt_SaveDefaults.SetToolTip(wx.ToolTip(help_SaveDefaults))
+        self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
+        
+        sizer.Add(self.bt_Launch, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.bt_SaveDefaults, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
         # Bind a text event to autoupdate the scratchpad if the user decides
         # to edit the proxy name manually.
@@ -549,6 +566,9 @@ class LaunchPanel(wx.Panel):
         self.tc2_DB6.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB6)
         self.tc2_DB7.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB7)
         self.tc2_DB8.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc2_DB8)        
+
+        # And the zoneIP box...
+        self.tc_SetupSMAPI.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_SetupSMAPI)
 
         Publisher().subscribe(self.setLaunchPanel, 'setLaunchPanel')
 
@@ -694,6 +714,7 @@ class LaunchPanel(wx.Panel):
         guiFunctions.configWrite(section, "db8_userindex", self.tc2_DB1.Value)
         guiFunctions.configWrite(section, "SMAPI", self.ck_SMAPI.Value)
         guiFunctions.configWrite(section, "services_mode", self.ck_ServicesMode.Value)
+        guiFunctions.configWrite(section, "zoneIP", self.tc_SetupSMAPI.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
 
@@ -845,7 +866,9 @@ class LaunchPanel(wx.Panel):
 
         if self.ck_SMAPI.Value == True:
             launchME = launchME + " -p"
-            
+            if len(self.tc_SetupSMAPI.Label) >0:
+                launchME = launchME + " -z" + self.tc_SetupSMAPI.Label
+                
         self.tc_Scratchpad.Value = launchME
         
         return launchME
@@ -891,6 +914,7 @@ class LaunchPanel(wx.Panel):
             self.label_ProxyName.Enable()
             self.ck_ServicesMode.Enable()
             self.ck_SMAPI.Enable()
+            self.tc_SetupSMAPI.Enable()
         else:
             self.ck_DB1.Disable()
             self.tc_DB1.Disable()
@@ -924,5 +948,6 @@ class LaunchPanel(wx.Panel):
             self.rd_Web.Disable()
             self.label_ProxyName.Disable()
             self.ck_ServicesMode.Disable()
-            self.ck_SMAPI().Disable()
+            self.ck_SMAPI.Disable()
+            self.tc_SetupSMAPI.Disable()
 
