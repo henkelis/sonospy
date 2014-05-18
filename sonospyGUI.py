@@ -42,6 +42,8 @@ import scanTab
 import extractTab
 import launchTab
 import virtualsTab
+import guiFunctions
+
 # import scheduleTab
 # import nowPlayingTab
 
@@ -90,10 +92,21 @@ class SonospyFrame(wx.Frame):
     #----------------------------------------------------------------------
     def __init__(self):
         """Constructor"""
-        wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(730,770))
+    # [sonospy] defaults
+    # posx = 595
+    # posy = 200
+    # width = 730
+    # height = 770
+    # maximize = False    
+        width = guiFunctions.configMe("sonospy", "width", integer=True)
+        height = guiFunctions.configMe("sonospy", "height", integer=True)
+        posx = guiFunctions.configMe("sonospy", "posx", integer=True)
+        posy = guiFunctions.configMe("sonospy", "posy", integer=True)
+        maximize = guiFunctions.configMe("sonospy", "maximize", bool=True)
+        
+        wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(width,height))
+
         panel = wx.Panel(self)
-
-
         notebook = SonospyNotebook(panel)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(notebook, 1, wx.ALL|wx.EXPAND, 5)
@@ -112,7 +125,11 @@ class SonospyFrame(wx.Frame):
 #        wx.EVT_TASKBAR_RIGHT_UP(self.tbicon, self.OnClose)
         self.Layout()
         self.Show()
-        self.Centre()
+        # Turning this off now, since we're storing screen position
+        # self.Centre()
+        self.SetPosition((posx, posy))
+        if maximize == True:
+            self.Maximize()
 
 #    def OnTaskBarLeftClick(self, evt):
 #        self.tbicon.PopupMenu(self.tbicon.CreatePopupMenu())
@@ -125,6 +142,19 @@ class SonospyFrame(wx.Frame):
     def OnClose(self, event):
     # tell the window to kill itself and kill the running sonospy process
         owd = os.getcwd()
+    # Saving the window width, height, screen position and maximized or not.
+        section = "sonospy"
+        curWidth, curHeight = self.GetSize()
+        curPosX, curPosY = self.GetScreenPosition()
+        curMaximize = self.IsMaximized()
+
+        guiFunctions.configWrite(section, "width", curWidth)
+        guiFunctions.configWrite(section, "height", curHeight)
+        guiFunctions.configWrite(section, "posx", curPosX)
+        guiFunctions.configWrite(section, "posY", curPosY)
+        guiFunctions.configWrite(section, "maximize", curMaximize)
+
+    # Now get back to our launch directior to fire off the stop command.
         os.chdir(os.pardir)
         os.chdir(os.pardir)
 
