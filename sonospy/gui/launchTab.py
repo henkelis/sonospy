@@ -43,7 +43,6 @@ list_txtctrlLabel = []
 list_buttonID = []
 list_userindexLabel = []
 list_userindexID = []
-windowsPid = ""
 
 class LaunchPanel(wx.Panel):
     """
@@ -77,8 +76,8 @@ class LaunchPanel(wx.Panel):
         os.chdir(os.pardir)
         iniList = guiFunctions.scrubINI(os.getcwd(), "*.ini")
         os.chdir(owd)        
-
-    # [0] Make Header Columns --------------------------
+    # -------------------------------------------------------------------------
+    # [0] Make Header Columns 
         self.label_ProxyName = wx.StaticText(panel, label="Display Name")
         self.label_UserIndexName = wx.StaticText(panel, label="User Index")
         self.ck_EnableAll = wxCheckBox(panel, label="Enable All")
@@ -102,16 +101,17 @@ class LaunchPanel(wx.Panel):
         sizer.Add(self.bt_AutoPopulate, pos=(xIndex, 4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
       
         xIndex +=1
-    # --------------------------------------------------------------------------
-    # [1] Separator line ------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # [1] Separator line 
 
         hl_SepLine1 = wx.StaticLine(panel, 0, (250, 50), (300,1))
         sizer.Add(hl_SepLine1, pos=(xIndex, 0), span=(1, 5), flag=wx.EXPAND)
         xIndex +=1
 
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     # [2-9] Checkbox, database name and proxy name field, plus browse button
-    #   [2]
+    # -------------------------------------------------------------------------
+    # [2] - DB1
         self.ck_DB1 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB1.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
 
@@ -156,8 +156,8 @@ class LaunchPanel(wx.Panel):
         list_userindexLabel.append(self.comboDB1.Value)
 
         xIndex +=1
-
-    #   [3]
+    # -------------------------------------------------------------------------
+    # [3] - DB2
         self.ck_DB2 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB2.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
         
@@ -202,8 +202,8 @@ class LaunchPanel(wx.Panel):
         list_userindexLabel.append(self.comboDB2.Value)
         
         xIndex +=1
-
-    #   [4]
+    # -------------------------------------------------------------------------
+    # [4] - DB3
         self.ck_DB3 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB3.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
     
@@ -248,8 +248,8 @@ class LaunchPanel(wx.Panel):
         list_userindexLabel.append(self.comboDB3.Value)
         
         xIndex +=1
-
-    #   [5]
+    # -------------------------------------------------------------------------
+    # [5] - DB4
         self.ck_DB4 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB4.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
     
@@ -295,7 +295,8 @@ class LaunchPanel(wx.Panel):
         
         xIndex +=1
 
-    #   [6]
+    # -------------------------------------------------------------------------
+    # [6] - DB5
         self.ck_DB5 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB5.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
     
@@ -341,7 +342,8 @@ class LaunchPanel(wx.Panel):
         
         xIndex +=1
 
-    #   [7] ------------------------------------------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # [7] - DB6
         self.ck_DB6 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB6.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
         
@@ -387,7 +389,8 @@ class LaunchPanel(wx.Panel):
         
         xIndex +=1
 
-    #   [8]
+    # -------------------------------------------------------------------------
+    # [8] - DB7
         self.ck_DB7 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB7.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
         
@@ -433,7 +436,8 @@ class LaunchPanel(wx.Panel):
         
         xIndex +=1
 
-    #   [9]
+    # -------------------------------------------------------------------------
+    # [9] - DB8
         self.ck_DB8 = wx.CheckBox(self, -1, "<add database>")
         self.ck_DB8.SetToolTip(wx.ToolTip("Click here to enable/disable this database for launch."))
         
@@ -480,7 +484,7 @@ class LaunchPanel(wx.Panel):
         xIndex +=1
     
     # --------------------------------------------------------------------------
-    # [12] Separator line ------------------------------------------------------
+    # [12] Separator line 
 
         hl_SepLine1 = wx.StaticLine(panel, 0, (250, 50), (300,1))
         sizer.Add(hl_SepLine1, pos=(xIndex, 0), span=(1, 5), flag=wx.EXPAND)
@@ -488,7 +492,6 @@ class LaunchPanel(wx.Panel):
         xIndex +=1
     # --------------------------------------------------------------------------
     # [13] Create and add a launch button and radios for Proxy vs. Web
-    # Eventually add "Use Sorts" and "Remove Dupes"
 
     # - SMAPI CHECK BUTTON
         self.ck_SMAPI = wx.CheckBox(panel, label="Run as SMAPI service.")
@@ -509,6 +512,7 @@ class LaunchPanel(wx.Panel):
         self.rd_Proxy = wx.RadioButton(panel, label="Proxy")
         help_rd_Proxy = "Run only as a proxy service in the background."
         self.rd_Proxy.SetToolTip(wx.ToolTip(help_rd_Proxy))
+        
     # - WEB RADIO BUTTON
         self.rd_Web = wx.RadioButton(panel, label="Web")
         help_rd_Web = "Run as the web interface to Sonospy."
@@ -530,15 +534,6 @@ class LaunchPanel(wx.Panel):
 
         xIndex +=1
 
-        #self.ck_ServicesMode = wx.CheckBox(self, -1, "Run in Services Mode")
-        #help_ServicesMode = "(EXPERIMENTAL) Run in Music Services section of the controller.  Eliminates the need for multiple databases -- for the most part."
-        #self.ck_ServicesMode.SetToolTip(wx.ToolTip(help_ServicesMode))
-        #self.ck_ServicesMode.Value = guiFunctions.configMe("launch", "services_mode", bool=True)
-        #self.ck_ServicesMode.Bind(wx.EVT_CHECKBOX, self.enableServices, self.ck_ServicesMode)
-        #sizer.Add(self.ck_ServicesMode, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-
-        #xIndex +=1
-
     # --------------------------------------------------------------------------
     # [13] Create Scratch Pad
 
@@ -556,8 +551,8 @@ class LaunchPanel(wx.Panel):
 
         xIndex += 1
 
-# --------------------------------------------------------------------------
-# [14] Launch Button and Save Default Button
+    # --------------------------------------------------------------------------
+    # [14] Launch Button and Save Default Button
 
         # - LAUNCH BUTTON
         self.bt_Launch = wx.Button(panel, label="Launch")
@@ -596,15 +591,21 @@ class LaunchPanel(wx.Panel):
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
-        # self.populateMe()
         self.buildLaunch()
 
+    ########################################################################################################################
+    # setLaunchPanel: Used to enable and disable the panel, and is called from
+    #                 other tabs.
+    ########################################################################################################################
     def setLaunchPanel(self, msg):
         if msg.data == "Disable":
             self.Disable()
         else:
             self.Enable()
 
+    ########################################################################################################################
+    # browseDB: Used to open a sonospy database file (.sdb, .db)
+    ########################################################################################################################
     def browseDB(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
@@ -631,22 +632,29 @@ class LaunchPanel(wx.Panel):
         # set back to original working directory
         os.chdir(owd)
         self.buildLaunch()
-        
+    
+    ########################################################################################################################
+    # OnCheck: Used anytime a checkbox is clicked, to make sure we are updating
+    #          the scratchpad to reflect changes.
+    ########################################################################################################################
     def OnCheck(self, event):
-# DEBUG ------------------------------------------------------------------------
-#        for item in range(len(list_checkboxID)):
-#            print "Checkbox " + str(item) + ":\t\tID:" + str(list_checkboxID[item]) + "\tLABEL:" + list_checkboxLabel[item]
-#            print "Text Control " + str(item) + ":\t\tID:" + str(list_txtctrlID[item]) + "\tLABEL:" + list_txtctrlLabel[item]
-#            print "User Index " + str(item) + ":\t\tID:" + str(list_userindexID[item]) + "\tLABEL:" + list_userindexLabel[item]
-#------------------------------------------------------------------------------
+    # DEBUG ------------------------------------------------------------------------
+    #    for item in range(len(list_checkboxID)):
+    #        print "Checkbox " + str(item) + ":\t\tID:" + str(list_checkboxID[item]) + "\tLABEL:" + list_checkboxLabel[item]
+    #        print "Text Control " + str(item) + ":\t\tID:" + str(list_txtctrlID[item]) + "\tLABEL:" + list_txtctrlLabel[item]
+    #        print "User Index " + str(item) + ":\t\tID:" + str(list_userindexID[item]) + "\tLABEL:" + list_userindexLabel[item]
+    #------------------------------------------------------------------------------
         self.buildLaunch()
 
+    ########################################################################################################################
+    # updateCombo: Used anytime a wxComboBox is changed/updated.
+    ########################################################################################################################
     def updateCombo(self, event):
         self.buildLaunch()
         
-    def updateCombo2(self, event):
-        self.buildLaunch()
-
+    ########################################################################################################################
+    # enableAllChecks: If selected, it will enable every available database.
+    ########################################################################################################################
     def enableAllChecks(self, event):
         if self.ck_EnableAll.Value == True:
             self.ck_EnableAll.Label = "Disable All"
@@ -658,12 +666,16 @@ class LaunchPanel(wx.Panel):
                 wx.FindWindowById(list_checkboxID[item]).Value = self.ck_EnableAll.Value
         self.buildLaunch()
 
-    def enableServices(self, event):
-        self.buildLaunch()
-
+    ########################################################################################################################
+    # enableSMAPI: Updates scracthpad if SMAPI is selected
+    ########################################################################################################################
     def enableSMAPI(self, event):
         self.buildLaunch()
 
+    ########################################################################################################################
+    # bt_LaunchClick: Actually launches Sonospy given the data from buildLaunch.  Should run what is printed in the
+    #                 scratchpad.
+    ########################################################################################################################
     def bt_LaunchClick(self, event):
         # back up to the folder below our current one.  save cwd in variable
         owd = os.getcwd()
@@ -677,9 +689,9 @@ class LaunchPanel(wx.Panel):
         if launchCMD.count("-sSonospy=") > 1:
             wx.MessageBox('Please make sure that you have enough ports open to run multiple SMAPI services in pycpoint.ini', 'Warning!', wx.OK | wx.ICON_INFORMATION)
 
-# DEBUG ------------------------------------------------------------------------
-#            print launchCMD
-# ------------------------------------------------------------------------------
+        # DEBUG ------------------------------------------------------------------------
+        # print launchCMD
+        # ------------------------------------------------------------------------------
 
         if os.name != 'nt':
             proc = subprocess.Popen([launchCMD],shell=True)
@@ -715,6 +727,9 @@ class LaunchPanel(wx.Panel):
         # set back to original working directory
         os.chdir(owd)
 
+    ########################################################################################################################
+    # bt_SaveDefaultsClick: Will write out the current values in this panel as the defaults in GUIpref.ini    
+    ########################################################################################################################
     def bt_SaveDefaultsClick(self, event):
         section = "launch"
 
@@ -752,14 +767,20 @@ class LaunchPanel(wx.Panel):
         guiFunctions.configWrite(section, "db8_proxyname", self.tc_DB8.Value)
         guiFunctions.configWrite(section, "db8_userindex", self.comboDB8.GetCurrentSelection())
         guiFunctions.configWrite(section, "SMAPI", self.ck_SMAPI.Value)
-        #guiFunctions.configWrite(section, "services_mode", self.ck_ServicesMode.Value)
         guiFunctions.configWrite(section, "zoneIP", self.tc_SetupSMAPI.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
 
+    ########################################################################################################################
+    # bt_AutoPopulateClick: Called as an event to simply run the function below
+    ########################################################################################################################
     def bt_AutoPopulateClick(self, event):
         self.populateMe()
         
+    ########################################################################################################################
+    # populateMe: Scours the sonospy/ director for valid database files (as specified in the GUIpref.ini).  Then populates
+    #             the various fields with databases.
+    ########################################################################################################################
     def populateMe(self):
         filters = guiFunctions.configMe("general", "database_extensions").split()
 
@@ -811,20 +832,24 @@ class LaunchPanel(wx.Panel):
 
             curCount +=1
 
-#            #-------------------------------------------------------
-#            # Save references to the widgets created dynamically
-#                list_checkboxID.append(check.GetId())
-#                list_checkboxLabel.append(check.GetLabel())
-#                list_txtctrlID.append(name.GetId())
-#                list_txtctrlLabel.append(name.Value)
-#
-#            # Bind to event for later (DEBUG)
-#                check.Bind(wx.EVT_CHECKBOX, self.OnCheck, check)
+             # DEBUG ------------------------------------------------------------------------
+             # Save references to the widgets created dynamically
+             #   list_checkboxID.append(check.GetId())
+             #   list_checkboxLabel.append(check.GetLabel())
+             #   list_txtctrlID.append(name.GetId())
+             #   list_txtctrlLabel.append(name.Value)
 
+             # Bind to event for later (DEBUG)
+             #   check.Bind(wx.EVT_CHECKBOX, self.OnCheck, check)
+             # ------------------------------------------------------------------------------
+             
         self.buildLaunch()
         # set back to original working directory
         os.chdir(owd)
 
+    ########################################################################################################################
+    # bt_ClearClick: Clear the various fields to wipe the panel clean.
+    ########################################################################################################################
     def bt_ClearClick(self, event):
         for item in range(len(list_checkboxID)):
             wxFindWindowById(list_txtctrlID[item]).Value = ""
@@ -834,16 +859,20 @@ class LaunchPanel(wx.Panel):
             wxFindWindowById(list_userindexID[item]).Selection = 0
         self.buildLaunch()
 
+    ########################################################################################################################
+    # updateScratchPad: This is for a set of buttons, I don't know how to have a function called as an event yet.
+    ########################################################################################################################
     def updateScratchPad(self, event):
         event.Skip()
         self.buildLaunch()
 
-        # MARK: Is SMAPI something that can run in either Web or Proxy?
-        
+    ########################################################################################################################
+    # buildLaunch: The bulk of this panel relies on this function.  It builds out the command that will ultimately be run
+    #              and then updates the scratchpad to reflect the changes.
+    ########################################################################################################################
     def buildLaunch(self):
         # Check for OS
         dbCount = 0
-        global windowsPid
         
         if os.name == 'nt':
             cmdroot = 'sonospy_'
@@ -936,6 +965,10 @@ class LaunchPanel(wx.Panel):
         
         return launchME
 
+    ########################################################################################################################
+    # setButtons: Turns the various panel buttons on and off -- this is so we don't go making changes to the fields
+    #             while Sonospy is running.
+    ########################################################################################################################
     def setButtons(self, state):
         """
         Toggle for the button states.
