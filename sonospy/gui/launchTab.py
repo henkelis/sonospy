@@ -698,7 +698,7 @@ class LaunchPanel(wx.Panel):
         else:
             proc = subprocess.Popen(launchCMD, shell=True)
             # Trap the windows processID into a windowsPID.txt file so we can read it later to kill the process on stop.
-            temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid')
+            temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
             if self.bt_Launch.Label == "Stop":
                 self.bt_Launch.Label = "Launch"
                 self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
@@ -888,9 +888,10 @@ class LaunchPanel(wx.Panel):
                 with codecs.open('windowsPID.pid', encoding='utf-16') as f:
                     f.readline()
                     windowsPid = f.readline()
-                    launchME = "TASKKILL /F /PID " + windowsPid
+                    windowsPid = windowsPid.splitlines()
+                    launchME = "TASKKILL /F /PID " + windowsPid[0] + " > nul"
                     windowsKill = True
-                    self.tc_Scratchpad.Value = "Sonospy currently running with Windows Process ID: " + windowsPid + "\nPress STOP below when finished."
+                    self.tc_Scratchpad.Value = "Sonospy currently running with Windows Process ID: " + windowsPid[0] + "\n\nPress STOP below when finished."
         else:
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
@@ -904,9 +905,6 @@ class LaunchPanel(wx.Panel):
                         launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + "," + userindexLabel + " "
                     else:
                         launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
-                    
-#        if self.ck_ServicesMode.Value == True:
-#            launchME = launchME + " -s"
 
         if self.ck_SMAPI.Value == True:
             self.comboDB1.Enable()
@@ -974,7 +972,6 @@ class LaunchPanel(wx.Panel):
             self.rd_Proxy.Enable()
             self.rd_Web.Enable()
             self.label_ProxyName.Enable()
-#            self.ck_ServicesMode.Enable()
             self.ck_SMAPI.Enable()
             self.tc_SetupSMAPI.Enable()
             self.comboDB1.Enable()
@@ -1017,7 +1014,6 @@ class LaunchPanel(wx.Panel):
             self.rd_Proxy.Disable()
             self.rd_Web.Disable()
             self.label_ProxyName.Disable()
-#            self.ck_ServicesMode.Disable()
             self.ck_SMAPI.Disable()
             self.tc_SetupSMAPI.Disable()
             self.comboDB1.Disable()
