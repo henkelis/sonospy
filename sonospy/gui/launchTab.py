@@ -43,7 +43,7 @@ list_txtctrlLabel = []
 list_buttonID = []
 list_userindexLabel = []
 list_userindexID = []
-
+windowsPid = ""
 
 class LaunchPanel(wx.Panel):
     """
@@ -697,6 +697,20 @@ class LaunchPanel(wx.Panel):
                 self.setButtons(False)
         else:
             proc = subprocess.Popen(launchCMD, shell=True)
+            # Trap the windows processID into a windowsPID.txt file so we can read it later to kill the process on stop.
+            temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid')
+            if self.bt_Launch.Label == "Stop":
+                self.bt_Launch.Label = "Launch"
+                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
+                guiFunctions.statusText(self, "Sonospy Service Stopped...")
+                self.buildLaunch()
+                self.setButtons(True)
+            else:
+                self.bt_Launch.Label = "Stop"
+                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
+                guiFunctions.statusText(self, "Sonospy Service Started...")
+                self.buildLaunch()
+                self.setButtons(False)
 
         # set back to original working directory
         os.chdir(owd)
@@ -829,6 +843,8 @@ class LaunchPanel(wx.Panel):
     def buildLaunch(self):
         # Check for OS
         dbCount = 0
+        global windowsPid
+        
         if os.name == 'nt':
             cmdroot = 'sonospy_'
             launchME = cmdroot
@@ -863,9 +879,18 @@ class LaunchPanel(wx.Panel):
             list_userindexLabel[item]= wxFindWindowById(list_userindexID[item]).Value
             
         # build out the command
+        windowsKill = False
         if self.bt_Launch.Label == "Stop":
             if os.name != 'nt':
                 launchME = cmdroot + "sonospy_stop"
+            else:
+                import codecs
+                with codecs.open('windowsPID.pid', encoding='utf-16') as f:
+                    f.readline()
+                    windowsPid = f.readline()
+                    launchME = "TASKKILL /F /PID " + windowsPid
+                    windowsKill = True
+                    self.tc_Scratchpad.Value = "Sonospy currently running with Windows Process ID: " + windowsPid + "\nPress STOP below when finished."
         else:
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
@@ -893,7 +918,8 @@ class LaunchPanel(wx.Panel):
             self.comboDB7.Enable()
             self.comboDB8.Enable()
             self.tc_SetupSMAPI.Enable()
-            launchME = launchME + " -p"
+            if windowsKill == False:
+                launchME = launchME + " -p"
             if len(self.tc_SetupSMAPI.Label) >0:
                 launchME = launchME + " -z" + self.tc_SetupSMAPI.Label
         else:
@@ -906,13 +932,11 @@ class LaunchPanel(wx.Panel):
             self.comboDB7.Disable()
             self.comboDB8.Disable()
             self.tc_SetupSMAPI.Disable()
-            
-        self.tc_Scratchpad.Value = launchME
+        
+        if windowsKill == False:
+            self.tc_Scratchpad.Value = launchME
         
         return launchME
-        
-        #DEBUG:
-        #print launchME
 
     def setButtons(self, state):
         """
@@ -950,7 +974,7 @@ class LaunchPanel(wx.Panel):
             self.rd_Proxy.Enable()
             self.rd_Web.Enable()
             self.label_ProxyName.Enable()
-            self.ck_ServicesMode.Enable()
+#            self.ck_ServicesMode.Enable()
             self.ck_SMAPI.Enable()
             self.tc_SetupSMAPI.Enable()
             self.comboDB1.Enable()
@@ -993,7 +1017,7 @@ class LaunchPanel(wx.Panel):
             self.rd_Proxy.Disable()
             self.rd_Web.Disable()
             self.label_ProxyName.Disable()
-            self.ck_ServicesMode.Disable()
+#            self.ck_ServicesMode.Disable()
             self.ck_SMAPI.Disable()
             self.tc_SetupSMAPI.Disable()
             self.comboDB1.Disable()

@@ -4,7 +4,7 @@
 
 IF "%~1"=="" GOTO NoParams
 
-echo on
+echo off
 cd sonospy
 pythonw pycpoint.py %* >../pycpoint.log 2>&1 
 
