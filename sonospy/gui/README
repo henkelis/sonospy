@@ -48,7 +48,7 @@ TO DO
 [GENERAL]
  - Look at the PIP installer.
  - Update for wxPython3.0?
- - Setup a taskbar icon
+ - Setup a taskbar for starting, stopping sonospy.
  - Comment scanTab, ExtractTab, virtualsTab, guiFunctions
  - Find out how to store comments in the GUIpref.ini
  
