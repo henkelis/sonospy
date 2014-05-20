@@ -48,6 +48,9 @@ TO DO
 [GENERAL]
  - Look at the PIP installer.
  - Update for wxPython3.0?
+ - Setup a taskbar icon
+ - Comment scanTab, ExtractTab, virtualsTab, guiFunctions
+ - Find out how to store comments in the GUIpref.ini
  
 [USERINDEX.INI]
  - Consider a tab to allow for generation of a userindex.ini file.
