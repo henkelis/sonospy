@@ -947,8 +947,8 @@ class LaunchPanel(wx.Panel):
             self.tc_SetupSMAPI.Enable()
             if windowsKill == False:
                 launchME = launchME + " -p"
-            if len(self.tc_SetupSMAPI.Label) >0:
-                launchME = launchME + " -z" + self.tc_SetupSMAPI.Label
+                if len(self.tc_SetupSMAPI.Label) >0:
+                    launchME = launchME + " -z" + self.tc_SetupSMAPI.Label
         else:
             self.comboDB1.Disable()
             self.comboDB2.Disable()
