@@ -73,9 +73,13 @@ class Device(BaseDevice):
         create_webserver = kwargs.pop('create_webserver', True)
         force_listen_url = kwargs.pop('force_listen_url', '')
         udp_listener = kwargs.pop('udp_listener', '')
+        receive_notify = kwargs.pop('receive_notify', 'True')
         BaseDevice.__init__(self, *args, **kwargs)
         self._generate_xml()
-        self.SSDP = SSDPServer(self.friendly_name, self.xml_filename, udp_listener=udp_listener)
+        if receive_notify:
+            self.SSDP = SSDPServer(self.friendly_name, self.xml_filename, udp_listener=udp_listener, receive_notify=receive_notify)
+        else:
+            self.SSDP = None
         self.webserver = None
         if create_webserver:
             self._create_webserver(force_listen_url)
@@ -138,15 +142,18 @@ class Device(BaseDevice):
             except Exception, e:
                 log.error('Error starting service %s: %s' % (k, e))
         self._publish()
-        self.SSDP.register_device(self)
+        if self.SSDP:
+            self.SSDP.register_device(self)
         self.webserver.start()
-        self.SSDP.start()
+        if self.SSDP:
+            self.SSDP.start()
         log.info('Finished starting device %s' % self.friendly_name)
 
     def stop(self):
         """ Stops the device.
         """
-        self.SSDP.stop()
+        if self.SSDP:
+            self.SSDP.stop()
         self.webserver.stop()
 
     def is_running(self):

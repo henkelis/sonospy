@@ -183,19 +183,20 @@ def url_fetch(url, filename='', attempts=0, interval=0, silent=False):
             sleep(interval)
     if silent:
         return None
-    if last_exception and ':49153' in url:
-        # HACK - this is a SKY HD box
-        # don't want log filling with 401s
-        raise last_exception
-    elif last_exception:
-#        log.error('last_exception on %s' % url)
-        print 'last_exception on ' + str(url)
-        print e.code
-        print e.reason
-
-        import traceback        
-        traceback.print_stack()
-
+#    if last_exception and ':49153' in url:
+#        # HACK - this is a SKY HD box
+#        # don't want log filling with 401s
+#        raise last_exception
+#    elif last_exception and ':49152' in url:
+#        # HACK - this is a NAS
+#        # don't want log filling with 404s
+#        raise last_exception
+#    elif last_exception:
+    if last_exception:
+        log.error('url_fetch exception on %s, %s, %s' % (url, e.code, e.reason))
+        print 'url_fetch exception on %s, %s, %s' % (url, e.code, e.reason)
+#        import traceback        
+#        traceback.print_stack()
         raise last_exception
     else:
         return None

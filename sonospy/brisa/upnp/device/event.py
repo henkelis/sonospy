@@ -458,7 +458,7 @@ class EventMessage:
 
         @rtype: boolean
         """
-        log.debug("error", error)
+        log.debug("error: %s", error)
         return True
 
     def response(self, http_response, cargo):

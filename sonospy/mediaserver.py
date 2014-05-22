@@ -611,19 +611,21 @@ class MediaServer(object):
         self.debugout('statichierarchy', self.statichierarchy)
 
         # load root, hierarchy, path and index settings data
-        self.allrootitems, self.displayrootitems, self.hierarchies, self.index_settings, self.path_index_entries = self.load_hierarchy(index_type)
+        self.allrootitems, self.displayrootitems, self.hierarchies, self.index_settings, self.path_index_entries, self.separator_entries = self.load_hierarchy(index_type)
 
         self.debugout('allrootitems', self.allrootitems)
         self.debugout('displayrootitems', self.displayrootitems)
         self.debugout('hierarchies', self.hierarchies)
         self.debugout('index_settings', self.index_settings)
         self.debugout('path_index_entries', self.path_index_entries)
+        self.debugout('separator_entries', self.separator_entries)
 
         # create type, id and dynamic lookups
         dynamic_value = self.dynamic_parentid_start
         self.index_types = {}
         self.index_ids = {}
         self.dynamic_lookup = {}
+        reverse_dynamic_lookup = {}
         for entry, entrystring in self.allrootitems:
             hierarchy = self.hierarchies[entry]
             index_type_list = []
@@ -646,11 +648,14 @@ class MediaServer(object):
                     
                     # get the path index entry 
                     path_index_key = '%s_%s' % (entry, hierarchy[i])
-                    path_index_entry = self.path_index_entries[path_index_key]
-                    # process each entry in the list
-                    for pid, title in path_index_entry:
-                        self.dynamic_lookup[dynamic_id] = pid
-                        dynamic_id += 1
+                    if path_index_key in self.path_index_entries.keys():
+                        path_index_entry = self.path_index_entries[path_index_key]
+                        # process each entry in the list
+                        for pid, title in path_index_entry:
+                            self.dynamic_lookup[dynamic_id] = pid
+                            # create temp reverse lookup
+                            reverse_dynamic_lookup[pid] = str(dynamic_id)
+                            dynamic_id += 1
 
             # set leaf data
             index_type_list += ['LEAF']
@@ -662,6 +667,19 @@ class MediaServer(object):
         self.debugout('index_types', self.index_types)
         self.debugout('index_ids', self.index_ids)
         self.debugout('dynamic_lookup', self.dynamic_lookup)
+
+        # adjust separator entries, replacing path IDs with dynamic ID
+        self.separator_entry_keys = []
+        for entry in self.separator_entries:
+            separator_entry = []
+            entryparts = entry.split('_')
+            for part in entryparts:
+                if part in reverse_dynamic_lookup.keys():
+                    part = reverse_dynamic_lookup[part]
+                separator_entry += [part]
+            self.separator_entry_keys += [':'.join(separator_entry)]
+
+        self.debugout('separator_entry_keys', self.separator_entry_keys)
 
         # now post process dynamic entries - if there is a dynamic
         # above a normal static index, and the range field is the
@@ -685,11 +703,13 @@ class MediaServer(object):
                 for indexkey, title in keydict:
                     # get key for path index entry
                     pathindexkey = '%s_%s_%s' % (entry, indexkey, childindex)
-                    # get range field for child
-                    indexfield = self.index_settings[pathindexkey]['range_field']
-                    # check if the range field of the child is the same as the child
-                    if indexfield != '' and indexfield != childindex:
-                        rangecheck = False
+                    # check whether this path is just a separator (won't be in list)
+                    if pathindexkey in self.index_settings.keys():
+                        # get range field for child
+                        indexfield = self.index_settings[pathindexkey]['range_field']
+                        # check if the range field of the child is the same as the child
+                        if indexfield != '' and indexfield != childindex:
+                            rangecheck = False
                 if rangecheck:
                     self.index_types[entry] = ['RANGE'] + entrydict[1:]
 
@@ -740,6 +760,15 @@ class MediaServer(object):
 
         # create presentation map XML from search settings, and save to file
         pm_xml  = '<Presentation>\n'
+
+        pm_xml += '<PresentationMap type="BrowseIconSizeMap">\n'
+        pm_xml += '<Match>\n'
+        pm_xml += '<browseIconSizeMap>\n'
+        pm_xml += '<sizeEntry size="0" substitution="_legacy.png"/>\n'
+        pm_xml += '</browseIconSizeMap>\n'
+        pm_xml += '</Match>\n'
+        pm_xml += '</PresentationMap>\n'
+        
         pm_xml += '<PresentationMap type="Search">\n'
         pm_xml += '<Match>\n'
         pm_xml += '<SearchCategories>\n'
@@ -793,6 +822,7 @@ class MediaServer(object):
         hierarchy_entries = {}
         path_index_entries = {}
         path_indexes = {}
+        separator_entries = []
 
         processing = stop_processing = False
         tree_count = 0
@@ -836,8 +866,10 @@ class MediaServer(object):
                     
                         # save previous tree data
                         allrootitems += [(tree_id, title)]
-                        if display_index:
+                        if display_tree:
                             displayrootitems += [(tree_id, title)]
+                        if not expand_tree:
+                            separator_entries += [tree_id]
                         hierarchy_data[tree_id] = tree
 
                         # save prev path entries
@@ -857,6 +889,22 @@ class MediaServer(object):
                             hierarchy_entries[index_id] = index_key_dict.copy()
                             # reset default index entries                        
                             index_key_dict = self.user_index_key_dict.copy()
+                            # save display/expand flags
+                            if display_index:
+                                # TODO
+                                pass
+                            if not expand_index:
+                                # get keys of current and next indexes
+                                lower_types = self.get_lower_types(index, tree, path_indexes)
+                                if lower_types:
+                                    curr_key, next_entry = lower_types
+                                    if higher_types:
+                                        curr_index_id = '%s_%s_%s' % (tree_id, higher_types, curr_key)
+                                    else:
+                                        curr_index_id = '%s_%s' % (tree_id, curr_key)
+                                    separator_entries += [curr_index_id]
+                            display_index = True
+                            expand_index = True
                         
                     tree_count += 1
                     tree_id = 'R%s' % tree_count
@@ -865,21 +913,18 @@ class MediaServer(object):
                         title = None
                         path_entry = {}
                     path_indexes = {}
-                    display_index = True
+                    display_tree = True
+                    expand_tree = True
                     
                 elif tree_count > 0:
 
-                    # look for display value
-                    if key == 'display':
-
-                        if value.lower() == 'n':
-                            display_index = False
-                    
                     # look for tree title
-                    elif key == 'title':
+                    if key == 'title':
                     
                         title = value
                         index = None
+                        display_index = True
+                        expand_index = True
 
                     elif title:
                     
@@ -898,10 +943,42 @@ class MediaServer(object):
                                 hierarchy_entries[index_id] = index_key_dict.copy()
                                 # reset default index entries                        
                                 index_key_dict = self.user_index_key_dict.copy()
+                                # save display/expand flags
+                                if display_index:
+                                    # TODO
+                                    pass
+                                if not expand_index:
+                                    # get keys of current and next indexes
+                                    lower_types = self.get_lower_types(index, tree, path_indexes)
+                                    if lower_types:
+                                        curr_key, next_entry = lower_types
+                                        if higher_types:
+                                            curr_index_id = '%s_%s_%s' % (tree_id, higher_types, curr_key)
+                                        else:
+                                            curr_index_id = '%s_%s' % (tree_id, curr_key)
+                                        separator_entries += [curr_index_id]
+                                display_index = True
+                                expand_index = True
                                 
                             if value in tree:
 
                                 index = value
+
+                        # look for root level display/expand
+                        elif not index and (key == 'display' or key == 'expand'):
+
+                            if len(value) > 1:
+                                value = value[0]
+
+                            if key == 'display':
+        
+                                if value.lower() == 'n':
+                                    display_tree = False
+                            
+                            elif key == 'expand':
+        
+                                if value.lower() == 'n':
+                                    expand_tree = False
 
                         elif index:
                     
@@ -916,8 +993,24 @@ class MediaServer(object):
                                 path_indexes[index] = path_id
 
                             else:
-                            
-                                if key in index_key_dict.keys():
+
+                                # look for index level display/expand
+                                if key == 'display' or key == 'expand':
+
+                                    if len(value) > 1:
+                                        value = value[0]
+
+                                    if key == 'display':
+                
+                                        if value.lower() == 'n':
+                                            display_index = False
+                                    
+                                    elif key == 'expand':
+                
+                                        if value.lower() == 'n':
+                                            expand_index = False
+                                        
+                                elif key in index_key_dict.keys():
 
                                     if key == 'index_range':
                                         value = self.convert_range(value)
@@ -927,7 +1020,7 @@ class MediaServer(object):
 
             if stop_processing: break
 
-        return allrootitems, displayrootitems, hierarchy_data, hierarchy_entries, path_index_entries
+        return allrootitems, displayrootitems, hierarchy_data, hierarchy_entries, path_index_entries, separator_entries
 
     def load_searches(self, index_type):
 
@@ -1130,6 +1223,21 @@ class MediaServer(object):
                     types = '_'.join(filter(None,(types, path_indexes[entry])))
             return types
         
+    def get_lower_types(self, index, tree, path_indexes):
+        # get next type down in path index below passed index
+        # get position of index in tree
+        pos = tree.index(index)
+        # get type of previous entry if there is one
+        if pos == len(tree) - 1: return None
+        else:
+            curr_entry = tree[pos]
+            next_entry = tree[pos + 1]
+            if curr_entry in path_indexes.keys():
+                curr_key = path_indexes[curr_entry]
+                return curr_key, next_entry
+            else:
+                return None
+        
     def convert_range(self, rangestring):
         rangestring = rangestring.strip().lower()
         rangestring = " ".join(rangestring.split())
@@ -1211,7 +1319,35 @@ class MediaServer(object):
         # standardise ID field name
         kwargs['QueryID'] = queryID
 
-        return self.hierarchicalQuery(**kwargs)
+        # get query result
+        ret = self.hierarchicalQuery(**kwargs)
+        
+        # process any SMAPI entries that should not be expanded
+        if len(ret) == 4:
+            updateditems = []
+            items, total, index, itemstype = ret
+            for item in items:
+                log.debug('%s - %s' % (itemstype, item))
+                if itemstype == 'track':
+                    updateditems += [item]
+                else:
+                    itemkey = item[0]
+                    itemkeyparts = itemkey.split(':')
+                    # keys are held as first and last facets of key
+                    if len(itemkeyparts) < 3:
+                        itemkeylookup = itemkey
+                    else:
+                        itemkeylookup = '%s:%s' % (itemkeyparts[0], itemkeyparts[-1])
+                    if itemkeylookup in self.separator_entry_keys:
+                        # add tuple entries for canenumerate and canplay (false so they are not expanded)
+                        # plus add albumarturi
+                        updateditems += [((itemkey, False, False), ) + (item[1], ) + ('%s/separator_legacy.png' % self.webserverurl, ) + item[3:]]
+                    else:
+                        updateditems += [item]
+            return updateditems, total, index, itemstype
+        else:
+            return ret
+
 
     def hierarchicalQuery(self, **kwargs):
 
@@ -4601,7 +4737,8 @@ class MediaServer(object):
                     if numsuffix:
                         selectfield += ',' + suffixstring
 
-                    selectfield = '%s, %s' % (selectfield, 'folderart, trackart, folderartid, trackartid')
+                    if field.lower() == 'album' or field.lower() == 'work' or field.lower() == 'virtual':
+                        selectfield = '%s, %s' % (selectfield, 'folderart, trackart, folderartid, trackartid')
                     
                     groupfield = field
                     if groupfield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
@@ -5138,9 +5275,19 @@ class MediaServer(object):
         
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
 
+            log.debug(items)
+
             for entry in items:
-                if len(entry) == 2:
-                    id, title = entry
+
+                log.debug(entry)
+                
+                if len(entry) == 2 or len(entry) == 3:
+                    id = entry[0]
+                    title = entry[1]
+                    if len(entry) == 3:
+                        cover = entry[2]
+                    else:
+                        cover = ''
                     ret += '<container id="%s" parentID="%s" restricted="true">' % (id, queryID)
                     ret += '<dc:title>%s</dc:title>' % (title)
                     
@@ -5159,10 +5306,11 @@ class MediaServer(object):
                         classtype = 'object.container.playlistContainer'
                     else:
                         classtype = 'object.container'
-
                     ret += '<upnp:class>%s</upnp:class>' % (classtype)
+
+                    if cover != '' and not cover.startswith('EMBEDDED_'):
+                        ret += '<upnp:albumArtURI>%s</upnp:albumArtURI>' % (cover)
                     ret += '</container>'
-                    # TODO: cover?
                 else:
                     id, title, mime, res, upnpclass, metadatatype, metadata = entry
                     d1, artist, d2, d3, d4, album, coverres, d5, albumartist, d6, d7, iduration = metadata
@@ -6277,7 +6425,7 @@ class MediaServer(object):
 
         # remove redundant whitespace from entries
         fixlist = [f.lower().strip() if not f.startswith('@') else f for f in fixlist]
-        print fixlist
+#        print fixlist
 
         # pair entries and code snippets
         entrylist = []

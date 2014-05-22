@@ -331,7 +331,8 @@ class SSDPServer(object):
         refer to the UPnP specification. Links can be found at our developer
         documentation homepage.
         """
-        log.debug('_register')
+#        log.debug('_register - usn: %85s  %s' % (usn, repr(traceback.format_stack())))
+        log.debug('_register - usn: %s' % (usn))
 
         if where == 'remote':
             d = self.known_device
@@ -348,7 +349,7 @@ class SSDPServer(object):
         if st == 'upnp:rootdevice' and where == 'remote':
         
 #            print "NEW DEVICE EVENT: " + str(self.known_device[usn])
-        
+            log.debug('_register new device event - st: %s  usn: %s' % (st, usn))        
             self._callback("new_device_event", st, self.known_device[usn])
 
     def _local_register(self, usn, st, location, server, cache_control):

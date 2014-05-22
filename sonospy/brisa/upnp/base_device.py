@@ -98,18 +98,22 @@ class BaseDevice(object):
         @param device: device to be added
         @type device: Device
         """
+
         if device in self.devices.values():
             log.debug('Device %s already contained by %s' % (device, self))
             return False
         if device.friendly_name not in self.devices:
             self.devices[device.friendly_name] = device
         else:
+            # this code is trying to look for an unused iterative name for a device
+            # - fixed so that it just uses that as the friendlyName
             d = 0
             name = None
             while not name:
                 name = '%s%d' % (device.friendly_name, d)
-                if name not in [d.friendly_name for d in self.devices if \
-                                device.friendly_name in d.friendly_name]:
+#                if name not in [d.friendly_name for d in self.devices if \
+#                                device.friendly_name in d.friendly_name]:
+                if name not in self.devices:
                     break
                 else:
                     d += 1

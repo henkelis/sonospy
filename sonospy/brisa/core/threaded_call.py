@@ -6,6 +6,8 @@
 callbacks.
 """
 
+import sys, traceback
+
 import thread
 import threading
 
@@ -38,7 +40,6 @@ def run_async_function(f, param_tuple=(), delay=0):
         # Instant call
         thread.start_new_thread(f, param_tuple)
 
-
 def run_async_call(function, success_callback=None, error_callback=None,
                    success_callback_cargo=None, error_callback_cargo=None,
                    delay=0, *args, **kwargs):
@@ -61,6 +62,11 @@ def run_async_call(function, success_callback=None, error_callback=None,
     @return: object for monitoring the call
     @rtype: ThreadedCall
     """
+#    print function.__name__
+#    if function.__name__ == 'url_fetch':
+#        import traceback        
+#        traceback.print_stack()
+        
     
 #    print "########### run_async_call function: " + str(function) + "  active count: " + str(threading.active_count())
 #    print "########### run_async_call delay: " + str(delay)
@@ -73,7 +79,6 @@ def run_async_call(function, success_callback=None, error_callback=None,
     # Perform the call and return the object
     tcall.start()
     return tcall
-
 
 class ThreadedCall(threading.Thread):
     """ This class runs a call asynchronously and forwards the result/error
@@ -94,10 +99,19 @@ class ThreadedCall(threading.Thread):
     @type error_callback: callable
     @type delay: float
     """
+    counter = 0
 
     def __init__(self, function, success_callback=None, error_callback=None,
                  success_callback_cargo=None, error_callback_cargo=None,
                  delay=None, *args, **kwargs):
+        self.__class__.counter += 1
+        self.instance = self.__class__.counter
+        log.debug('++ %s ++ function: %s' % (self.instance, function))
+        log.debug('++ %s ++ success_callback: %s' % (self.instance, success_callback))
+        log.debug('++ %s ++ success_callback_cargo: %s' % (self.instance, success_callback_cargo))
+        log.debug('++ %s ++ error_callback: %s' % (self.instance, error_callback))
+        log.debug('++ %s ++ args: %s' % (self.instance, str(args)))
+        log.debug('++ %s ++ kwargs: %s' % (self.instance, str(kwargs)))
         threading.Thread.__init__(self)
         self.setDaemon(True)
         self.function = function
@@ -138,22 +152,28 @@ class ThreadedCall(threading.Thread):
             return
 
         try:
-            log.debug('calling function')
+            log.debug('++ %s ++ calling function: %s' % (self.instance, str(self.function)))
             # Performing the call
             self.result = self.function(*self.args, **self.kwargs)
-            log.debug('got result %s' % self.result)
+            log.debug('++ %s ++ got result %s' % (self.instance, self.result))
             if self.success_callback:
-                log.debug('forwarding to success_callback')
+                log.debug('++ %s ++ forwarding to success_callback' % self.instance)
                 self.success_callback(self.result, self.success_callback_cargo)
 
+            log.debug('++ %s ++ setting completed' % self.instance)
             self.set_completed()
 
         except Exception, e:
-            print "async call exception: " + str(e)
-            print "    function: " + str(self.function)
-            print "    args: " + str(self.args)
-            print "    kwargs: " + str(self.kwargs)
-            print "    results: " + str(self.result)
+            log.debug('++ %s ++ async call exception: %s' % (self.instance, str(e)))
+            log.debug('++ %s ++ async call exception detail: %s' % (self.instance, str(sys.exc_info())))
+            log.debug('++ %s ++ async call exception traceback: %s' % (self.instance, str(traceback.format_exc())))
+           
+            log.debug('++ %s ++ function: %s' % (self.instance, str(self.function)))
+            log.debug('++ %s ++ args: %s' % (self.instance, str(self.args)))
+            log.debug('++ %s ++ kwargs: %s' % (self.instance, str(self.kwargs)))
+            log.debug('++ %s ++ result: %s' % (self.instance, str(self.result)))
+            log.debug('++ %s ++ type result: %s' % (self.instance, type(self.result)))
+            
             log.debug('exception happened (%s), forwarding...'
                       % e)
 #                      % e.message)
