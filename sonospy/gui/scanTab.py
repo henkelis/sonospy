@@ -1,9 +1,9 @@
 ###############################################################################
 # Scan Tab for use with sonospyGUI.py
 ###############################################################################
-# scanTab.py copyright (c) 2010-2011 John Chowanec
+# scanTab.py copyright (c) 2010-2014 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
-# Sonospy Project copyright (c) 2010-2011 Mark Henkelis
+# Sonospy Project copyright (c) 2010-2014 Mark Henkelis
 #   (specifics for this file: scan.py)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -61,7 +61,7 @@ class WorkerThread(Thread):
 
     def run(self):
         """Run Worker Thread."""
-        wx.PostEvent(self._notify_window, ResultEvent("Command: " + scanCMD + "\n\n"))
+        wx.PostEvent(self._notify_window, ResultEvent("\nCommand: " + scanCMD + "\n\n"))
         proc = subprocess.Popen(scanCMD, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
         while True:
@@ -102,23 +102,6 @@ class ScanPanel(wx.Panel):
         sizer.Add(self.bt_MainDatabase, pos=(xIndex, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
         self.bt_MainDatabase.Bind(wx.EVT_BUTTON, self.bt_MainDatabaseClick,self.bt_MainDatabase)
         xIndex += 1
-    # [0] INI Overide ----------------------------------------------------------
-#        label_INI = wx.StaticText(panel, label="INI File:")
-#        help_INI = "Override scan.ini with your own INI file."
-#        label_INI.SetToolTip(wx.ToolTip(help_Database))
-#        sizer.Add(label_INI, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-#
-#        self.tc_INI = wx.TextCtrl(panel)
-#        self.tc_INI.SetToolTip(wx.ToolTip(help_INI))
-#        self.tc_INI.Value = guiFunctions.configMe("scan", "inioverride")
-#        sizer.Add(self.tc_INI, pos=(xIndex, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
-#
-#        self.bt_INI = wx.Button(panel, label="Browse...")
-#        self.bt_INI.SetToolTip(wx.ToolTip(help_INI))
-#        sizer.Add(self.bt_INI, pos=(xIndex, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
-#        self.bt_INI.Bind(wx.EVT_BUTTON, self.bt_INIClick,self.bt_INI)
-#        xIndex += 1
-    # --------------------------------------------------------------------------
     # [1] Paths to scan for new Music ------------------------------------------
         self.sb_FoldersToScan = wx.StaticBox(panel, label="Folders to Scan:", size=(200, 100))
         help_FoldersToScan = "Folders you will scan for music files are listed here. Click ADD to browse for a *top-level* folder. Scan will search all sub-folders for valid music."
@@ -271,7 +254,7 @@ class ScanPanel(wx.Panel):
 
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -r"
             startTime = datetime.now()
-            self.LogWindow.AppendText("[ Starting Repair ] (" + startTime.strftime("%T") + ")\n\n")
+            self.LogWindow.AppendText("[ Starting Repair ]")
             guiFunctions.statusText(self, "[ Repair Started ]")
 
             if not self.worker:
@@ -363,7 +346,6 @@ class ScanPanel(wx.Panel):
             self.bt_ScanUpdate.Enable()
             self.ck_ScanVerbose.Enable()
             self.bt_SaveDefaults.Enable()
-#            self.bt_INI.Enable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
             Publisher().sendMessage(('setLaunchPanel'), "Enable")
             Publisher().sendMessage(('setExtractPanel'), "Enable")
@@ -377,7 +359,6 @@ class ScanPanel(wx.Panel):
             self.bt_ScanUpdate.Disable()
             self.ck_ScanVerbose.Disable()
             self.bt_SaveDefaults.Disable()
-#            self.bt_INI.Disable()
             Publisher().sendMessage(('setLaunchPanel'), "Disable")
             Publisher().sendMessage(('setExtractPanel'), "Disable")
             Publisher().sendMessage(('setVirtualPanel'), "Disable")
@@ -398,19 +379,16 @@ class ScanPanel(wx.Panel):
             # Set Original Working Directory so we can get back to here.
             owd = os.getcwd()
             os.chdir(os.pardir)
-
             getOpts = ""
             iniOverride = ""
 
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
-#            if self.tc_INI.Value != "":
-#                iniOverride = " -i " + self.tc_INI.Value
 
             global scanCMD
             global startTime
 
-            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + iniOverride + " "
+            scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " "
 
             numLines=0
             maxLines=(int(self.multiText.GetNumberOfLines()))
@@ -419,7 +397,7 @@ class ScanPanel(wx.Panel):
                 self.LogWindow.AppendText("ERROR\tNo folder selected to scan!\n")
             else:
                 startTime = datetime.now()
-                self.LogWindow.AppendText("[ Starting Scan ] (" + startTime.strftime("%T") + ")\n")
+                self.LogWindow.AppendText("[ Starting Scan ]")
 
 
                 guiFunctions.statusText(self, "Running Scan...")
@@ -427,11 +405,11 @@ class ScanPanel(wx.Panel):
                     if os.name == "nt":
                         line = str(self.multiText.GetLineText(numLines))
                         line = line.replace("\\", "\\\\")
-                        line = line.replace(" ", "\ ")
-                        scanCMD += "\"" + line + "\" "
+                        scanCMD += "\'" + line + "\' "
                     else:
                         scanCMD += "\"" + str(self.multiText.GetLineText(numLines)).replace(" ", "\ ") + "\" "
 
+                    print scanCMD
                     numLines += 1
 
                 # Multithreading is below this line.
@@ -439,8 +417,8 @@ class ScanPanel(wx.Panel):
                     self.worker = WorkerThread(self)
                     self.setButtons(False)
 
-                # set back to original working directory
-                os.chdir(owd)
+            # set back to original working directory
+            os.chdir(owd)
 
 
     def bt_SaveDefaultsClick(self, event):
@@ -452,8 +430,6 @@ class ScanPanel(wx.Panel):
         # Database setting
         guiFunctions.configWrite(section, "database", self.tc_MainDatabase.Value)
 
-        # INI Setting
-#        guiFunctions.configWrite(section, "inioverride", self.tc_INI.Value)
 
         # Folder setting, comma delineate multiple folder entries
         folders = ""

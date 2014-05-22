@@ -1,9 +1,9 @@
 ###############################################################################
 # Extract Tab for use with sonospyGUI.py
 ###############################################################################
-# extractTab.py copyright (c) 2010-2011 John Chowanec
+# extractTab.py copyright (c) 2010-2014 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
-# Sonospy Project copyright (c) 2010-2011 Mark Henkelis
+# Sonospy Project copyright (c) 2010-2014 Mark Henkelis
 #   (specifics for this file: scan.py)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -109,8 +109,10 @@ class ExtractPanel(wx.Panel):
         self.bt_MainDatabase = wx.Button(panel, label="Browse...")
         self.bt_MainDatabase.SetToolTip(wx.ToolTip(help_MainDatabase))
 
-        sizer.Add(self.tc_MainDatabase, pos=(sizerIndexX, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_MainDatabase, pos=(sizerIndexX, 5), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+        buttonLocationY = 4
+
+        sizer.Add(self.tc_MainDatabase, pos=(sizerIndexX, 1), span=(1, buttonLocationY), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((460,20))
+        sizer.Add(self.bt_MainDatabase, pos=(sizerIndexX, buttonLocationY+1), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         self.bt_MainDatabase.Bind(wx.EVT_BUTTON, self.bt_MainDatabaseClick, self.bt_MainDatabase)
     # --------------------------------------------------------------------------
@@ -130,9 +132,10 @@ class ExtractPanel(wx.Panel):
         self.bt_TargetDatabase.SetToolTip(wx.ToolTip(help_TargetDatabase))
 
         # Add them to the sizer.
+        buttonLocationY = 4
         sizer.Add(label_TargetDatabase, pos=(sizerIndexX, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-        sizer.Add(self.tc_TargetDatabase, pos=(sizerIndexX, 1), span=(1, 4), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_TargetDatabase, pos=(sizerIndexX, 5), flag=wx.LEFT|wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=10)
+        sizer.Add(self.tc_TargetDatabase, pos=(sizerIndexX, 1), span=(1, buttonLocationY), flag=wx.TOP|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((460,20))
+        sizer.Add(self.bt_TargetDatabase, pos=(sizerIndexX, buttonLocationY+1), flag=wx.RIGHT|wx.TOP|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
         # Bind the button to a click event
         self.bt_TargetDatabase.Bind(wx.EVT_BUTTON, self.bt_TargetDatabaseClick,self.bt_TargetDatabase)
@@ -140,7 +143,7 @@ class ExtractPanel(wx.Panel):
     # [2] Options Static Box ---------------------------------------------------
 
         # Create static box
-        self.sb_ExtractOptions = wx.StaticBox(panel, label="Options for Extract", size=(100,100))
+        self.sb_ExtractOptions = wx.StaticBox(panel, label="Options for Extract", size=(300,100))
         sbs_ExtractOptions = wx.StaticBoxSizer(self.sb_ExtractOptions, wx.VERTICAL)
         OptionBoxSizer = wx.GridBagSizer(7, 9)
 
@@ -154,7 +157,7 @@ class ExtractPanel(wx.Panel):
         help_Created = "Extract files to the Target Database based on the CREATION DATE of the music files in the Source Database."
         label_OptionsCreated.SetToolTip(wx.ToolTip(help_Created))
 
-        self.combo_LogicalCreated = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalCreated = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalCreated.SetToolTip(wx.ToolTip(help_Created))
         self.combo_LogicalCreated.Select(guiFunctions.configMe("extract", "createdidx", integer=True))
 
@@ -168,7 +171,7 @@ class ExtractPanel(wx.Panel):
         # Add them to the sizer (optionBoxSizer)
         OptionBoxSizer.Add(label_OptionsCreated, pos=(optSizerIndexX, 0), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=0)
         OptionBoxSizer.Add(self.combo_LogicalCreated, pos=(optSizerIndexX,1), flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border=1)
-        OptionBoxSizer.Add(self.tc_DaysAgoCreated, pos=(optSizerIndexX, 2), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=0)
+        OptionBoxSizer.Add(self.tc_DaysAgoCreated, pos=(optSizerIndexX, 2), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=1)
         OptionBoxSizer.Add(label_DaysAgoCreated, pos=(optSizerIndexX,3), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=0)
 
         # Bit-rate
@@ -176,7 +179,7 @@ class ExtractPanel(wx.Panel):
         help_Bitrate = "Extract files to the Target Database based on the BIT-RATE of the music files in the Source Database."
         label_OptionsBitrate.SetToolTip(wx.ToolTip(help_Bitrate))
 
-        self.combo_LogicalBitrate = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalBitrate = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalBitrate.Select(guiFunctions.configMe("extract", "bitrateIdx", integer=True))
         self.combo_LogicalBitrate.SetToolTip(wx.ToolTip(help_Bitrate))
 
@@ -195,7 +198,7 @@ class ExtractPanel(wx.Panel):
         help_Inserted = "Extract files to the Target Database based on the INSERTED DATE (i.e. when the file was first added to the database) of the entries in the Source Database."
         label_OptionsInserted.SetToolTip(wx.ToolTip(help_Inserted))
 
-        self.combo_LogicalInserted = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalInserted = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalInserted.SetToolTip(wx.ToolTip(help_Inserted))
         self.combo_LogicalInserted.Select(guiFunctions.configMe("extract", "insertedIdx", integer=True))
         self.tc_DaysAgoInserted = wx.TextCtrl(panel)
@@ -230,7 +233,7 @@ class ExtractPanel(wx.Panel):
         help_Modified= "Extract files to the Target Database based on the LAST MODIFIED DATE of the music files in the Source Database."
         label_OptionsModified.SetToolTip(wx.ToolTip(help_Modified))
 
-        self.combo_LogicalModified = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalModified = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalModified.SetToolTip(wx.ToolTip(help_Modified))
         self.combo_LogicalModified.Select(guiFunctions.configMe("extract", "modifiedidx", integer=True))
 
@@ -266,7 +269,7 @@ class ExtractPanel(wx.Panel):
         help_Accessed= "Extract files to the Target Database based on the LAST ACCESSED DATE of the music files in the Source Database."
         label_OptionsAccessed.SetToolTip(wx.ToolTip(help_Accessed))
 
-        self.combo_LogicalAccessed = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalAccessed = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalAccessed.Select(guiFunctions.configMe("extract", "accessedIdx", integer=True))
         self.combo_LogicalAccessed.SetToolTip(wx.ToolTip(help_Accessed))
 
@@ -319,7 +322,7 @@ class ExtractPanel(wx.Panel):
         help_Year = "Extract files to the Target Database based on the YEAR RECORDED tag of the music files in the Source Database."
         label_OptionsYear.SetToolTip(wx.ToolTip(help_Year))
 
-        self.combo_LogicalYear = wx.ComboBox(panel, 1, "", (25, 25), (60, 25), logicList, wx.CB_DROPDOWN)
+        self.combo_LogicalYear = wx.ComboBox(panel, 1, "", (25, 25), (60, 21), logicList, wx.CB_DROPDOWN)
         self.combo_LogicalYear.Select(guiFunctions.configMe("extract", "yearIdx", integer=True))
         self.combo_LogicalYear.SetToolTip(wx.ToolTip(help_Year))
 
@@ -501,7 +504,6 @@ class ExtractPanel(wx.Panel):
             self.ck_ExtractVerbose.Disable()
             self.ck_OverwriteExisting.Disable()
             self.bt_SaveDefaults.Disable()
-            self.bt_AddSched.Disable()
             Publisher().sendMessage(('setLaunchPanel'), "Disable")
             Publisher().sendMessage(('setScanPanel'), "Disable")
             Publisher().sendMessage(('setVirtualPanel'), "Disable")
@@ -538,55 +540,55 @@ class ExtractPanel(wx.Panel):
                 if searchCMD == "":
                     searchCMD = "where (julianday(datetime(\'now\')) - julianday(datetime(created, \'unixepoch\'))) " + self.combo_LogicalCreated.Value + " " + self.tc_DaysAgoCreated.Value
                 else:
-                    searchCMD += " AND where (julianday(datetime(\'now\')) - julianday(datetime(created, \'unixepoch\'))) " + self.combo_LogicalCreated.Value + " " + self.tc_DaysAgoCreated.Value
+                    searchCMD += " AND (julianday(datetime(\'now\')) - julianday(datetime(created, \'unixepoch\'))) " + self.combo_LogicalCreated.Value + " " + self.tc_DaysAgoCreated.Value
 
             if self.tc_DaysAgoInserted.Value != "":
                 if searchCMD == "":
                     searchCMD = "where (julianday(datetime(\'now\')) - julianday(datetime(inserted, \'unixepoch\'))) " + self.combo_LogicalInserted.Value + " " + self.tc_DaysAgoInserted.Value
                 else:
-                    searchCMD += " AND where (julianday(datetime(\'now\')) - julianday(datetime(inserted, \'unixepoch\'))) " + self.combo_LogicalInserted.Value + " " + self.tc_DaysAgoInserted.Value
+                    searchCMD += " AND (julianday(datetime(\'now\')) - julianday(datetime(inserted, \'unixepoch\'))) " + self.combo_LogicalInserted.Value + " " + self.tc_DaysAgoInserted.Value
 
             if self.tc_DaysAgoModified.Value != "":
                 if searchCMD == "":
                     searchCMD = "where (julianday(datetime(\'now\')) - julianday(datetime(lastmodified, \'unixepoch\'))) " + self.combo_LogicalModified.Value + " " + self.tc_DaysAgoModified.Value
                 else:
-                    searchCMD += " AND where (julianday(datetime(\'now\')) - julianday(datetime(lastmodified, \'unixepoch\'))) " + self.combo_LogicalModified.Value + " " + self.tc_DaysAgoModified.Value
+                    searchCMD += " AND (julianday(datetime(\'now\')) - julianday(datetime(lastmodified, \'unixepoch\'))) " + self.combo_LogicalModified.Value + " " + self.tc_DaysAgoModified.Value
 
             if self.tc_DaysAgoAccessed.Value != "":
                 if searchCMD == "":
                     searchCMD = "where (julianday(datetime(\'now\')) - julianday(datetime(lastaccessed, \'unixepoch\'))) " + self.combo_LogicalAccessed.Value + " " + self.tc_DaysAgoAccessed.Value
                 else:
-                    searchCMD += " AND where (julianday(datetime(\'now\')) - julianday(datetime(lastaccessed, \'unixepoch\'))) " + self.combo_LogicalAccessed.Value + " " + self.tc_DaysAgoAccessed.Value
+                    searchCMD += " AND (julianday(datetime(\'now\')) - julianday(datetime(lastaccessed, \'unixepoch\'))) " + self.combo_LogicalAccessed.Value + " " + self.tc_DaysAgoAccessed.Value
 
             if self.tc_Year.Value != "":
                 if searchCMD == "":
                     searchCMD = "where year " + self.combo_LogicalYear.Value + " " + self.tc_Year.Value
                 else:
-                    searchCMD += " AND where year " + self.combo_LogicalYear.Value + " " + self.tc_Year.Value
+                    searchCMD += " AND year " + self.combo_LogicalYear.Value + " " + self.tc_Year.Value
 
             if self.tc_Genre.Value != "":
                 if searchCMD == "":
                     searchCMD = "where genre=\'" + self.tc_Genre.Value + "\'"
                 else:
-                    searchCMD += " AND where genre=\'" + self.tc_Genre.Value + "\'"
+                    searchCMD += " AND genre=\'" + self.tc_Genre.Value + "\'"
 
             if self.tc_Artist.Value != "":
                 if searchCMD == "":
                     searchCMD = "where artist=\'" + self.tc_Artist.Value + "\'"
                 else:
-                    searchCMD += " AND where artist=\'" + self.tc_Artist.Value + "\'"
+                    searchCMD += " AND artist=\'" + self.tc_Artist.Value + "\'"
 
             if self.tc_Composer.Value != "":
                 if searchCMD == "":
-                    searchCMD = " AND where composer=\'" + self.tc_Composer.Value + "\'"
+                    searchCMD = "where composer=\'" + self.tc_Composer.Value + "\'"
                 else:
-                    searchCMD += " AND where composer=\'" + self.tc_Composer.Value + "\'"
+                    searchCMD += " AND composer=\'" + self.tc_Composer.Value + "\'"
 
             if self.tc_Bitrate.Value != "":
                 if searchCMD == "":
                     searchCMD = "where bitrate " + self.combo_LogicalBitrate.Value + " " + self.tc_Bitrate.Value
                 else:
-                    searchCMD += "AND where bitrate " + self.combo_LogicalBitrate.Value + " " + self.tc_Bitrate.Value
+                    searchCMD += "AND bitrate " + self.combo_LogicalBitrate.Value + " " + self.tc_Bitrate.Value
 
             if self.tc_Last.Value != "":
                 if searchCMD != "":
@@ -610,10 +612,10 @@ class ExtractPanel(wx.Panel):
                 getOpts = ""
                 if self.ck_ExtractVerbose.Value == True:
                     getOpts = "-v "
-
-                scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -x " + self.tc_TargetDatabase.Value + " -w " + searchCMD
+                                
+                scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -x " + self.tc_TargetDatabase.Value + " -w " + searchCMD                
                 startTime = datetime.now()
-                self.LogWindow.AppendText("[ Starting Extract ] (" + startTime.strftime("%T") + ")\n")
+                self.LogWindow.AppendText("[ Starting Extract ]")
                 self.LogWindow.AppendText("Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "\n")
                 self.LogWindow.AppendText("Command: " + scanCMD + "\n\n")
                 guiFunctions.statusText(self, "Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "...")

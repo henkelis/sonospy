@@ -42,9 +42,14 @@ import scanTab
 import extractTab
 import launchTab
 import virtualsTab
+import guiFunctions
+
 # import scheduleTab
 # import nowPlayingTab
 
+def OnTaskBarRight(event):
+    app.ExitMainLoop()
+             
 # set our working directory for the rest of the functions to work right.
 os.chdir(cmd_folder)
 ################################################################################
@@ -56,16 +61,18 @@ class SonospyNotebook(wx.Notebook):
     #----------------------------------------------------------------------
     def __init__(self, parent):
         wx.Notebook.__init__(self, parent, id=wx.ID_ANY, style=wx.BK_DEFAULT)
-
+        
         self.AddPage(launchTab.LaunchPanel(self), "Launch")
         self.AddPage(scanTab.ScanPanel(self), "Scan")
         self.AddPage(extractTab.ExtractPanel(self), "Extract")
         self.AddPage(virtualsTab.VirtualsPanel(self), "Virtuals")
+
 #        self.AddPage(scheduleTab.SchedulePanel(self), "Batch")
 
         # Now Playing is SUPER EXPERIMENTAL, WILL PROBABLY BREAK!
 #        self.AddPage(nowPlayingTab.NowPlayingPanel(self), "Now Playing")
-
+   
+        
 ## Task bar
 #class BibTaskBarIcon(wx.TaskBarIcon):
 #    def __init__(self, frame):
@@ -90,34 +97,46 @@ class SonospyFrame(wx.Frame):
     #----------------------------------------------------------------------
     def __init__(self):
         """Constructor"""
-        wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(710,750))
+    # [sonospy] defaults
+    # posx = 595
+    # posy = 200
+    # width = 730
+    # height = 770
+    # maximize = False    
+        width = guiFunctions.configMe("sonospy", "width", integer=True)
+        height = guiFunctions.configMe("sonospy", "height", integer=True)
+        posx = guiFunctions.configMe("sonospy", "posx", integer=True)
+        posy = guiFunctions.configMe("sonospy", "posy", integer=True)
+        maximize = guiFunctions.configMe("sonospy", "maximize", bool=True)
+
+        wx.Frame.__init__(self, None, wx.ID_ANY, "Sonospy", size=(width,height))
+
         panel = wx.Panel(self)
-
-
         notebook = SonospyNotebook(panel)
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(notebook, 1, wx.ALL|wx.EXPAND, 5)
         panel.SetSizer(sizer)
-        ib = wx.IconBundle()
-        ib.AddIconFromFile("sonospy.png", wx.BITMAP_TYPE_PNG)
-        self.SetIcons(ib)
         self.CreateStatusBar(style=0)
         self.SetStatusText("Welcome to Sonospy...")
         self.Bind(wx.EVT_CLOSE, self.OnClose)
         Publisher().subscribe(self.change_statusbar, 'change_statusbar')
 
-#        # Task bar stuff here...
-#        self.tbicon = BibTaskBarIcon(self)
-#        wx.EVT_TASKBAR_LEFT_UP(self.tbicon, self.OnTaskBarLeftClick)
-#        wx.EVT_TASKBAR_RIGHT_UP(self.tbicon, self.OnClose)
+        # Setting the icon, but using small icon files.
+        ib = wx.IconBundle()
+        ib.AddIconFromFile('icon16.xpm', wx.BITMAP_TYPE_XPM)
+        ib.AddIconFromFile('icon32.xpm', wx.BITMAP_TYPE_XPM)
+        ib.AddIconFromFile('icon64.xpm', wx.BITMAP_TYPE_XPM)
+        
+        self.SetIcons(ib)
         self.Layout()
         self.Show()
-        self.Centre()
 
-#    def OnTaskBarLeftClick(self, evt):
-#        self.tbicon.PopupMenu(self.tbicon.CreatePopupMenu())
+        # Turning this off now, since we're storing screen position
+        # self.Centre()
+        self.SetPosition((posx, posy))
+        if maximize == True:
+            self.Maximize()
 
-    # Task bar stuff ends here...
 
     def change_statusbar(self, msg):
         self.SetStatusText(msg.data)
@@ -125,6 +144,19 @@ class SonospyFrame(wx.Frame):
     def OnClose(self, event):
     # tell the window to kill itself and kill the running sonospy process
         owd = os.getcwd()
+    # Saving the window width, height, screen position and maximized or not.
+        section = "sonospy"
+        curWidth, curHeight = self.GetSize()
+        curPosX, curPosY = self.GetScreenPosition()
+        curMaximize = self.IsMaximized()
+
+        guiFunctions.configWrite(section, "width", curWidth)
+        guiFunctions.configWrite(section, "height", curHeight)
+        guiFunctions.configWrite(section, "posx", curPosX)
+        guiFunctions.configWrite(section, "posY", curPosY)
+        guiFunctions.configWrite(section, "maximize", curMaximize)
+
+    # Now get back to our launch directior to fire off the stop command.
         os.chdir(os.pardir)
         os.chdir(os.pardir)
 
@@ -138,12 +170,55 @@ class SonospyFrame(wx.Frame):
         # check if service is running...
         if os.path.exists('pycpoint.pid') == True:
             proc = subprocess.Popen([launchCMD],shell=True)
+            
         os.chdir(owd)
         event.Skip()
         self.Destroy()
 
 #----------------------------------------------------------------------
+
+#######################################################################
+# TRAY ICONS WORK - BUT WILL REQUIRE A TON OF TWEAKING
+#######################################################################
+
+#TRAY_TOOLTIP = 'System Tray Demo'
+#TRAY_ICON = 'sonospy.png'
+
+
+#def create_menu_item(menu, label, func):
+    #item = wx.MenuItem(menu, -1, label)
+    #menu.Bind(wx.EVT_MENU, func, id=item.GetId())
+    #menu.AppendItem(item)
+    #return item
+
+#class TaskBarIcon(wx.TaskBarIcon):
+    #def __init__(self):
+        #super(TaskBarIcon, self).__init__()
+        #self.set_icon(TRAY_ICON)
+        #self.Bind(wx.EVT_TASKBAR_LEFT_DOWN, self.on_left_down)
+
+    #def CreatePopupMenu(self):
+        #menu = wx.Menu()
+        #create_menu_item(menu, 'Launch Sonospy', self.on_hello)
+        #menu.AppendSeparator()
+        #create_menu_item(menu, 'Exit', self.on_exit)
+        #return menu
+
+    #def set_icon(self, path):
+        #icon = wx.IconFromBitmap(wx.Bitmap(path))
+        #self.SetIcon(icon, TRAY_TOOLTIP)
+
+    #def on_left_down(self, event):
+        #print 'Tray icon was left-clicked.'
+
+    #def on_hello(self, event):
+        #print 'Hello, world!'
+
+    #def on_exit(self, event):
+        #wx.CallAfter(self.Destroy)
+        
 if __name__ == "__main__":
     app = wx.PySimpleApp()
     frame = SonospyFrame()
+    #TaskBarIcon()
     app.MainLoop()

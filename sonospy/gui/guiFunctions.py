@@ -1,9 +1,9 @@
 ###############################################################################
 # guiFunctions - shared functions across the Sonospy GUI project.
 ###############################################################################
-# guiFunctions.py copyright (c) 2010-2011 John Chowanec
+# guiFunctions.py copyright (c) 2010-2014 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
-# Sonospy Project copyright (c) 2010-2011 Mark Henkelis
+# Sonospy Project copyright (c) 2010-2014 Mark Henkelis
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -96,6 +96,31 @@ def scrubDB(path, ext=False):
         if extension in filters:
             asps.append(file)
     return asps
+
+#-------------------------------------------------------------------------------
+# scrubINI
+#
+# Scours the provided path for *.ini files to return back to the app so that we
+# can dynamically create dropdowns for the user index on the launch tab
+#
+# TO DO: Add error handling for mark's files: pycpoint.ini and scan.ini
+#        so that they don't display in the dropdown.
+#-------------------------------------------------------------------------------
+import os
+
+def scrubINI(path, ext=False):
+    inifiles = [""]
+    ignoreIni = ["pycpoint", "scan"]
+    filters = ext
+
+    for file in os.listdir(path):
+        basename, extension = os.path.splitext(file)
+
+        if len(extension) > 0:
+            extension = "*" + extension
+            if extension in filters and basename not in ignoreIni:
+                    inifiles.append(file)
+    return inifiles
 
 #-------------------------------------------------------------------------------
 # statusText
