@@ -614,7 +614,7 @@ def process_dir(scanpath, options, database):
                         # create tags from those read from file
                         wvnumber, wvfile, wvfilecreated, wvfilelastmodified, plfile, plfilecreated, plfilelastmodified, trackfile, trackfilecreated, trackfilelastmodified, wvtype, wvtitle, wvartist, wvalbumartist, wvcomposer, wvyear, wvgenre, wvcover, wvdiscnumber, wvoccurs, wvinserted, wvcreated, wvlastmodified, wvtitlesort, wvalbumsort, wvartistsort, wvalbumartistsort, wvcomposersort, tracktitle, tracklength, tracknumber, save_tagsfile_tags = entry
 
-                        tags['type'] = 'tags'
+                        tags['type'] = 'tags'    # check whether we should pass this from tags file
                         if tracktitle: tags['title'] = [tracktitle]
                         if tracklength: tags['length'] = tracklength
                         if wvtitle: tags['album'] = [wvtitle]
@@ -634,6 +634,9 @@ def process_dir(scanpath, options, database):
                         if wvalbumartistsort: tags['albumartistsort'] = [wvalbumartistsort]
                         if wvcomposersort: tags['composersort'] = [wvcomposersort]
                         tags['tracknumber'] = [str(tracknumber)]
+
+                        # temp for WMP - check whether we should collect this from tags file
+                        tags['mime'] = 'audio/mp3'
 
                         # store the dates for the .tags file, rather than the music file
 #                        created = wvfilecreated

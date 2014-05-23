@@ -23,15 +23,13 @@ def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
 
     url = 'http://%s:1400/customsd' % zpip
 
-    # remove service
+    # remove existing service
     args = {'sid': '%s' % sid, 
             'name': ''}
-    data = urllib.urlencode(args)
-    log.debug(data)
-    request = urllib2.Request(url, data)
-    response = urllib2.urlopen(request)
-    html = response.read()
-    log.debug(html)
+    log.debug('customsd call args: %s', args)
+    success, response = call_sonos(url, args)
+    print 'customsd call success: %s,  args: %s' % (success, args)
+    log.debug(response)
 
     # pause
     time.sleep(1)
@@ -51,11 +49,24 @@ def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
                 'containerType': 'MService',
 #                'caps': ['search', 'trFavorites', 'alFavorites', 'arFavorites', 'extendedMD', 'ucPlaylists']}
                 'caps': ['search', 'trFavorites', 'alFavorites', 'arFavorites', 'ucPlaylists']}
-        data = urllib.urlencode(args, doseq=True)
-        log.debug(data)
-        request = urllib2.Request(url, data)
-        response = urllib2.urlopen(request)
-        html = response.read()
-        log.debug(html)
+        log.debug('customsd call args: %s', args)
+        success, response = call_sonos(url, args)
+        print 'customsd call success: %s,  args: %s' % (success, args)
+        log.debug(response)
 
-
+def call_sonos(url, args):
+    data = urllib.urlencode(args, doseq=True)
+    try:
+        handle = urllib2.urlopen(url, data, 5)
+        response = handle.read()
+    except IOError, e:
+        if hasattr(e, 'code'):
+            log.error('The server couldn\'t fulfil the request. Error code: %s, Reason: %s' % (e.code, e.reason))
+            print 'The server couldn\'t fulfil the request. Error code: %s, Reason: %s' % (e.code, e.reason)
+        elif hasattr(e, 'reason'):
+            log.error('Failed to reach server. Reason: %s'% (e.reason))
+            print 'Failed to reach server. Reason: %s'% (e.reason)
+        return False, e
+    log.debug('customsd return: %s', response)
+#    print 'customsd return: %s', response
+    return True, response

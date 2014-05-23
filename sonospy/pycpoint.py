@@ -3,10 +3,9 @@
 #
 # pycpoint
 #
-# pycpoint and sonospy copyright (c) 2009-2013 Mark Henkelis
+# pycpoint and sonospy copyright (c) 2009-2014 Mark Henkelis
 # BRisa copyright (c) Brisa Team <brisa-develop@garage.maemo.org> (BRisa is licenced under the MIT License)
 # web2py copyright (c) Massimo Di Pierro <mdipierro@cs.depaul.edu> (web2py is Licensed under GPL version 2.0)
-# circuits.web copyright (c) 2004-2010 James Mills (Circuits is covered by the MIT license)
 # cherrypy copyright (c) 2002-2008, CherryPy Team (team@cherrypy.org) (cherrypy is covered by the BSD license)
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,45 +22,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # Author: Mark Henkelis <mark.henkelis@tesco.net>
-
-################################################################################
-# TODO:
-################################################################################
-#
-# 3) Don't process devices that aren't mediaservers, mediarenderers or control points
-# 5) Queue manipulation
-# 6) Add more details to media list when displaying a queue
-
-    # TODO: save returned media server items in temp list, then post process them to:
-    # 1) Suppress duplicates, choosing which to display from a list based on type (e.g. FLAC vs MP3)
-    # 2) Display extra info for duplicates (e.g. location)
-    # 3) Other things?
-    # Make this/these options selectable via a config option
-
-
-
-# fix this
-#DEBUG	sonos                         :2329:_event_renewal_callback() Event renew done cargo=None sid=uuid:EISBCPGQBFTOWBIKEJF timeout=1800
-#DEBUG	sonos                         :2329:_event_renewal_callback() Event renew done cargo=None sid=uuid:RINCON_000E5823A88A01400_sub0000000058 timeout=1800
-#DEBUG	sonos                         :2329:_event_renewal_callback() Event renew done cargo=None sid=uuid:RINCON_000E5830D2F001400_sub0000000036 timeout=1800
-#DEBUG	sonos                         :2329:_event_renewal_callback() Event renew done cargo=None sid=uuid:HHYIWSGZOTJHPKGSYED timeout=1800
-#DEBUG	sonos                         :2329:_event_renewal_callback() Event renew done cargo=None sid=uuid:RINCON_000E5823A88A01400_sub0000000059 timeout=1800
-#DEBUG	sonos                         :2329:_event_renewal_callback() Event renew done cargo=None sid=uuid:RINCON_000E5830D2F001400_sub0000000037 timeout=1800
-#DEBUG	sonos                         :2329:_event_renewal_callback() Event renew done cargo=None sid=uuid:RINCON_000E5830D2F001400_sub0000000038 timeout=1800
-#DEBUG	sonos                         :2329:_event_renewal_callback() Event renew done cargo=None sid=uuid:RINCON_000E5830D2F001400_sub0000000039 timeout=1800
-#DEBUG	sonos                         :2329:_event_renewal_callback() Event renew done cargo=None sid= timeout=0
-#DEBUG	sonos                         :2329:_event_renewal_callback() Event renew done cargo=None sid= timeout=0
-
-#regresp message is bin.base64
-#Need to event reg and val messages (render will subscribe and look for them)
-#What about cert requests?
-
-#Eventing for volume - maximum rate or minimum delta?
-
-# Deactivate stop button when already stopped etc
-# When stopping a track that has been paused, if it's the last track in a queue the Sonos returns to the first track in the queue - but we haven't set the metadata for that. ACTUALLY seems to be related to the return of a playlist class.
-# Need to subscribe to zone player events (e.g. if the zone name is changed)
-# Need to tidy up new classes and rest of code
 
 ###############################################################################
 # imports
@@ -137,6 +97,8 @@ from sonos_service import radiotimeMediaCollection, radiotimeMediaMetadata
 from brisa.upnp.soap import HTTPTransport, HTTPError, parse_soap_call, parse_soap_fault
 
 from optparse import OptionParser
+
+from controller import Controller
 
 from brisa import url_fetch_attempts, url_fetch_attempts_interval, __skip_service_xml__, __skip_soap_service__, __tolerate_service_parse_failure__, __enable_logging__, __enable_webserver_logging__, __enable_offline_mode__, __enable_events_logging__
 
@@ -220,11 +182,19 @@ class ControlPointWeb(object):
 
     media_list = []
 
+    known_devices = {}
     known_zone_players = {}
     known_zone_names = {}
     known_media_servers = {}
     known_media_renderers = {}
     known_media_renderers_extras = {}
+
+    known_devices_controller = {}
+    known_zone_players_controller = {}
+    known_zone_names_controller = {}
+    known_zone_components_controller = {}
+    known_media_servers_controller = {}
+    known_media_renderers_controller = {}
 
     thirdpartymediaservers = {}
     services = {}
@@ -232,8 +202,6 @@ class ControlPointWeb(object):
     msrootids = {}
     
     proxies = []
-#    upnpproxy = []
-#    wmpproxy = []
     mediaservers = []
     zpip = []
     wmpfound = False
@@ -511,13 +479,12 @@ Music/Rating                101     object.container
     parser.add_option("-m", "--module", action="append", type="string", dest="modcheckmods")
     parser.add_option("-d", "--debug", action="store_true", dest="debug")
     parser.add_option("-q", "--quiet", action="store_true", dest="quiet")
-    parser.add_option("-n", "--nogui", action="store_true", dest="nogui")
     parser.add_option("-p", "--proxyonly", action="store_true", dest="proxyonly")
-#    parser.add_option("-u", "--upnpproxy", action="append", type="string", dest="upnpproxies")
     parser.add_option("-w", "--wmpproxy", action="append", type="string", dest="wmpproxies")
     parser.add_option("-s", "--service", action="append", type="string", dest="musicservices")
     parser.add_option("-z", "--zpip", action="append", type="string", dest="zpip")
-
+    parser.add_option("-r", "--register", action="store_true", dest="register")
+    
     (options, args) = parser.parse_args()
 
     print "Args:"
@@ -530,23 +497,19 @@ Music/Rating                101     object.container
         for m in options.modcheckmods:
             print "    module: " + str(m)
             modcheck[m] = True
-    if options.nogui:
-        print "option.nogui: " + str(options.nogui)
     if options.proxyonly:
         print "option.proxyonly: " + str(options.proxyonly)
-#    if options.upnpproxies:
-#        for u in options.upnpproxies:
-#            print "    UPnP proxy: " + str(u)
-#            upnpproxy.append(u)
+    if options.zpip:
+        print "option.zpip: " + str(options.zpip)
+    if options.register:
+        print "option.register: " + str(options.register)
     if options.wmpproxies:
         for w in options.wmpproxies:
             print "    WMP proxy: " + str(w)
-#            wmpproxy.append(w)
             mediaservers.append((w, 'Proxy'))
     if options.musicservices:
         for m in options.musicservices:
             print "    Music service: " + str(m)
-#            musicservice.append(m)
             mediaservers.append((m, 'Service'))
 
     __enable_webserver_logging__ = True
@@ -558,13 +521,11 @@ Music/Rating                101     object.container
 
     config = ConfigParser.ConfigParser()
     config.optionxform = str
-#    config.read('pycpoint.ini')
     ini = ''
     f = codecs.open('pycpoint.ini', encoding=fenc)
     for line in f:
         ini += line
     config.readfp(StringIO.StringIO(ini))
-
 
     # IP volume ini vars
 
@@ -647,14 +608,30 @@ Music/Rating                101     object.container
 
     def __init__(self):
 
-        log.debug("__init__")
+        # call options:
+        #    no flags - start controlpoint and data server
+        #    proxyonly - don't start controlpoint and data server
+        #    zpip - IP to send customsd calls to
+        #    register - look for ZPs and send customsd calls to first one found
+        #    wmpproxy - create a WMP proxy
+        #    service - create one or more SMAPI services
+        #
+        # Note that zpip overrides register (it won't search for ZPs, nor validate zpip)
+
+        if self.options.register and not self.options.zpip:
+
+            # create controller to find ZPs
+            self.controller = Controller()
+            self.controller.subscribe("new_device_event", self.on_new_device_controller)
+            self.controller.subscribe("removed_device_event", self.on_del_device_controller)
+            self.controller.start()
 
         if not self.options.proxyonly:
 
+            # create controlpoint
             self.control_point = ControlPointSonos(self.ws_port)
             self.control_point.subscribe("new_device_event", self.on_new_device)
             self.control_point.subscribe("removed_device_event", self.on_del_device)
-    #        self.control_point.subscribe('device_event', self.on_device_event)
             self.control_point.subscribe('device_event_seq', self.on_device_event_seq)
             self.control_point.start()
 
@@ -662,7 +639,6 @@ Music/Rating                101     object.container
         internal_count = 0
         proxy_count = 0
         service_count = 0
-#        for wmpstring in self.wmpproxy:
         for wmpstring, wmptype in self.mediaservers:
             wmp = ''
             wmpname = ''
@@ -722,8 +698,6 @@ Music/Rating                101     object.container
                                   wmpcontroller=wmpcontroller, wmpcontroller2=wmpcontroller2,
                                   wmptype=wmptype)
                     proxy.start()
-#                except ValueError, e:
-#                    print "Proxy. Name: %s error - %s" % (name, e.args[0])
                 except: # catch *all* exceptions
                     e = sys.exc_info()[0]
                     log.debug(e)
@@ -733,17 +707,6 @@ Music/Rating                101     object.container
                 else:
                     wmpcontroller = proxy.wmpcontroller                              
                     wmpcontroller2 = proxy.wmpcontroller2                              
-                    '''                
-                    if internal_count == 0:
-
-                        from brisa.core import webserver, network
-
-                        p = network.parse_url(serve_url)
-                        self.wmpwebserver = webserver.WebServer(host=p.hostname, port=p.port)
-                        self.wmplocation = self.wmpwebserver.get_listen_url()
-                        self.wmpwebserver.get_render = proxy.get_render
-                        self.wmpwebserver.start()
-                    '''
                     self.proxies.append(proxy)
                     self.sonospyproxies[proxyuuid[5:]] = name
                     self.wmpfound = True
@@ -753,16 +716,19 @@ Music/Rating                101     object.container
                         # reset service credentials using customsd
                         if self.options.zpip:
                             post_customsd(self.options.zpip[0], self.smapi_sid, name, ip, port, proxyuuid[5:])
+                        elif self.options.register:
+                            self.queue_customsd(self.smapi_sid, name, ip, port, proxyuuid[5:])
                         self.smapi_sid += 1
                     elif wmptype == 'Proxy':
                         proxy_count += 1
 
+        if self.options.register and not self.options.zpip:
+            # start MSEARCH for controller, but after we have queued customsd calls (above)
+            run_async_function(self.controller.start_search, (600.0, "ssdp:all"), 0.001)
+
         #######################################################################
         # webserver resources to serve data
         #######################################################################
-
-        # TODO: replace this option with noweb and don't serve data if it's set
-#        if not self.options.nogui:
 
         if not self.options.proxyonly:
 
@@ -824,18 +790,32 @@ Music/Rating                101     object.container
             res.add_resource(playcontroller)
             ws.add_resource(res)
 
-            # start MSEARCH
-
-    #        self.control_point.start_search(600.0, "ssdp:all")
-    #        run_async_function(self.control_point.start_search, (600.0, "ssdp:all"), 1)
+            # start MSEARCH for controlpoint
             run_async_function(self.control_point.start_search, (600.0, "ssdp:all"), 0.001)
 
-            #  control proxy
-            # TEMP - example simple use of proxy to serve as controller
-    #        from controlproxy import ControlProxy
-    #        controlproxy = ControlProxy('ControlSink', 'WMP', '', 'uuid:' + str(uuid.uuid4()), self.control_point, '', self.config)
-    #        controlproxy.start()
-    #        self.proxies.append(controlproxy)
+#        #  control proxy
+#        # TEMP - example simple use of proxy to serve as controller
+#        from controlproxy import ControlProxy
+#        controlproxy = ControlProxy('ControlSink', 'WMP', '', 'uuid:' + str(uuid.uuid4()), self.control_point, '', self.config)
+#        controlproxy.start()
+#        self.proxies.append(controlproxy)
+
+    # customsd queue and sender
+    customsd_queue = []
+    customsd_posted = False
+    def queue_customsd(self, sid, servicename, localip, localport, proxyuuid):
+        log.debug('queue customsd: %s, %s' % (sid, servicename))
+        self.customsd_queue += [(sid, servicename, localip, localport, proxyuuid)]
+    
+    def send_customsd(self, zpip):
+        if self.customsd_posted == False:
+            self.customsd_posted = True
+            log.debug('customsd_queue: %s' % (self.customsd_queue))
+            for (sid, servicename, localip, localport, proxyuuid) in self.customsd_queue:
+                log.debug('post customsd: %s, %s' % (sid, servicename))
+                post_customsd(zpip, sid, servicename, localip, localport, proxyuuid)
+            # at this point we could stop the controller if we want,
+            # as we don't attempt to reuse the zpip after this point
 
     ###########################################################################
     # webserver resource functions
@@ -5400,20 +5380,84 @@ Music/Rating                101     object.container
 #        self.renew_device_subscription(self.control_point.current_renderer, self.control_point.avt_s)
 #        self.renew_device_subscription(self.control_point.current_renderer, self.control_point.rc_s)
 
+    def on_new_device_controller(self, device_object):
+        log.debug('got new device: %s, %s' % (device_object.udn, device_object.device_type))
+#        log.debug('fn: %s' % str(device_object.friendly_name))
+#        log.debug('loc: %s' % str(device_object.location))
+#        log.debug('add: %s' % str(device_object.address))
+#        log.debug('udn: %s' % str(device_object.udn))
+        
+        if device_object.udn in self.known_devices_controller.keys():
+            return False
+        self.known_devices_controller[device_object.udn] = device_object
+
+        print ">>>> new device (from controller): " + str(device_object.friendly_name) + " at " + str(device_object.address) + "  udn: " + str(device_object.udn)
+
+        # TODO: need to check whether we need to cater for multiple child levels
+        device_list = []
+        if device_object.devices:
+            root_device = device_object
+            device_list.append(root_device)
+            device_list.extend(device_object.devices.values())
+        else:
+            device_list.append(device_object)
+
+        log.debug('device_list: %s' % [(d.udn, d.device_type) for d in device_list])
+        for device_item in device_list:
+            log.debug('new device udn: %s' % str(device_item.udn))                                    
+            log.debug('new device type: %s' % str(device_item.device_type))
+            log.debug('new device services: %s' % str(device_item.services))
+            # assumes root device is processed first so that zone name is known
+            newmediaserver = False
+            newmediarenderer = False
+            t = device_item.device_type
+            if 'ZonePlayer' in t:
+                # only process for Zoneplayers, not Dock etc
+                # - assume player if it has embedded devices
+                if device_object.devices:
+                    if self.options.register:
+                        log.debug('customsd ip: %s' % device_object.ip)
+                        self.send_customsd(device_object.ip)
+                    self.known_zone_players_controller[device_object.udn] = device_object
+                    self.zoneattributes_controller[device_object.udn] = self.controller.get_zone_attributes(device_object)
+                    log.debug('new zone player - %s' % self.zoneattributes_controller[device_object.udn]['CurrentZoneName'])
+                    self.known_zone_names_controller[device_object.udn] = self.zoneattributes_controller[device_object.udn]['CurrentZoneName']
+                else:
+                    self.zoneattributes_controller[device_object.udn] = self.controller.get_zone_attributes(device_object)
+                    self.known_zone_components_controller[device_object.udn] = self.zoneattributes_controller[device_object.udn]['CurrentZoneName']
+            elif 'MediaServer' in t:
+                if device_object.udn in self.known_media_servers_controller.keys():
+                    return False
+                self.known_media_servers_controller[device_object.udn] = device_object
+            elif 'MediaRenderer' in t:
+                if device_object.udn in self.known_media_renderers_controller.keys():
+                    return False
+                self.known_media_renderers_controller[device_object.udn] = device_object
+
+    def on_del_device_controller(self, udn):
+        if udn in self.known_media_servers_controller:
+            del self.known_media_servers_controller[udn]
+        if udn in self.known_media_renderers_controller:
+            del self.known_media_renderers_controller[udn]
+        if udn in self.known_zone_players_controller:
+            del self.known_zone_players_controller[udn]
+            del self.known_zone_names_controller[udn]
+        if udn in self.known_zone_components_controller:
+            del self.known_zone_components_controller[udn]
 
     def on_new_device(self, device_object):
-        log.debug('got new device: %s' % str(device_object))
-#        log.debug('new device type: %s' % str(device_object.device_type))
+        log.debug('got new device: %s, %s' % (device_object.udn, device_object.device_type))
+#        log.debug('fn: %s' % str(device_object.friendly_name))
+#        log.debug('loc: %s' % str(device_object.location))
+#        log.debug('add: %s' % str(device_object.address))
+#        log.debug('udn: %s' % str(device_object.udn))
+        
+        if device_object.udn in self.known_devices.keys():
+            return False
+        self.known_devices[device_object.udn] = device_object
 
-        log.debug('fn: %s' % str(device_object.friendly_name))
-        log.debug('loc: %s' % str(device_object.location))
-        log.debug('add: %s' % str(device_object.address))
-
-#        print ">>>>"
         print ">>>> new device: " + str(device_object.friendly_name) + " at " + str(device_object.address) + "  udn: " + str(device_object.udn)
-
 #        print ">>>> new device services: " + str(device_object.services)
-#        print ">>>>"
 
 #        log.debug('m : %s' % str(device_object.manufacturer))
 #        log.debug('mu: %s' % str(device_object.manufacturer_url))
@@ -5425,27 +5469,19 @@ Music/Rating                101     object.container
 #        log.debug('ud: %s' % str(device_object.udn))
 #        log.debug('up: %s' % str(device_object.upc))
 #        log.debug('pu: %s' % str(device_object.presentation_url))
-
-#        log.debug('new device udn: %s' % str(device_object.udn))
 #        log.debug('new device services: %s' % str(device_object.services))
 
-# TODO: need to check whether we need to cater for multiple child levels
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-# it appears that 0.10 brings all services back via the root device - so the zoneplayer has avt, rc etc
-# TODO: DO WE NEED TO CHECK FOR CHILD DEVICES ANY MORE?
-#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
+        # TODO: need to check whether we need to cater for multiple child levels
         device_list = []
         if device_object.devices:
-#            log.debug('HAS child devices')
+            log.debug('devices: %s' % str(device_object.devices))
             root_device = device_object
-            root_device.devices = []
             device_list.append(root_device)
-            device_list.extend(device_object.devices)
+            device_list.extend(device_object.devices.values())
         else:
-#            log.debug('NO child devices')
             device_list.append(device_object)
 
+        log.debug('device_list: %s' % [(d.udn, d.device_type) for d in device_list])
         for device_item in device_list:
 
             log.debug('new device: %s' % str(device_item))
@@ -5458,11 +5494,14 @@ Music/Rating                101     object.container
             newmediarenderer = False
             t = device_item.device_type
             if 'ZonePlayer' in t:
-                self.on_new_zone_player(device_item)
-                # now register zoneplayer as server and renderer
-                # TODO: check whether is has these capabilities first
-                newmediaserver = self.on_new_media_server(device_item)
-                newmediarenderer = self.on_new_media_renderer(device_item)
+                # only process for Zoneplayers, not Dock etc
+                # - assume player if it has embedded devices
+                if device_object.devices:
+                    self.on_new_zone_player(device_item)
+                else:
+                    pass
+#                newmediaserver = self.on_new_media_server(device_item)
+#                newmediarenderer = self.on_new_media_renderer(device_item)
             elif 'MediaServer' in t:
                 newmediaserver = self.on_new_media_server(device_item)
             elif 'MediaRenderer' in t:
@@ -5474,27 +5513,6 @@ Music/Rating                101     object.container
             log.debug('new device fn: %s' % str(device_item.friendly_name))                                    
 
             if newmediaserver == True and not device_item.friendly_name.startswith('Proxy'):
-                '''
-                for upnp in self.upnpproxy:
-                    if re.search(upnp, device_item.friendly_name) != None:
-                        friendly = re.sub(r'[^a-zA-Z0-9_\- ]','', device_item.friendly_name)
-                        name = 'Proxy UPnP ' + friendly
-                        proxyuuid = 'uuid:' + str(uuid.uuid4())
-                        print "UPnP proxy UUID: " + str(proxyuuid)
-                        try:
-                            proxy = Proxy(name, 'UPnP', '', proxyuuid, self.config, self.proxy_port,
-                                          mediaserver=device_item, controlpoint=self.control_point)
-                        except ValueError, e:
-                            print "Proxy. Name: %s error - %s" % (name, e.args[0])
-                        else:
-                            self.proxy_port += 1
-                            proxy.start()
-                            self.proxies.append(proxy)
-                            
-                            # save udn of original server against proxied name
-                            self.rootids[name] = device_item.udn
-                   
-                '''     
                 if not self.wmpfound:
                     for wmpstring in self.wmpproxy:
                         wmpsplit = wmpstring.split('=')
@@ -5523,22 +5541,18 @@ Music/Rating                101     object.container
                                 # save udn of original server against proxied name
                                 self.rootids[name] = device_item.udn
                         
-
     def on_new_zone_player(self, device_object):
+
         self.known_zone_players[device_object.udn] = device_object
 #        self.control_point.set_current_zoneplayer(device_object)
         self.zoneattributes[device_object.udn] = self.get_zone_details(device_object)
         log.debug('new zone player - %s' % self.zoneattributes[device_object.udn]['CurrentZoneName'])
         # subscribe to events from this device
         self.subscribe_to_device(self.control_point.get_zt_service(device_object))
-#        # HACK: assuming udn's of children are as below
-#        self.known_zone_names[device_object.udn + '_MS'] = self.zoneattributes['CurrentZoneName']
-#        self.known_zone_names[device_object.udn + '_MR'] = self.zoneattributes['CurrentZoneName']
         self.known_zone_names[device_object.udn] = self.zoneattributes[device_object.udn]['CurrentZoneName']
 
     def on_new_media_server(self, device_object):
         if device_object.udn in self.known_media_servers.keys():
-            print '>>>> new server device: duplicate'
             return False
         self.known_media_servers[device_object.udn] = device_object
         # subscribe to events from this device
@@ -5550,19 +5564,20 @@ Music/Rating                101     object.container
             # register with service
 #            self.control_point.register_with_registrar(device_object)
         device_name = self.make_device_name(device_object)
-        self.update_devices(device_name, 'S', device_object.udn)        
+        if not self.options.proxyonly:
+            self.update_devices(device_name, 'S', device_object.udn)        
         return True
 
     def on_new_media_renderer(self, device_object):
         if device_object.udn in self.known_media_renderers.keys():
-            print '>>>> new renderer device: duplicate'
             return False
-        renderer_server = self.get_server_platform(self.control_point._ssdp_server.known_device[device_object.udn + '::upnp:rootdevice']['SERVER'])
+        # find platform of root device
+        renderer_server = self.get_server_platform(self.control_point._ssdp_server.known_device[device_object.udn[:-3] + '::upnp:rootdevice']['SERVER'])
         self.known_media_renderers[device_object.udn] = device_object
         self.known_media_renderers_extras[device_object.udn] = {'PLATFORM' : renderer_server}
-        print self.known_media_renderers_extras[device_object.udn]
         device_name = self.make_device_name(device_object)
-        self.update_devices(device_name, 'R', device_object.udn)
+        if not self.options.proxyonly:
+            self.update_devices(device_name, 'R', device_object.udn)
         return True
 
     def get_server_platform(self, server_string):
@@ -5582,18 +5597,20 @@ Music/Rating                101     object.container
         if udn in self.known_media_servers:
             device_object = self.known_media_servers[udn]
             device_name = self.make_device_name(device_object)
-            self.update_devices_remove(device_name, 'S', udn)
+            if not self.options.proxyonly:
+                self.update_devices_remove(device_name, 'S', udn)
             del self.known_media_servers[udn]
         if udn in self.known_media_renderers:
             device_object = self.known_media_renderers[udn]
             device_name = self.make_device_name(device_object)
-            self.update_devices_remove(device_name, 'R', udn)
+            if not self.options.proxyonly:
+                self.update_devices_remove(device_name, 'R', udn)
             del self.known_media_renderers[udn]
         # do this last so name above can be generated correctly
         # TODO: save name from initial generation
         if udn in self.known_zone_players:
             del self.known_zone_players[udn]
-    
+            del self.known_zone_names[udn]
 
     def display_music_location(self):
 
@@ -5627,19 +5644,6 @@ Music/Rating                101     object.container
         self.info += 'URI: ' + uri + '\n'
         self.info += 'XML: ' + xml
 #        self.update_info()
-
-
-
-
-        '''
-FAILURE FROM ASSET RT - DIRECT
-DEBUG	sonos                         :1573:play() #### ControlPointGUI.play current_media_id: http://192.168.0.10:26125/content/c2/b16/f44100/[INTER-RADIO]24.wav
-DEBUG	sonos                         :1574:play() #### ControlPointGUI.play current_media_xml: <item id="[INTER-RADIO]24-au87" parentID="au87" refID="" restricted="true" ><dc:title> Rock FM 97.4 (Top 40-Pop)  [64kbps]</dc:title><upnp:class>object.item.audioItem.audioBroadcast</upnp:class><upnp:writeStatus>NOT_WRITABLE</upnp:writeStatus><res bitsPerSample="16" nrAudioChannels="2" protocolInfo="http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01" sampleFrequency="44100">http://192.168.0.10:26125/content/c2/b16/f44100/[INTER-RADIO]24.wav</res><upnp:albumArtURI>http://radiotime-logos.s3.amazonaws.com/s6924q.png</upnp:albumArtURI></item>
-DEBUG	sonos                         :1575:play() #### ControlPointGUI.play current_media_type: MUSICSERVER
-DEBUG	sonos                         :2058:on_device_event() device_event sid: uuid:RINCON_000E5830D2F001400_sub0000000010
-DEBUG	sonos                         :2059:on_device_event() device_event c_v: {'LastChange': '<Event xmlns="urn:schemas-upnp-org:metadata-1-0/AVT/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/"><InstanceID val="0"><TransportState val="STOPPED"/><CurrentPlayMode val="NORMAL"/><NumberOfTracks val="1"/><CurrentTrack val="1"/><CurrentSection val="0"/><CurrentTrackURI val="http://192.168.0.10:26125/content/c2/b16/f44100/[INTER-RADIO]24.wav"/><CurrentTrackDuration val="0:00:00"/><CurrentTrackMetaData val="&lt;DIDL-Lite xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot; xmlns:r=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot; xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot;&gt;&lt;item id=&quot;-1&quot; parentID=&quot;-1&quot; restricted=&quot;true&quot;&gt;&lt;res protocolInfo=&quot;http-get:*:application/octet-stream:*&quot;&gt;http://192.168.0.10:26125/content/c2/b16/f44100/[INTER-RADIO]24.wav&lt;/res&gt;&lt;r:streamContent&gt;&lt;/r:streamContent&gt;&lt;r:radioShowMd&gt;&lt;/r:radioShowMd&gt;&lt;dc:title&gt;[INTER-RADIO]24.wav&lt;/dc:title&gt;&lt;upnp:class&gt;object.item&lt;/upnp:class&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;"/><r:NextTrackURI val=""/><r:NextTrackMetaData val=""/><r:EnqueuedTransportURI val="http://192.168.0.10:26125/content/c2/b16/f44100/[INTER-RADIO]24.wav"/><r:EnqueuedTransportURIMetaData val="&lt;DIDL-Lite xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot; xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:r=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot; xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot;&gt;&lt;item id=&quot;[INTER-RADIO]24-au87&quot; parentID=&quot;au87&quot; refID=&quot;&quot; restricted=&quot;true&quot; &gt;&lt;dc:title&gt; Rock FM 97.4 (Top 40-Pop)  [64kbps]&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;upnp:writeStatus&gt;NOT_WRITABLE&lt;/upnp:writeStatus&gt;&lt;res bitsPerSample=&quot;16&quot; nrAudioChannels=&quot;2&quot; protocolInfo=&quot;http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01&quot; sampleFrequency=&quot;44100&quot;&gt;http://192.168.0.10:26125/content/c2/b16/f44100/[INTER-RADIO]24.wav&lt;/res&gt;&lt;upnp:albumArtURI&gt;http://radiotime-logos.s3.amazonaws.com/s6924q.png&lt;/upnp:albumArtURI&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;"/><PlaybackStorageMedium val="NETWORK"/><AVTransportURI val="http://192.168.0.10:26125/content/c2/b16/f44100/[INTER-RADIO]24.wav"/><AVTransportURIMetaData val="&lt;DIDL-Lite xmlns=&quot;urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/&quot; xmlns:dc=&quot;http://purl.org/dc/elements/1.1/&quot; xmlns:r=&quot;urn:schemas-rinconnetworks-com:metadata-1-0/&quot; xmlns:upnp=&quot;urn:schemas-upnp-org:metadata-1-0/upnp/&quot;&gt;&lt;item id=&quot;[INTER-RADIO]24-au87&quot; parentID=&quot;au87&quot; refID=&quot;&quot; restricted=&quot;true&quot; &gt;&lt;dc:title&gt; Rock FM 97.4 (Top 40-Pop)  [64kbps]&lt;/dc:title&gt;&lt;upnp:class&gt;object.item.audioItem.audioBroadcast&lt;/upnp:class&gt;&lt;upnp:writeStatus&gt;NOT_WRITABLE&lt;/upnp:writeStatus&gt;&lt;res bitsPerSample=&quot;16&quot; nrAudioChannels=&quot;2&quot; protocolInfo=&quot;http-get:*:audio/wav:DLNA.ORG_PN=WAV;DLNA.ORG_OP=01&quot; sampleFrequency=&quot;44100&quot;&gt;http://192.168.0.10:26125/content/c2/b16/f44100/[INTER-RADIO]24.wav&lt;/res&gt;&lt;upnp:albumArtURI&gt;http://radiotime-logos.s3.amazonaws.com/s6924q.png&lt;/upnp:albumArtURI&gt;&lt;/item&gt;&lt;/DIDL-Lite&gt;"/><CurrentTransportActions val="Play, Stop, Pause, Seek, Next, Previous"/></InstanceID></Event>'}
-        '''
-
 
 
     def on_device_event_seq(self, sid, seq, changed_vars):

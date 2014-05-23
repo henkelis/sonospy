@@ -208,6 +208,11 @@ class Proxy(object):
             model_name='Windows Media Player Sharing'
         else:
             model_name='Rhapsody'
+            
+        if self.wmptype == 'Service':
+            receive_notify = False
+        else:
+            receive_notify = True
 
         self.root_device = Device(self.upnp_urn,
                                   self.proxyname,
@@ -216,12 +221,13 @@ class Proxy(object):
                                   manufacturer_url='http://www.microsoft.com/',
                                   model_description='Media Server',
                                   model_name=model_name,
-                                  model_number='3.0',
+                                  model_number='12.0',
                                   model_url='http://www.microsoft.com/',
                                   serial_number=self.dbname,
                                   udp_listener=udp_listener,
                                   create_webserver=self.createwebserver,
-                                  force_listen_url=listen_url)
+                                  force_listen_url=listen_url,
+                                  receive_notify=receive_notify)
         self.root_device.webserver.get_render = self.get_render
 
 
@@ -256,6 +262,7 @@ class Proxy(object):
         self.wmpwebserver.add_resource(self.wmpcontroller)
         self.wmpcontroller2 = ProxyServerController(self, 'wmp')
         self.wmpwebserver.add_resource(self.wmpcontroller2)
+        self._serve_image_files()
 
     def _serve_pm_file(self):
         # serve presentation map XML from Proxy
@@ -264,13 +271,19 @@ class Proxy(object):
         pmstaticfile = webserver.StaticFile(self.presentation_map_file, pm_xml_path)
         self.root_device.webserver.add_static_file(pmstaticfile)
 
+    def _serve_image_files(self):
+        image_path = os.path.join(os.getcwd(), 'images', 'separator_legacy.png')
+        log.debug("image file: %s" % image_path)
+        staticfile = webserver.StaticFile('separator_legacy.png', image_path)
+        self.wmpwebserver.add_static_file(staticfile)
+
     def _load(self):
         self._add_root_device()
         self._add_services()
         if self.startwmp == True:
             self._create_webserver(self.wmpurl)
-            if self.wmptype == 'Service':
-                self._serve_pm_file()
+        if self.wmptype == 'Service':
+            self._serve_pm_file()
 
     def start(self):
 #        self.stop()
@@ -858,9 +871,6 @@ What do we do if a result is not in alpha order? - spec says it has to be
         ret = ''
         count = 0
 
-        canenumerate = True
-        canplay = True
-        
         if total == 0:
             # empty index
             items = [('NIF', self.mediaServer.noitemsfound)]
@@ -884,7 +894,13 @@ What do we do if a result is not in alpha order? - spec says it has to be
 
         prevsearchtype = ''
         for item in items:
-            id = item[0]
+            canenumerate = True
+            canplay = True
+            if type(item[0]) is tuple:
+                # item passed with flags
+                id, canenumerate, canplay = item[0]
+            else:
+                id = item[0]
             title = item[1]
             albumarturi = None
             if len(item) == 3:

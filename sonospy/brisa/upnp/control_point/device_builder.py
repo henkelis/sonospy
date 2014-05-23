@@ -6,6 +6,7 @@
 """
 
 from xml.etree.ElementTree import ElementTree
+from xml.etree.ElementTree import tostring
 
 from brisa.core import log
 from brisa.core.network import url_fetch, parse_url
@@ -154,11 +155,11 @@ class DeviceAssembler(object):
 #            import traceback        
 #            traceback.print_stack()
 
-        # HACK - get 401's from these
-        if ':49153' in self.location:
-            log.debug("Sky HD device discovered, ignore")
-            self.callback(self.cargo, None)
-            return
+#        # HACK - get 401's from these
+#        if ':49153' in self.location:
+#            log.debug("Sky HD device discovered, ignore")
+#            self.callback(self.cargo, None)
+#            return
         
         if self.filename is None:
             run_async_call(url_fetch,
@@ -183,10 +184,7 @@ class DeviceAssembler(object):
             self.callback(self.cargo, None)
             return
 
-#        print "##############################"
-#        from xml.etree.ElementTree import tostring
-#        print tostring(tree)
-#        print "##############################"
+        log.debug('Device ElementTree: %s' % tostring(tree))
 
         DeviceBuilder(self.device, self.location, tree).cleanup()
         if brisa.__skip_service_xml__:
