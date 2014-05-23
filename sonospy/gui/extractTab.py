@@ -449,7 +449,7 @@ class ExtractPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select Source Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.OPEN)
+        dialog = wx.FileDialog ( None, message = 'Select Source Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN)
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
@@ -474,7 +474,7 @@ class ExtractPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select Target Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.OPEN )
+        dialog = wx.FileDialog ( None, message = 'Select Target Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN )
 
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
