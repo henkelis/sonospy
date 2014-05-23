@@ -195,6 +195,7 @@ class ControlPointWeb(object):
     known_zone_components_controller = {}
     known_media_servers_controller = {}
     known_media_renderers_controller = {}
+    zoneattributes_controller = {}
 
     thirdpartymediaservers = {}
     services = {}
