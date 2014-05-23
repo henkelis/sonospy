@@ -30,11 +30,12 @@
 ###############################################################################
 
 import wx
-from wxPython.wx import *
+#from wxPython.wx import *
 import os
 import subprocess
 import guiFunctions
-from wx.lib.pubsub import Publisher
+from wx.lib.pubsub import setuparg1
+from wx.lib.pubsub import pub
 
 list_checkboxID = []
 list_checkboxLabel = []
@@ -80,7 +81,7 @@ class LaunchPanel(wx.Panel):
     # [0] Make Header Columns 
         self.label_ProxyName = wx.StaticText(panel, label="Display Name")
         self.label_UserIndexName = wx.StaticText(panel, label="User Index")
-        self.ck_EnableAll = wxCheckBox(panel, label="Enable All")
+        self.ck_EnableAll = wx.CheckBox(panel, label="Enable All")
         help_EnableAll = "Click here to enable or disable all the databases below."
         self.ck_EnableAll.SetToolTip(wx.ToolTip(help_EnableAll))
         self.bt_AutoPopulate = wx.Button(panel, label="Auto Populate")
@@ -583,7 +584,7 @@ class LaunchPanel(wx.Panel):
         # And the zoneIP box...
         self.tc_SetupSMAPI.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_SetupSMAPI)
 
-        Publisher().subscribe(self.setLaunchPanel, 'setLaunchPanel')
+        pub.subscribe(self.setLaunchPanel, 'setLaunchPanel')
 
         panel.Refresh()
         panel.Update()
@@ -614,10 +615,10 @@ class LaunchPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select database...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN)
 
         # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wxID_OK:
+        if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetFilenames()
             for selection in selected:
                 basename, extension = os.path.splitext(selection)
@@ -732,7 +733,9 @@ class LaunchPanel(wx.Panel):
     ########################################################################################################################
     def bt_SaveDefaultsClick(self, event):
         section = "launch"
-
+        comment = "# Commments for the launch tab. 1 = true for the radio and checkboxes."
+        comment2 = "# String values will be entered into the default text boxes on launch."
+        
         guiFunctions.configWrite(section, "proxy", self.rd_Proxy.Value)
         guiFunctions.configWrite(section, "db1_check", self.ck_DB1.Value)
         guiFunctions.configWrite(section, "db1_dbname", self.ck_DB1.Label)
@@ -852,11 +855,11 @@ class LaunchPanel(wx.Panel):
     ########################################################################################################################
     def bt_ClearClick(self, event):
         for item in range(len(list_checkboxID)):
-            wxFindWindowById(list_txtctrlID[item]).Value = ""
-            wxFindWindowById(list_checkboxID[item]).Label = "<add database>"
-            wxFindWindowById(list_checkboxID[item]).Value = False
-            wxFindWindowById(list_checkboxID[item]).Disable()
-            wxFindWindowById(list_userindexID[item]).Selection = 0
+            wx.FindWindowById(list_txtctrlID[item]).Value = ""
+            wx.FindWindowById(list_checkboxID[item]).Label = "<add database>"
+            wx.FindWindowById(list_checkboxID[item]).Value = False
+            wx.FindWindowById(list_checkboxID[item]).Disable()
+            wx.FindWindowById(list_userindexID[item]).Selection = 0
         self.buildLaunch()
 
     ########################################################################################################################
@@ -903,9 +906,9 @@ class LaunchPanel(wx.Panel):
 
         # rebuild text labels now, user may have changed them
         for item in range(len(list_checkboxID)):
-            list_txtctrlLabel[item] = wxFindWindowById(list_txtctrlID[item]).Value
-            list_checkboxLabel[item] = wxFindWindowById(list_checkboxID[item]).Label
-            list_userindexLabel[item]= wxFindWindowById(list_userindexID[item]).Value
+            list_txtctrlLabel[item] = wx.FindWindowById(list_txtctrlID[item]).Value
+            list_checkboxLabel[item] = wx.FindWindowById(list_checkboxID[item]).Label
+            list_userindexLabel[item]= wx.FindWindowById(list_userindexID[item]).Value
             
         # build out the command
         windowsKill = False
@@ -945,10 +948,11 @@ class LaunchPanel(wx.Panel):
             self.comboDB7.Enable()
             self.comboDB8.Enable()
             self.tc_SetupSMAPI.Enable()
+            
             if windowsKill == False:
                 launchME = launchME + " -p"
-                if len(self.tc_SetupSMAPI.Label) >0:
-                    launchME = launchME + " -z" + self.tc_SetupSMAPI.Label
+                if len(self.tc_SetupSMAPI.Value) >0:
+                    launchME = launchME + " -z" + self.tc_SetupSMAPI.Value
         else:
             self.comboDB1.Disable()
             self.comboDB2.Disable()

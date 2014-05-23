@@ -1,6 +1,6 @@
-###############################################################################
+########################################################################################################################
 # Extract Tab for use with sonospyGUI.py
-###############################################################################
+########################################################################################################################
 # extractTab.py copyright (c) 2010-2014 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
 # Sonospy Project copyright (c) 2010-2014 Mark Henkelis
@@ -21,27 +21,28 @@
 #
 # extractTab.py Author: John Chowanec <chowanec@gmail.com>
 # scan.py Author: Mark Henkelis <mark.henkelis@tesco.net>
-###############################################################################
-# TODO:
-# - Tons and tons of error checking (check for int on relevant fields)
-# - Use Blue's strategy of scrubbing the SQL database for valid fields?:
-#        db = sqlite3.connect(selection)
-#        cur = db.cursor()
-#        cur.execute('SELECT DISTINCT genre FROM tags')
-#        for row in cur:
-#            a.append(row)
-###############################################################################
+########################################################################################################################
 
+########################################################################################################################
+# IMPORTS FOR PYTHON
+########################################################################################################################
 import wx
-from wxPython.wx import *
+#from wxPython.wx import *
 import os
 import subprocess
 from threading import *
 import guiFunctions
 from datetime import datetime
-# import sqlite3
-from wx.lib.pubsub import Publisher
+from wx.lib.pubsub import setuparg1
+from wx.lib.pubsub import pub
 
+
+########################################################################################################################
+# EVT_RESULT: 
+# ResultEvent:
+# WorkerThread: All supporting multithreading feature to allow for scan/repair while also allowing for updating of
+#               the various textCtrl elements.
+########################################################################################################################
 EVT_RESULT_ID = wx.NewId()
 
 def EVT_RESULT(win, func):
@@ -82,7 +83,9 @@ class WorkerThread(Thread):
         wx.PostEvent(self._notify_window, ResultEvent(None))
         return
 
-
+########################################################################################################################
+# ExtractPanel: The layout and binding section for the frame.
+########################################################################################################################
 class ExtractPanel(wx.Panel):
     """
     Extract Tab for creating subset databases.
@@ -405,11 +408,14 @@ class ExtractPanel(wx.Panel):
         EVT_RESULT(self,self.onResult)
         self.worker = None
 
-        Publisher().subscribe(self.setExtractPanel, 'setExtractPanel')
+        pub.subscribe(self.setExtractPanel, 'setExtractPanel')
 
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
+########################################################################################################################
+# setExtractPanel: This is for the pubsub to receive a call to disable or enable the panel buttons.
+########################################################################################################################
     def setExtractPanel(self, msg):
         if msg.data == "Disable":
             self.Disable()
@@ -432,9 +438,9 @@ class ExtractPanel(wx.Panel):
         # In either event, the worker is done
         self.worker = None
 
-    def bt_AddSchedClick(self,event ):
-        pass
-
+########################################################################################################################
+# bt_MainDatabaseClick: Button for loading the database to extract FROM.
+########################################################################################################################
     def bt_MainDatabaseClick(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
@@ -443,10 +449,10 @@ class ExtractPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select Source Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog ( None, message = 'Select Source Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN)
 
         # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wxID_OK:
+        if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetFilenames()
             for selection in selected:
                 self.tc_MainDatabase.Value = selection
@@ -457,6 +463,9 @@ class ExtractPanel(wx.Panel):
         # set back to original working directory
         os.chdir(owd)
 
+########################################################################################################################
+# bt_TargetDatabaseClick: Button for loading the database to extract TO.
+########################################################################################################################
     def bt_TargetDatabaseClick(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
@@ -465,10 +474,10 @@ class ExtractPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select Target Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN )
+        dialog = wx.FileDialog ( None, message = 'Select Target Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN )
 
         # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wxID_OK:
+        if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetFilenames()
             for selection in selected:
                 self.tc_TargetDatabase.Value = selection
@@ -479,6 +488,9 @@ class ExtractPanel(wx.Panel):
         # set back to original working directory
         os.chdir(owd)
 
+########################################################################################################################
+# setButtons: A simple function to enable/disable the panel's buttons when needed.
+########################################################################################################################
     def setButtons(self, state):
         """
         Toggle for the button states.
@@ -492,9 +504,9 @@ class ExtractPanel(wx.Panel):
             self.ck_OverwriteExisting.Enable()
             self.bt_SaveDefaults.Enable()
 #            self.bt_AddSched.Enable()
-            Publisher().sendMessage(('setLaunchPanel'), "Enable")
-            Publisher().sendMessage(('setScanPanel'), "Enable")
-            Publisher().sendMessage(('setVirtualPanel'), "Enable")
+            pub.sendMessage(('setLaunchPanel'), "Enable")
+            pub.sendMessage(('setScanPanel'), "Enable")
+            pub.sendMessage(('setVirtualPanel'), "Enable")
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
         else:
             self.bt_Extract.Disable()
@@ -504,11 +516,14 @@ class ExtractPanel(wx.Panel):
             self.ck_ExtractVerbose.Disable()
             self.ck_OverwriteExisting.Disable()
             self.bt_SaveDefaults.Disable()
-            Publisher().sendMessage(('setLaunchPanel'), "Disable")
-            Publisher().sendMessage(('setScanPanel'), "Disable")
-            Publisher().sendMessage(('setVirtualPanel'), "Disable")
+            pub.sendMessage(('setLaunchPanel'), "Disable")
+            pub.sendMessage(('setScanPanel'), "Disable")
+            pub.sendMessage(('setVirtualPanel'), "Disable")
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
+########################################################################################################################
+# bt_ExtractClick: A simple function to build the extract command for execution.
+########################################################################################################################
     def bt_ExtractClick(self, event):
         global scanCMD
         global getOpts
@@ -638,15 +653,23 @@ class ExtractPanel(wx.Panel):
 
             # set back to original working directory
             os.chdir(owd)
+
+########################################################################################################################
+# bt_SaveLogClick: Write out the Log Window to a file.
+########################################################################################################################
     def bt_SaveLogClick(self, event):
         dialog = wx.FileDialog(self, message='Choose a file', style=wx.SAVE|wx.OVERWRITE_PROMPT)
         if dialog.ShowModal() == wx.ID_OK:
-            savefile = dialog.GetFilename()
-            saveMe = open(savefile, 'w')
-            saveMe.write(self.LogWindow.Value)
-            saveMe.close()
-            guiFunctions.statusText(self, "Logfile: " + savefile + " saved...")
+            self.savefile=dialog.GetFilename()
+            self.dirname=dialog.GetDirectory()
+            filehandle=open(os.path.join(self.dirname, self.savefile),'w')
+            filehandle.write(self.LogWindow.Value)
+            filehandle.close()
+        guiFunctions.statusText(self, savefile + " saved...")
 
+########################################################################################################################
+# bt_SaveDefaultsClick: A simple function to write out the defaults for the panel to GUIpref.ini
+########################################################################################################################
     def bt_SaveDefaultsClick(self, event):
         section = "extract"
 

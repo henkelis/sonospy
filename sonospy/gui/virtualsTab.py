@@ -1,6 +1,6 @@
-###############################################################################
+########################################################################################################################
 # Virtuals Tab for use with sonospyGUI.py
-###############################################################################
+########################################################################################################################
 # virtualsTab.py copyright (c) 2010-2014 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
 # Sonospy Project copyright (c) 2010-2014 Mark Henkelis
@@ -20,20 +20,23 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # virtualsTab.py Author: John Chowanec <chowanec@gmail.com>
-###############################################################################
-# TODO:
-# -How to handle multiple SPs in one File? Do I bother?
-# -Implement an ignoreChar list to manage lines to ignore based on line[0]
-###############################################################################
+########################################################################################################################
 
+########################################################################################################################
+# IMPORTS FOR PYTHON
+########################################################################################################################
 import wx
-from wxPython.wx import *
+#from wxPython.wx import *
 import os
 import subprocess
 from threading import *
 import guiFunctions
-from wx.lib.pubsub import Publisher
+from wx.lib.pubsub import setuparg1
+from wx.lib.pubsub import pub
 
+########################################################################################################################
+# VirtualsPanel: The layout and binding section for the frame.
+########################################################################################################################
 class VirtualsPanel(wx.Panel):
     """
     Extract Tab for creating subset databases.
@@ -233,19 +236,24 @@ class VirtualsPanel(wx.Panel):
         sizer.Add(self.bt_LoadVirtual, pos=(xIndex,4), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
 
 
-        Publisher().subscribe(self.setVirtualPanel, 'setVirtualPanel')
+        pub.subscribe(self.setVirtualPanel, 'setVirtualPanel')
 
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
 
-
+########################################################################################################################
+# setVirtualPanel: This is for the pubsub to receive a call to disable or enable the panel buttons.
+########################################################################################################################
     def setVirtualPanel(self, msg):
         if msg.data == "Disable":
             self.Disable()
         else:
             self.Enable()
 
+########################################################################################################################
+# bt_FoldersToScanAddClick: Button for adding folders for scanning to the tc_FilesFolders element
+########################################################################################################################
     def bt_FoldersToScanAddClick(self, event):
         dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE)
         if dialog.ShowModal() == wx.ID_OK:
@@ -257,10 +265,16 @@ class VirtualsPanel(wx.Panel):
         dialog.Destroy()
         guiFunctions.statusText(self, "Folder: " + "%s" % dialog.GetPath() + " added.")
 
+########################################################################################################################
+# bt_FoldersToScanClearClick: A simple function to clear out the tc_FilesFolders element
+########################################################################################################################
     def bt_FoldersToScanClearClick(self, event):
         self.tc_FilesFolders.Value = ""
         guiFunctions.statusText(self, "Cleared folder and track list...")
 
+########################################################################################################################
+# bt_FoldersToScanAddClick: Button for adding files for scanning to the tc_FilesFolders element
+########################################################################################################################
     def bt_FilesToScanAddClick(self, event):
         dialog = wx.FileDialog(self, "Add Track(s)...", defaultDir=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE|wx.FD_MULTIPLE)
         if dialog.ShowModal() == wxID_OK:
@@ -273,6 +287,9 @@ class VirtualsPanel(wx.Panel):
         dialog.Destroy()
         guiFunctions.statusText(self, "Tracks added.")
 
+########################################################################################################################
+# bt_SavePlaylistClick: Function for writing out the playlist.
+########################################################################################################################
     def bt_SavePlaylistClick(self, event):
         dataToSave = "type=" + self.combo_typeOptions.GetValue()
         dataToSave += "\n" + "title=" + self.tc_Title.Value
@@ -303,6 +320,9 @@ class VirtualsPanel(wx.Panel):
             saveMe.close()
             guiFunctions.statusText(self, "SP: " + savefile + " saved...")
 
+########################################################################################################################
+# bt_LoadVirtualClick: Load Virtuals files.
+########################################################################################################################
     def bt_LoadVirtualClick(self, event):
         filters = guiFunctions.configMe("general", "playlist_extensions")
         defDir = guiFunctions.configMe("general", "default_sp_path")
@@ -312,11 +332,11 @@ class VirtualsPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select Virtual/Works Playlist File...', defaultDir=defDir, wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog ( None, message = 'Select Virtual/Works Playlist File...', defaultDir=defDir, wildcard = wildcards, style = wx.OPEN)
 
         
         # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wxID_OK:
+        if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetPaths()
             for selection in selected:
                 # All the hard work goes here...
@@ -379,6 +399,9 @@ class VirtualsPanel(wx.Panel):
         # set back to original working directory
         os.chdir(owd)
 
+########################################################################################################################
+# bt_SaveDefaultsClick: A simple function to write out the defaults for the panel to GUIpref.ini
+########################################################################################################################
     def bt_SaveDefaultsClick(self, event):
         section = "virtuals"
         guiFunctions.configWrite(section, "type", self.combo_typeOptions.GetCurrentSelection())
