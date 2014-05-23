@@ -1,6 +1,6 @@
-###############################################################################
+########################################################################################################################
 # Scan Tab for use with sonospyGUI.py
-###############################################################################
+########################################################################################################################
 # scanTab.py copyright (c) 2010-2014 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
 # Sonospy Project copyright (c) 2010-2014 Mark Henkelis
@@ -21,18 +21,27 @@
 #
 # scanTab.py Author: John Chowanec <chowanec@gmail.com>
 # scan.py Author: Mark Henkelis <mark.henkelis@tesco.net>
-###############################################################################
-# TODO:
-###############################################################################
+########################################################################################################################
 
+########################################################################################################################
+# IMPORTS FOR PYTHON
+########################################################################################################################
 import wx
-from wxPython.wx import *
+#from wxPython.wx import *
 import os
 import subprocess
 from threading import *
 import guiFunctions
 from datetime import datetime
-from wx.lib.pubsub import Publisher
+from wx.lib.pubsub import setuparg1
+from wx.lib.pubsub import pub
+
+########################################################################################################################
+# EVT_RESULT: 
+# ResultEvent:
+# WorkerThread: All supporting multithreading feature to allow for scan/repair while also allowing for updating of
+#               the various textCtrl elements.
+########################################################################################################################
 
 # Define notification event for thread completion
 EVT_RESULT_ID = wx.NewId()
@@ -73,6 +82,9 @@ class WorkerThread(Thread):
         wx.PostEvent(self._notify_window, ResultEvent(None))
         return
 
+########################################################################################################################
+# ScanPanel: The layout and binding section for the frame.
+########################################################################################################################
 class ScanPanel(wx.Panel):
     """
     Scan Tab for running Sonospy Database Scans, Updates and Repairs
@@ -192,17 +204,23 @@ class ScanPanel(wx.Panel):
         EVT_RESULT(self,self.onResult)
         self.worker = None
 
-        Publisher().subscribe(self.setScanPanel, 'setScanPanel')
+        pub.subscribe(self.setScanPanel, 'setScanPanel')
 
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
+########################################################################################################################
+# setScanPanel: This is for the pubsub to receive a call to disable or enable the panel buttons.
+########################################################################################################################
     def setScanPanel(self, msg):
         if msg.data == "Disable":
             self.Disable()
         else:
             self.Enable()
 
+########################################################################################################################
+# onResult: Allows for sending a message from other fuctions to the logWindow
+########################################################################################################################
     def onResult(self, event):
         """Show Result status."""
         if event.data is None:
@@ -226,6 +244,9 @@ class ScanPanel(wx.Panel):
         self.worker = None
 #        guiFunctions.statusText(self, "")
 
+########################################################################################################################
+# bt_ScanRepairClick: Function for REPAIR button
+########################################################################################################################
     def bt_ScanRepairClick(self, event):
         global scanCMD
         global startTime
@@ -248,9 +269,6 @@ class ScanPanel(wx.Panel):
         else:
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
-#            if self.tc_INI.Value != "":
-##                iniOverride = ""
-#                iniOverride = "-i " + self.tc_INI.Value
 
             scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -r"
             startTime = datetime.now()
@@ -265,6 +283,9 @@ class ScanPanel(wx.Panel):
         # set back to original working directory
         os.chdir(owd)
 
+########################################################################################################################
+# bt_MainDatabaseClick: Button for loading the database to scan or repair
+########################################################################################################################
     def bt_MainDatabaseClick(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
@@ -273,10 +294,10 @@ class ScanPanel(wx.Panel):
         owd = os.getcwd()
         os.chdir(os.pardir)
 
-        dialog = wx.FileDialog ( None, message = 'Select Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wxOPEN)
+        dialog = wx.FileDialog ( None, message = 'Select Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.OPEN)
 
         # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wxID_OK:
+        if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetFilenames()
             for selection in selected:
                 self.tc_MainDatabase.Value = selection
@@ -286,27 +307,10 @@ class ScanPanel(wx.Panel):
         # set back to original working directory
         os.chdir(owd)
 
-    def bt_INIClick(self, event):
-        filters = "*.ini"
-        wildcards = "INIFiles (" + filters + ")|" + filters + "|All files (*.*)|*.*"
 
-        # back up to the folder below our current one.  save cwd in variable
-        owd = os.getcwd()
-        os.chdir(os.pardir)
-
-        dialog = wx.FileDialog ( None, message = 'Select INI File...', defaultDir=guiFunctions.configMe("general", "default_ini_path"), wildcard = wildcards, style = wxOPEN)
-
-        # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wxID_OK:
-            selected = dialog.GetFilenames()
-            for selection in selected:
-                self.tc_INI.Value = selection
-                guiFunctions.statusText(self, "INI File: " + selection + " selected...")
-        dialog.Destroy()
-
-        # set back to original working directory
-        os.chdir(owd)
-
+########################################################################################################################
+# bt_FoldersToScanAddClick: Button for adding folders for scanning to the folders-to-scan frame
+########################################################################################################################
     def bt_FoldersToScanAddClick(self, event):
         dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE)
 
@@ -319,20 +323,29 @@ class ScanPanel(wx.Panel):
         dialog.Destroy()
         guiFunctions.statusText(self, "Folder: " + "%s" % dialog.GetPath() + " added.")
 
+########################################################################################################################
+# bt_FoldersToScanClearClick: A simple function to clear out the folders-to-scan frame.
+########################################################################################################################
     def bt_FoldersToScanClearClick(self, event):
         self.multiText.Value = ""
         guiFunctions.statusText(self, "Cleared folder list...")
 
+########################################################################################################################
+# bt_SaveLogClick: Write out the Log Window to a file.
+########################################################################################################################
     def bt_SaveLogClick(self, event):
         dialog = wx.FileDialog(self, message='Choose a file', style=wx.SAVE|wx.OVERWRITE_PROMPT)
         if dialog.ShowModal() == wx.ID_OK:
-            savefile = dialog.GetFilename()
-
-            saveMe = open(savefile, 'w')
-            saveMe.write(self.LogWindow.Value)
-            saveMe.close()
+            self.savefile=dialog.GetFilename()
+            self.dirname=dialog.GetDirectory()
+            filehandle=open(os.path.join(self.dirname, self.savefile),'w')
+            filehandle.write(self.LogWindow.Value)
+            filehandle.close()
         guiFunctions.statusText(self, savefile + " saved...")
 
+########################################################################################################################
+# setButtons: A simple function to enable/disable the panel's buttons when needed.
+########################################################################################################################
     def setButtons(self, state):
         """
         Toggle for the button states.
@@ -347,9 +360,9 @@ class ScanPanel(wx.Panel):
             self.ck_ScanVerbose.Enable()
             self.bt_SaveDefaults.Enable()
             wx.SetCursor(wx.StockCursor(wx.CURSOR_ARROW))
-            Publisher().sendMessage(('setLaunchPanel'), "Enable")
-            Publisher().sendMessage(('setExtractPanel'), "Enable")
-            Publisher().sendMessage(('setVirtualPanel'), "Enable")
+            pub.sendMessage(('setLaunchPanel'), "Enable")
+            pub.sendMessage(('setExtractPanel'), "Enable")
+            pub.sendMessage(('setVirtualPanel'), "Enable")
         else:
             self.bt_FoldersToScanAdd.Disable()
             self.bt_FoldersToScanClear.Disable()
@@ -359,12 +372,15 @@ class ScanPanel(wx.Panel):
             self.bt_ScanUpdate.Disable()
             self.ck_ScanVerbose.Disable()
             self.bt_SaveDefaults.Disable()
-            Publisher().sendMessage(('setLaunchPanel'), "Disable")
-            Publisher().sendMessage(('setExtractPanel'), "Disable")
-            Publisher().sendMessage(('setVirtualPanel'), "Disable")
+            pub.sendMessage(('setLaunchPanel'), "Disable")
+            pub.sendMessage(('setExtractPanel'), "Disable")
+            pub.sendMessage(('setVirtualPanel'), "Disable")
 
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
+########################################################################################################################
+# bt_ScanUpdateClick: A function for when Scan/Update is clicked.
+########################################################################################################################
     def bt_ScanUpdateClick(self, event):
         if os.name == 'nt':
             cmdroot = 'python '
@@ -380,7 +396,6 @@ class ScanPanel(wx.Panel):
             owd = os.getcwd()
             os.chdir(os.pardir)
             getOpts = ""
-            iniOverride = ""
 
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
@@ -409,7 +424,7 @@ class ScanPanel(wx.Panel):
                     else:
                         scanCMD += "\"" + str(self.multiText.GetLineText(numLines)).replace(" ", "\ ") + "\" "
 
-                    print scanCMD
+                    #print scanCMD
                     numLines += 1
 
                 # Multithreading is below this line.
@@ -420,7 +435,9 @@ class ScanPanel(wx.Panel):
             # set back to original working directory
             os.chdir(owd)
 
-
+########################################################################################################################
+# bt_SaveDefaultsClick: A simple function to write out the defaults for the panel to GUIpref.ini
+########################################################################################################################
     def bt_SaveDefaultsClick(self, event):
         section = "scan"
 

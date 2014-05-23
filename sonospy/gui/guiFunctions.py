@@ -20,21 +20,19 @@
 #
 # guiFunctions.py Author: John Chowanec <chowanec@gmail.com>
 ###############################################################################
-# TODO:
-###############################################################################
-from wxPython.wx import *
-from wx.lib.pubsub import Publisher
+import wx
+#from wxPython.wx import *
+from wx.lib.pubsub import setuparg1
+from wx.lib.pubsub import pub
 
-#-------------------------------------------------------------------------------
-# configMe, configWrite
-#
-# For reading, parsing and writing the config file.
-#-------------------------------------------------------------------------------
-
+########################################################################################################################
+# configMe: Reads GUIpref.ini for settings in the various tab files. 
+########################################################################################################################
 import ConfigParser
 
 def configMe(heading, term, integer=False, bool=False, parse=False, file=False):
-    config = ConfigParser.SafeConfigParser()
+    config = ConfigParser.ConfigParser()
+
     if file == False:
         config.read("GUIpref.ini")
     else:
@@ -62,28 +60,31 @@ def configMe(heading, term, integer=False, bool=False, parse=False, file=False):
             return 1
         else:
             return ""
-
+    
     return(fetchMe)
 
-#    Uncomment to dump entire config file
-#    for section in config.sections():
-#        print section
-#        for option in config.options(section):
-#            print " ", option, "=", config.get(section, option)
-
+    # DEBUG: Uncomment to dump entire config file ----------------------------------
+    # for section in config.sections():
+    #    print section
+    #    for option in config.options(section):
+    #        print " ", option, "=", config.get(section, option)
+    # ------------------------------------------------------------------------------
+    
+########################################################################################################################
+# configWrite: Writes GUIpref.ini for settings in the various tab files. 
+########################################################################################################################
 def configWrite(heading, term, value):
+
     config = ConfigParser.ConfigParser()
     config.read("GUIpref.ini")
     config.set(heading, term, value)
     with open('GUIpref.ini', 'wb') as configfile:
         config.write(configfile)
 
-#-------------------------------------------------------------------------------
-# scrubDB
-#
-# Scours the provided path for *.db files to return back to the app so that we
-# can dynamically create widgets for the launch tab
-#-------------------------------------------------------------------------------
+########################################################################################################################
+# scrubDB: Scours the provided path for *.db files to return back to the app so that we can dynamically create
+#          create widgets for the launch tab.
+########################################################################################################################
 import os
 
 def scrubDB(path, ext=False):
@@ -97,20 +98,23 @@ def scrubDB(path, ext=False):
             asps.append(file)
     return asps
 
-#-------------------------------------------------------------------------------
-# scrubINI
-#
-# Scours the provided path for *.ini files to return back to the app so that we
-# can dynamically create dropdowns for the user index on the launch tab
-#
-# TO DO: Add error handling for mark's files: pycpoint.ini and scan.ini
-#        so that they don't display in the dropdown.
-#-------------------------------------------------------------------------------
+########################################################################################################################
+# scrubINI: Scours the provided path for *.ini files to return back to the app so that we can dynamically create
+#           create create dropdowns for the user index on the launch tab.
+########################################################################################################################
 import os
 
 def scrubINI(path, ext=False):
     inifiles = [""]
-    ignoreIni = ["pycpoint", "scan"]
+
+    # Step up to GUI folder to find GUIpref.ini
+    # Then return to the previous folder to get
+    # the iniFile list to compare to.
+    os.chdir("gui")
+    ignoreMe = configMe("launch", "ingoreini")
+    ignoreMe = ignoreMe.replace(".ini", "")
+    os.chdir("..")
+
     filters = ext
 
     for file in os.listdir(path):
@@ -118,16 +122,13 @@ def scrubINI(path, ext=False):
 
         if len(extension) > 0:
             extension = "*" + extension
-            if extension in filters and basename not in ignoreIni:
-                    inifiles.append(file)
+            if extension in filters and basename not in ignoreMe:
+                     inifiles.append(file)
     return inifiles
 
-#-------------------------------------------------------------------------------
-# statusText
-#
-# Simple function to set the status text in any of the other notebook tabs.
-#-------------------------------------------------------------------------------
+########################################################################################################################
+# scrubINI: Simple function to set the status text in any of the other notebook tabs.
+########################################################################################################################
 def statusText(object, line):
-#    object.GetParent().GetParent().GetParent().SetStatusText(line)
-    Publisher().sendMessage(('change_statusbar'), line)
+    pub.sendMessage(('change_statusbar'), line)
 
