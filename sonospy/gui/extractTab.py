@@ -454,17 +454,18 @@ class ExtractPanel(wx.Panel):
             for selection in selected:
                 self.tc_MainDatabase.Value = selection
                 guiFunctions.statusText(self, "Main Database: " + selection + " selected...")
-        dialog.Destroy()
 
-        # This is for extracting the valid genres from the database you just opened.
-        # We may use this to replace the wxTextCtrl that we're currently using.
-        db = sqlite3.connect(selection)
-        cur = db.cursor()
-        cur.execute('SELECT DISTINCT genre FROM tags')
-        a = []
-        self.cmb_Genre.Clear()
-        for row in cur:
-            self.cmb_Genre.AppendItems(row)
+                # This is for extracting the valid genres from the database you just opened.
+                # We may use this to replace the wxTextCtrl that we're currently using.
+                db = sqlite3.connect(selection)
+                cur = db.cursor()
+                cur.execute('SELECT DISTINCT genre FROM tags')
+                a = []
+                self.cmb_Genre.Clear()
+                for row in cur:
+                    self.cmb_Genre.AppendItems(row)
+
+        dialog.Destroy()
 
         # set back to original working directory
         os.chdir(owd)
