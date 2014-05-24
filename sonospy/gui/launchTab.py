@@ -716,6 +716,8 @@ class LaunchPanel(wx.Panel):
                 self.bt_Launch.Label = "Launch"
                 self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
                 guiFunctions.statusText(self, "Sonospy Service Stopped...")
+                if launchCMD.count("TASKKILL") > 0:
+                    os.remove('windowsPID.pid')                
                 self.buildLaunch()
                 self.setButtons(True)
             else:
