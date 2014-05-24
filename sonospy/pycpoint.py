@@ -704,6 +704,7 @@ Music/Rating                101     object.container
                     log.debug(e)
                     import traceback
                     tb = traceback.format_exc()
+                    print 'ERROR: %s' % tb
                     log.debug(tb)
                 else:
                     wmpcontroller = proxy.wmpcontroller                              
