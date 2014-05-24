@@ -196,9 +196,11 @@ class SonospyFrame(wx.Frame):
         os.chdir(cmd_folder)
         TB_MENU_STOP = wx.NewId()
         TB_MENU_EXIT = wx.NewId()
+        TB_MENU_START = wx.NewId()
         self.menu = wx.Menu()
         self.Bind(wx.EVT_MENU, self.OnClose, id=TB_MENU_EXIT)
         self.Bind(wx.EVT_MENU, self.OnStop, id=TB_MENU_STOP)
+        self.Bind(wx.EVT_MENU, self.OnStop, id=TB_MENU_START)
         
         if msg.data != "":
             msg = msg.data
@@ -212,6 +214,7 @@ class SonospyFrame(wx.Frame):
             self.menu.AppendSeparator()
             self.menu.Append(TB_MENU_EXIT, 'E&xit')
         else:
+            self.menu.Append(TB_MENU_START, "Launch Sonospy")
             self.menu.Append(TB_MENU_EXIT, 'E&xit')
 
         os.chdir(cmd_folder)
