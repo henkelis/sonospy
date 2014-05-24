@@ -293,9 +293,16 @@ class ScanPanel(wx.Panel):
         # back up to the folder below our current one.  save cwd in variable
         owd = os.getcwd()
         os.chdir(os.pardir)
-
-        dialog = wx.FileDialog (None, message = 'Select Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN)
-
+        if guiFunctions.configMe("general", "default_database_path") == "":
+            cmd_folder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(cmd_folder)
+            os.chdir(os.pardir)
+            cmd_folder = os.getcwd()
+        else:
+            cmd_folder = guiFunctions.configMe("general", "default_database_path")
+        
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=str(cmd_folder), wildcard = wildcards, style = wx.FD_OPEN)
+        
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetFilenames()

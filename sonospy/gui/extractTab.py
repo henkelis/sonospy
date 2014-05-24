@@ -459,9 +459,16 @@ class ExtractPanel(wx.Panel):
         # back up to the folder below our current one.  save cwd in variable
         owd = os.getcwd()
         os.chdir(os.pardir)
-
-        dialog = wx.FileDialog ( None, message = 'Select Source Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN)
-
+        if guiFunctions.configMe("general", "default_database_path") == "":
+            cmd_folder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(cmd_folder)
+            os.chdir(os.pardir)
+            cmd_folder = os.getcwd()
+        else:
+            cmd_folder = guiFunctions.configMe("general", "default_database_path")
+        
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=str(cmd_folder), wildcard = wildcards, style = wx.FD_OPEN)
+        
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetFilenames()
@@ -478,7 +485,6 @@ class ExtractPanel(wx.Panel):
                 self.cmb_Genre.Clear()
                 for row in cur:
                     self.cmb_Genre.AppendItems(row)
-
         dialog.Destroy()
 
         # set back to original working directory
@@ -494,9 +500,16 @@ class ExtractPanel(wx.Panel):
         # back up to the folder below our current one.  save cwd in variable
         owd = os.getcwd()
         os.chdir(os.pardir)
-
-        dialog = wx.FileDialog ( None, message = 'Select Target Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN )
-
+        if guiFunctions.configMe("general", "default_database_path") == "":
+            cmd_folder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(cmd_folder)
+            os.chdir(os.pardir)
+            cmd_folder = os.getcwd()
+        else:
+            cmd_folder = guiFunctions.configMe("general", "default_database_path")
+        
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=str(cmd_folder), wildcard = wildcards, style = wx.FD_OPEN)
+        
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetFilenames()
@@ -504,7 +517,6 @@ class ExtractPanel(wx.Panel):
                 self.tc_TargetDatabase.Value = selection
                 guiFunctions.statusText(self, "Target Database: " + selection + " selected...")
         dialog.Destroy()
-
 
         # set back to original working directory
         os.chdir(owd)
