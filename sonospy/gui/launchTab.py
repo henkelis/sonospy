@@ -501,10 +501,12 @@ class LaunchPanel(wx.Panel):
         self.ck_SMAPI.Bind(wx.EVT_CHECKBOX, self.enableSMAPI, self.ck_SMAPI)
         self.ck_SMAPI.Value = guiFunctions.configMe("launch", "smapi", bool=True)
 
-    # - SMAPI IP ADDRESS FOR SETUP
-        self.tc_SetupSMAPI = wx.TextCtrl(panel)
-        self.tc_SetupSMAPI.SetToolTip(wx.ToolTip("Enter an IP address for one of your Sonos devices to bind it to a service."))      
-        self.tc_SetupSMAPI.Value = guiFunctions.configMe("launch", "zoneIP")
+    # - PROXY ONLY CHECK BUTTON
+        self.ck_ProxyOnly = wx.CheckBox(panel, label="Proxy Only Mode.")
+        help_ck_ProxyOnly = "Disable the built in web GUI in Sonospy."
+        self.ck_ProxyOnly.SetToolTip(wx.ToolTip(help_ck_ProxyOnly))
+        self.ck_ProxyOnly.Bind(wx.EVT_CHECKBOX, self.proxyOnly, self.ck_ProxyOnly)
+        self.ck_ProxyOnly.Value = guiFunctions.configMe("launch", "proxyonly", bool=True)
 
     # - LAUNCH MODE LABEL
         self.label_launchMode = wx.StaticText(panel, label="Select Launch Mode:")
@@ -528,7 +530,7 @@ class LaunchPanel(wx.Panel):
         self.rd_Web.Bind(wx.EVT_RADIOBUTTON, self.updateScratchPad, self.rd_Web)
 
         sizer.Add(self.ck_SMAPI, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)        
-        sizer.Add(self.tc_SetupSMAPI, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,20))
+        sizer.Add(self.ck_ProxyOnly, pos=(xIndex,1), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)    
         sizer.Add(self.label_launchMode, pos=(xIndex, 2), flag=wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT|wx.RIGHT, border=1)
         sizer.Add(self.rd_Proxy, pos=(xIndex,3), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.rd_Web, pos=(xIndex,4), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
@@ -580,9 +582,6 @@ class LaunchPanel(wx.Panel):
         self.tc_DB6.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB6)
         self.tc_DB7.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB7)
         self.tc_DB8.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB8)
-        
-        # And the zoneIP box...
-        self.tc_SetupSMAPI.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_SetupSMAPI)
 
         pub.subscribe(self.setLaunchPanel, 'setLaunchPanel')
         pub.subscribe(self.startStopSonospy, 'startStopSonospy')
@@ -672,6 +671,12 @@ class LaunchPanel(wx.Panel):
     # enableSMAPI: Updates scracthpad if SMAPI is selected
     ########################################################################################################################
     def enableSMAPI(self, event):
+        self.buildLaunch()
+
+    ########################################################################################################################
+    # proxyOnly: Updates scracthpad if Proxy Only is selected
+    ######################################################################################################################## 
+    def proxyOnly(self, event):
         self.buildLaunch()
         
     ########################################################################################################################
@@ -777,7 +782,7 @@ class LaunchPanel(wx.Panel):
         guiFunctions.configWrite(section, "db8_proxyname", self.tc_DB8.Value)
         guiFunctions.configWrite(section, "db8_userindex", self.comboDB8.GetCurrentSelection())
         guiFunctions.configWrite(section, "SMAPI", self.ck_SMAPI.Value)
-        guiFunctions.configWrite(section, "zoneIP", self.tc_SetupSMAPI.Value)
+        guiFunctions.configWrite(section, "proxyonly", self.ck_ProxyOnly.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
 
@@ -945,6 +950,10 @@ class LaunchPanel(wx.Panel):
                     else:
                         launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
 
+        if self.ck_ProxyOnly.Value == True:
+            if windowsKill == False:
+                launchME = launchME + " -p"
+            
         if self.ck_SMAPI.Value == True:
             self.comboDB1.Enable()
             self.comboDB2.Enable()
@@ -954,12 +963,10 @@ class LaunchPanel(wx.Panel):
             self.comboDB6.Enable()
             self.comboDB7.Enable()
             self.comboDB8.Enable()
-            self.tc_SetupSMAPI.Enable()
+            self.label_UserIndexName.Enable()
             
             if windowsKill == False:
-                launchME = launchME + " -p"
-                if len(self.tc_SetupSMAPI.Value) >0:
-                    launchME = launchME + " -z" + self.tc_SetupSMAPI.Value
+                launchME = launchME + " -r"
         else:
             self.comboDB1.Disable()
             self.comboDB2.Disable()
@@ -969,11 +976,11 @@ class LaunchPanel(wx.Panel):
             self.comboDB6.Disable()
             self.comboDB7.Disable()
             self.comboDB8.Disable()
-            self.tc_SetupSMAPI.Disable()
-        
+            self.label_UserIndexName.Disable()
+            
         if windowsKill == False:
             self.tc_Scratchpad.Value = launchME
-        
+
         return launchME
 
     ########################################################################################################################
@@ -1017,7 +1024,6 @@ class LaunchPanel(wx.Panel):
             self.rd_Web.Enable()
             self.label_ProxyName.Enable()
             self.ck_SMAPI.Enable()
-            self.tc_SetupSMAPI.Enable()
             self.comboDB1.Enable()
             self.comboDB2.Enable()
             self.comboDB3.Enable()
@@ -1061,7 +1067,6 @@ class LaunchPanel(wx.Panel):
             self.rd_Web.Disable()
             self.label_ProxyName.Disable()
             self.ck_SMAPI.Disable()
-            self.tc_SetupSMAPI.Disable()
             self.comboDB1.Disable()
             self.comboDB2.Disable()
             self.comboDB3.Disable()
