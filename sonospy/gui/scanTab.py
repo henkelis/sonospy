@@ -43,7 +43,7 @@ from wx.lib.pubsub import pub
 #               the various textCtrl elements.
 ########################################################################################################################
 
-# Define notification event for thread completion
+## Define notification event for thread completion
 EVT_RESULT_ID = wx.NewId()
 
 def EVT_RESULT(win, func):
@@ -80,6 +80,7 @@ class WorkerThread(Thread):
             if not line: break
         proc.wait()
         wx.PostEvent(self._notify_window, ResultEvent(None))
+
         return
 
 ########################################################################################################################
@@ -242,6 +243,7 @@ class ScanPanel(wx.Panel):
 
         # In either event, the worker is done
         self.worker = None
+
 #        guiFunctions.statusText(self, "")
 
 ########################################################################################################################
@@ -252,7 +254,8 @@ class ScanPanel(wx.Panel):
         global startTime
 
         # Set Original Working Directory so we can get back to here.
-        owd = os.getcwd()
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(cmd_folder)
         os.chdir(os.pardir)
 
         getOpts = ""
@@ -281,7 +284,7 @@ class ScanPanel(wx.Panel):
                 wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
         # set back to original working directory
-        os.chdir(owd)
+        os.chdir(cmd_folder)
 
 ########################################################################################################################
 # bt_MainDatabaseClick: Button for loading the database to scan or repair
@@ -291,7 +294,7 @@ class ScanPanel(wx.Panel):
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
 
         # back up to the folder below our current one.  save cwd in variable
-        owd = os.getcwd()
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
         os.chdir(os.pardir)
         if guiFunctions.configMe("general", "default_database_path") == "":
             cmd_folder = os.path.dirname(os.path.abspath(__file__))
@@ -312,7 +315,7 @@ class ScanPanel(wx.Panel):
         dialog.Destroy()
 
         # set back to original working directory
-        os.chdir(owd)
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 
 ########################################################################################################################
@@ -400,7 +403,7 @@ class ScanPanel(wx.Panel):
             self.LogWindow.AppendText("ERROR:\tNo database name selected!\n")
         else:
             # Set Original Working Directory so we can get back to here.
-            owd = os.getcwd()
+            cmd_folder = os.path.dirname(os.path.abspath(__file__))
             os.chdir(os.pardir)
             getOpts = ""
 
@@ -440,7 +443,7 @@ class ScanPanel(wx.Panel):
                     self.setButtons(False)
 
             # set back to original working directory
-            os.chdir(owd)
+            os.chdir(cmd_folder)
 
 ########################################################################################################################
 # bt_SaveDefaultsClick: A simple function to write out the defaults for the panel to GUIpref.ini

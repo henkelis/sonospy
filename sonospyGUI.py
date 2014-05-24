@@ -134,8 +134,8 @@ class SonospyFrame(wx.Frame):
 
     def OnClose(self, event):
         # tell the window to kill itself and kill the running sonospy process
-        owd = os.getcwd()
-
+        os.chdir(cmd_folder)
+        
         # Saving the window width, height, screen position and maximized or not.
         section = "sonospy"
 
@@ -149,7 +149,7 @@ class SonospyFrame(wx.Frame):
         guiFunctions.configWrite(section, "posY", curPosY)
         guiFunctions.configWrite(section, "maximize", curMaximize)
 
-        # Now get back to our launch directior to fire off the stop command.
+        # Now get back to our launch directory to fire off the stop command.
         os.chdir(os.pardir)
         os.chdir(os.pardir)
 
@@ -172,7 +172,8 @@ class SonospyFrame(wx.Frame):
             if os.path.exists('pycpoint.pid') == True:
                 proc = subprocess.Popen([launchCMD],shell=True)
         
-        os.chdir(owd)
+        os.chdir(cmd_folder)
+        
         event.Skip()
         self.tbicon.RemoveIcon()
         event.Skip()
@@ -202,7 +203,6 @@ class SonospyFrame(wx.Frame):
         if msg.data != "":
             msg = msg.data
 
-        owd = os.getcwd()
         # Now get back to our launch directior to fire off the stop command.
         os.chdir(os.pardir)
         os.chdir(os.pardir)
@@ -214,8 +214,8 @@ class SonospyFrame(wx.Frame):
         else:
             self.menu.Append(TB_MENU_EXIT, 'E&xit')
 
-        os.chdir(owd)
-        cwd = os.getcwd()
+        os.chdir(cmd_folder)
+
         
     def OnStop(self, event):
         pub.sendMessage(('startStopSonospy'), "startStopSonospy")
