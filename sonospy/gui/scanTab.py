@@ -75,6 +75,7 @@ class WorkerThread(Thread):
 
         while True:
             line = proc.stdout.readline()
+            wx.Yield()
             wx.PostEvent(self._notify_window, ResultEvent(line))
             wx.Yield()
             if not line: break
