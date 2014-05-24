@@ -31,8 +31,11 @@ from wx.lib.pubsub import pub
 import ConfigParser
 
 def configMe(heading, term, integer=False, bool=False, parse=False, file=False):
+    owd = os.getcwd()
+    cmd_folder = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(cmd_folder)    
     config = ConfigParser.ConfigParser()
-
+    
     if file == False:
         config.read("GUIpref.ini")
     else:
@@ -60,7 +63,7 @@ def configMe(heading, term, integer=False, bool=False, parse=False, file=False):
             return 1
         else:
             return ""
-    
+    os.chdir(owd)
     return(fetchMe)
 
     # DEBUG: Uncomment to dump entire config file ----------------------------------
@@ -74,12 +77,15 @@ def configMe(heading, term, integer=False, bool=False, parse=False, file=False):
 # configWrite: Writes GUIpref.ini for settings in the various tab files. 
 ########################################################################################################################
 def configWrite(heading, term, value):
-
+    owd = os.getcwd()
+    cmd_folder = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(cmd_folder)
     config = ConfigParser.ConfigParser()
     config.read("GUIpref.ini")
     config.set(heading, term, value)
     with open('GUIpref.ini', 'wb') as configfile:
         config.write(configfile)
+    os.chdir(owd)
 
 ########################################################################################################################
 # scrubDB: Scours the provided path for *.db files to return back to the app so that we can dynamically create
@@ -110,11 +116,10 @@ def scrubINI(path, ext=False):
     # Step up to GUI folder to find GUIpref.ini
     # Then return to the previous folder to get
     # the iniFile list to compare to.
-    os.chdir("gui")
-    ignoreMe = configMe("launch", "ingoreini")
-    ignoreMe = ignoreMe.replace(".ini", "")
-    os.chdir("..")
 
+    ignoreMe = configMe("general", "ignoreini")
+    ignoreMe = ignoreMe.replace(".ini", "")
+    
     filters = ext
 
     for file in os.listdir(path):
