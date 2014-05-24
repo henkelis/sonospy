@@ -149,16 +149,24 @@ class SonospyFrame(wx.Frame):
         os.chdir(os.pardir)
 
         if os.name == 'nt':
-            cmdroot = 'python '
+            import codecs
+            if os.path.isfile('windowsPID.pid') == True:
+                with codecs.open('windowsPID.pid', encoding='utf-16') as f:
+                    windowsPid = []
+                    f.readline()
+                    windowsPid = f.readline()
+                    windowsPid = windowsPid.splitlines()
+                    launchCMD = "TASKKILL /F /PID " + windowsPid[0] + " > nul"            
+                    f.close()
+                proc = subprocess.Popen(launchCMD,shell=True)
+                os.remove('windowsPID.pid')
         else:
             cmdroot = './'
-
-        launchCMD = cmdroot + "sonospy_stop"
-
-        # check if service is running...
-        if os.path.exists('pycpoint.pid') == True:
-            proc = subprocess.Popen([launchCMD],shell=True)
-            
+            launchCMD = cmdroot + "sonospy_stop"
+            # check if service is running...
+            if os.path.exists('pycpoint.pid') == True:
+                proc = subprocess.Popen([launchCMD],shell=True)
+        
         os.chdir(owd)
         event.Skip()
         self.tbicon.RemoveIcon()

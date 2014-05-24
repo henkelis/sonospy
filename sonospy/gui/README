@@ -53,14 +53,13 @@ TO DO
  - Look at the PIP installer.  Py2Exe?
  - Setup a taskbar for starting, stopping sonospy.
  - Find out how to store comments in the GUIpref.ini
- - Debug wxPython 3.0 implementation (Hi Bart!) 
- - Fix onClose in sonospyGUI.py to support killing the proces in Windows.
  
 [USERINDEX.INI]
  - Consider a tab to allow for generation of a userindex.ini file.
 
 [EXTRACT]
  - Figure out how to get the combo box to be a multi-select box.
+ - Add Advanced TextCTRL where a user can enter their own SQL query.
 
 [VIRTUALS]
  - How to handle multiple SPs in one File? Do I bother?
