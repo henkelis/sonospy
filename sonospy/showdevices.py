@@ -25,7 +25,56 @@ from brisa.core.threaded_call import run_async_function, run_async_call
 
 from brisa.utils.looping_call import LoopingCall
 
+from brisa.upnp.upnp_defaults import UPnPDefaults
+
+from xml.etree.ElementTree import ElementTree
+from xml.etree.ElementTree import tostring
 from controller import Controller
+
+# monkey patch controller module DeviceAssembler so that we can save the device XML
+import controller
+
+class sdDeviceAssembler(controller.DeviceAssembler):
+    ns = UPnPDefaults.NAME_SPACE_XML_SCHEMA
+    devicexml = {}
+    def mount_device_async(self, callback, cargo):
+        self.callback = callback
+        self.cargo = cargo
+        log.debug('self.location is %s' % self.location)
+        
+        if self.filename is None:
+            run_async_call(url_fetch,
+                           success_callback=self.sd_mount_device_async_gotdata,
+                           error_callback=self.mount_device_async_error,
+                           delay=0, url=self.location)
+        else:
+            self.sd_mount_device_async_gotdata(self, open(self.filename))
+
+        # chain to old mount to re-read file
+        old_deviceassembler.mount_device_async(self, callback, cargo)
+
+    def sd_mount_device_async_gotdata(self, fd, cargo):
+        try:
+            tree = ElementTree(file=fd).getroot()
+        except Exception, e:
+            print "Bad device XML %s" % e
+        fd.close()
+
+        friendly_name = tree.findtext('.//{%s}friendlyName' % self.ns)
+        udn = tree.findtext('.//{%s}UDN' % self.ns)
+
+#        print 'friendly_name: %s' % friendly_name
+#        print 'udn: %s' % udn
+#        print 'Device XML: %s' % tostring(tree)
+        self.devicexml[udn] = (friendly_name, tostring(tree))
+
+    def sd_mount_device_async_error(self, cargo, error):
+        log.debug("Error fetching %s - Error: %s" % (self.location,
+                                                     str(error)))
+        return True
+
+old_deviceassembler = controller.DeviceAssembler
+controller.DeviceAssembler = sdDeviceAssembler
 
 from brisa import url_fetch_attempts, url_fetch_attempts_interval, __skip_service_xml__, __skip_soap_service__, __tolerate_service_parse_failure__, __enable_logging__, __enable_webserver_logging__, __enable_offline_mode__, __enable_events_logging__
 
@@ -94,6 +143,12 @@ def main():
     web = ShowDevices()
     reactor.main()
     reactor.main_quit()
+    filename = 'devices.xml'
+    with open(filename, 'w+') as f:
+        for udn,v in sdDeviceAssembler.devicexml.iteritems():
+            if udn in web.known_zone_players.keys():
+                friendly, xml = v
+                f.write('####\n%s\n%s\n%s\n\n' % (udn, friendly, xml))
     
 if __name__ == "__main__":
     main()
