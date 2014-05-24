@@ -559,7 +559,7 @@ class LaunchPanel(wx.Panel):
         self.bt_Launch = wx.Button(panel, label="Launch")
         help_bt_Launch = "Click here to launch the Sonospy service."
         self.bt_Launch.SetToolTip(wx.ToolTip(help_bt_Launch))
-        self.bt_Launch.Bind(wx.EVT_BUTTON, self.bt_LaunchClick, self.bt_Launch)    
+        self.bt_Launch.Bind(wx.EVT_BUTTON, self.startStopSonospy, self.bt_Launch)    
 
         # SAVE AS DEFAULTS
         self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
@@ -585,6 +585,7 @@ class LaunchPanel(wx.Panel):
         self.tc_SetupSMAPI.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_SetupSMAPI)
 
         pub.subscribe(self.setLaunchPanel, 'setLaunchPanel')
+        pub.subscribe(self.startStopSonospy, 'startStopSonospy')
 
         panel.Refresh()
         panel.Update()
@@ -672,13 +673,13 @@ class LaunchPanel(wx.Panel):
     ########################################################################################################################
     def enableSMAPI(self, event):
         self.buildLaunch()
-
+        
     ########################################################################################################################
-    # bt_LaunchClick: Actually launches Sonospy given the data from buildLaunch.  Should run what is printed in the
-    #                 scratchpad.
+    # startStopSonospy: Used in sonospyGUI.py to call a stop to the Sonospy service so that we can use this from the
+    #                   systray.  Used in the above function to be a bit more efficient as well.
     ########################################################################################################################
-    def bt_LaunchClick(self, event):
-        # back up to the folder below our current one.  save cwd in variable
+    def startStopSonospy(self, event):
+         # back up to the folder below our current one.  save cwd in variable
         owd = os.getcwd()
         os.chdir(os.pardir)
         os.chdir(os.pardir)
@@ -702,12 +703,14 @@ class LaunchPanel(wx.Panel):
                 guiFunctions.statusText(self, "Sonospy Service Stopped...")
                 self.buildLaunch()
                 self.setButtons(True)
+                pub.sendMessage(('CreateMenu'), "Exit Sonospy")
             else:
                 self.bt_Launch.Label = "Stop"
                 self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
                 guiFunctions.statusText(self, "Sonospy Service Started...")
                 self.buildLaunch()
                 self.setButtons(False)
+                pub.sendMessage(('CreateMenu'), "Stop Sonospy")
         else:
             proc = subprocess.Popen(launchCMD, shell=True)
             # Trap the windows processID into a windowsPID.txt file so we can read it later to kill the process on stop.
@@ -720,16 +723,18 @@ class LaunchPanel(wx.Panel):
                     os.remove('windowsPID.pid')                
                 self.buildLaunch()
                 self.setButtons(True)
+                pub.sendMessage(('CreateMenu'), "Exit Sonospy")
             else:
                 self.bt_Launch.Label = "Stop"
                 self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
                 guiFunctions.statusText(self, "Sonospy Service Started...")
                 self.buildLaunch()
                 self.setButtons(False)
+                pub.sendMessage(('CreateMenu'), "Stop Sonospy")
 
         # set back to original working directory
         os.chdir(owd)
-
+        
     ########################################################################################################################
     # bt_SaveDefaultsClick: Will write out the current values in this panel as the defaults in GUIpref.ini    
     ########################################################################################################################
@@ -1021,6 +1026,8 @@ class LaunchPanel(wx.Panel):
             self.comboDB6.Enable()
             self.comboDB7.Enable()
             self.comboDB8.Enable()
+            self.label_UserIndexName.Enable()
+            self.label_launchMode.Enable()
         else:
             self.ck_DB1.Disable()
             self.tc_DB1.Disable()
@@ -1063,5 +1070,8 @@ class LaunchPanel(wx.Panel):
             self.comboDB6.Disable()
             self.comboDB7.Disable()
             self.comboDB8.Disable()
+            self.label_UserIndexName.Disable()
+            self.label_launchMode.Disable()
+            
             
 

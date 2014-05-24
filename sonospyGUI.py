@@ -114,6 +114,11 @@ class SonospyFrame(wx.Frame):
         self.tbicon = wx.TaskBarIcon() # This assigns the Icon control that will be used when minimixed to tray
         self.Bind(wx.EVT_ICONIZE, self.OnIconify) # This calls the function that minimizes to tray (Iconize = Minimize)
         self.tbicon.Bind(wx.EVT_TASKBAR_LEFT_DCLICK, self.OnTaskBarActivate) # This is what return the application to the screen. TaskBar Left Double Click
+        self.tbicon.Bind(wx.EVT_TASKBAR_RIGHT_UP, self.OnPopup) # Create the menu items
+        
+        # Receives messages from the Launch Tab for when the Launch button is clicked so that we can
+        # make sure we create the right click menu items properly.
+        pub.subscribe(self.CreateMenu, 'CreateMenu')
         
         self.Layout()
         self.Show()
@@ -123,7 +128,7 @@ class SonospyFrame(wx.Frame):
         self.SetPosition((posx, posy))
         if maximize == True:
             self.Maximize()
-
+        
     def change_statusbar(self, msg):
         self.SetStatusText(msg.data)
 
@@ -181,14 +186,40 @@ class SonospyFrame(wx.Frame):
             self.Show() # Show the Main Window
             self.Raise() #Raise the Main Window to the screen
             self.tbicon.RemoveIcon() # Remove the Icon from the Taskbar
-    
+                        
+    def OnPopup(self, event):
+            self.PopupMenu(self.menu)
+
+    def CreateMenu(self, msg):
+        # Typically used to be called from another pubsub in other tabs.
+        
+        TB_MENU_STOP = wx.NewId()
+        TB_MENU_EXIT = wx.NewId()
+        self.menu = wx.Menu()
+        self.Bind(wx.EVT_MENU, self.OnClose, id=TB_MENU_EXIT)
+        self.Bind(wx.EVT_MENU, self.OnStop, id=TB_MENU_STOP)
+        
+        if msg.data != "":
+            msg = msg.data
+        
+        if msg == 'Stop Sonospy':
+            self.menu.Append(TB_MENU_STOP, msg)
+            self.menu.AppendSeparator()
+            self.menu.Append(TB_MENU_EXIT, 'E&xit')
+        else:
+            self.menu.Append(TB_MENU_EXIT, 'E&xit')
+
+    def OnStop(self, event):
+        pub.sendMessage(('startStopSonospy'), "startStopSonospy")
+        
     def OnIconify(self, evt):  
         if evt.Iconized():
             self.Iconize(True) # Show the Icon on the Taskbar
             self.Hide() # Hide the Main Window from the screen
             ib = wx.Icon('icon16.xpm', wx.BITMAP_TYPE_XPM)
-            self.tbicon.SetIcon(ib) #Set the Icon on the Taskbar      
-
+            self.tbicon.SetIcon(ib) # Set the Icon on the Taskbar 
+            pub.sendMessage(('CreateMenu'), "Exit Sonospy") # As a backup if we never launch the service, give us a way out via Exit.
+        
 if __name__ == "__main__":
     app = wx.App()
     frame = SonospyFrame()
