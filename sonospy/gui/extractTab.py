@@ -342,8 +342,22 @@ class ExtractPanel(wx.Panel):
         OptionBoxSizer.Add(self.combo_LogicalYear, pos=(optSizerIndexX,5), flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border=1)
         OptionBoxSizer.Add(self.tc_Year, pos=(optSizerIndexX, 6), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=0)
 
+        # Advanced Query
+        optSizerIndexX += 1
+        label_OptionsAdvanced = wx.StaticText(panel, label="Advanced:")
+        help_OptionsAdvanced = "(EXPERIMENTAL): Enter a valid SQL query in here - it will get called as-is."
+        label_OptionsYear.SetToolTip(wx.ToolTip(help_OptionsAdvanced))
+
+        self.tc_OptionsAdvanced = wx.TextCtrl(panel)
+        self.tc_OptionsAdvanced.SetToolTip(wx.ToolTip(help_OptionsAdvanced))
+        self.tc_OptionsAdvanced.Value = guiFunctions.configMe("extract", "advancedquery")
+
+        # Add them to the sizer (optionBoxSizer)
+        OptionBoxSizer.Add(label_OptionsAdvanced, pos=(optSizerIndexX, 0), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=0)
+        OptionBoxSizer.Add(self.tc_OptionsAdvanced, pos=(optSizerIndexX, 1), span=(1,6), flag=wx.ALL|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=0)
 
         sizerIndexX += 1
+        
         OptionBoxSizer.AddGrowableCol(4)
         sbs_ExtractOptions.Add(OptionBoxSizer, flag=wx.TOP|wx.LEFT|wx.RIGHT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(sbs_ExtractOptions, pos=(sizerIndexX, 0), span=(1,6),flag=wx.TOP|wx.LEFT|wx.RIGHT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
@@ -392,7 +406,7 @@ class ExtractPanel(wx.Panel):
     # --------------------------------------------------------------------------
     # [5] Output/Log Box -------------------------------------------------------
         sizerIndexX += 1
-        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 360), style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 330), style=wx.TE_MULTILINE|wx.TE_READONLY)
         LogFont = wx.Font(7.5, wx.SWISS, wx.NORMAL, wx.NORMAL, False)
         self.LogWindow.SetFont(LogFont)
         help_LogWindow = "Results of a extract will appear here."
@@ -510,7 +524,6 @@ class ExtractPanel(wx.Panel):
             self.ck_ExtractVerbose.Enable()
             self.ck_OverwriteExisting.Enable()
             self.bt_SaveDefaults.Enable()
-#            self.bt_AddSched.Enable()
             pub.sendMessage(('setLaunchPanel'), "Enable")
             pub.sendMessage(('setScanPanel'), "Enable")
             pub.sendMessage(('setVirtualPanel'), "Enable")
@@ -557,7 +570,6 @@ class ExtractPanel(wx.Panel):
             searchCMD = ""
             # Scrub the fields to see what our extract command should be.
             # Eventually stack these with some sort of AND query.
-
             if self.tc_DaysAgoCreated.Value != "":
                 if searchCMD == "":
                     searchCMD = "where (julianday(datetime(\'now\')) - julianday(datetime(created, \'unixepoch\'))) " + self.combo_LogicalCreated.Value + " " + self.tc_DaysAgoCreated.Value
@@ -617,6 +629,12 @@ class ExtractPanel(wx.Panel):
                     self.LogWindow.AppendText("You cannot combine Last " + self.tc_Last.Value + " albums with other search options...")
                 else:
                     searchCMD = "AS t WHERE t.created >= (SELECT a.created FROM albums AS a WHERE a.albumartistlist != 'Various Artists' ORDER BY a.created DESC LIMIT " + str(int(self.tc_Last.Value) - 1) + ",1)"
+            
+            if self.tc_OptionsAdvanced.Value != "":
+                if searchCMD == "":
+                    searchCMD = "where " + self.tc_OptionsAdvanced.Value
+                else:
+                    searchCMD += "AND " + self.tc_OptionsAdvanced.Value
 
             if searchCMD !="":
                 searchCMD = "\"" + searchCMD + "\""
@@ -700,6 +718,7 @@ class ExtractPanel(wx.Panel):
         guiFunctions.configWrite(section, "last", self.tc_Last.Value)
         guiFunctions.configWrite(section, "verbose", self.ck_ExtractVerbose.Value)
         guiFunctions.configWrite(section, "overwrite", self.ck_OverwriteExisting.Value)
+        guiFunctions.configWrite(section, "advancedquery", self.tc_OptionsAdvanced.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
 
