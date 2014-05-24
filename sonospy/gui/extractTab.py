@@ -35,6 +35,7 @@ import guiFunctions
 from datetime import datetime
 from wx.lib.pubsub import setuparg1
 from wx.lib.pubsub import pub
+import sqlite3
 
 
 ########################################################################################################################
@@ -222,13 +223,16 @@ class ExtractPanel(wx.Panel):
         help_Genre = "Extract files to the Target Database based on the GENRE tag of the music files in the Source Database.  This is case sensitive."
         label_OptionsGenre.SetToolTip(wx.ToolTip(help_Genre))
 
-        self.tc_Genre = wx.TextCtrl(panel)
-        self.tc_Genre.SetToolTip(wx.ToolTip(help_Genre))
-        self.tc_Genre.Value = guiFunctions.configMe("extract", "genre")
+#        self.tc_Genre = wx.TextCtrl(panel)
+#        self.tc_Genre.SetToolTip(wx.ToolTip(help_Genre))
+#        self.tc_Genre.Value = guiFunctions.configMe("extract", "genre")
+        self.cmb_Genre = wx.ComboBox(panel, -1, "", (25,25), (60,20), "", wx.CB_DROPDOWN|wx.MULTIPLE)
+        self.cmb_Genre.Bind(wx.EVT_COMBOBOX, self.updateCombo, self.cmb_Genre)
+        self.cmb_Genre.SetToolTip(wx.ToolTip("Select Genre to Extract."))        
 
         # Add them to the sizer (optionBoxSizer)
         OptionBoxSizer.Add(label_OptionsGenre, pos=(optSizerIndexX, 4), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=0)
-        OptionBoxSizer.Add(self.tc_Genre, pos=(optSizerIndexX, 5), span=(1,2), flag=wx.TOP|wx.LEFT|wx.RIGHT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=0)
+        OptionBoxSizer.Add(self.cmb_Genre, pos=(optSizerIndexX, 5), span=(1,2), flag=wx.TOP|wx.LEFT|wx.RIGHT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=0)
 
         # Modified
         optSizerIndexX += 1
@@ -373,19 +377,12 @@ class ExtractPanel(wx.Panel):
         self.bt_SaveDefaults.SetToolTip(wx.ToolTip(help_SaveDefaults))
         self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
 
-        # ADD TO SCHEDULER TAB
-        #self.bt_AddSched = wx.Button(panel, label="+ Schedule")
-        #help_AddSched = "NOT IMPLEMENTED YET.  Add current settings to Schedule tab."
-        #self.bt_AddSched.SetToolTip(wx.ToolTip(help_AddSched))
-        #self.bt_AddSched.Bind(wx.EVT_BUTTON, self.bt_AddSchedClick, self.bt_AddSched)
-        #self.bt_AddSched.Disable()
-
         sizer.Add(self.bt_Extract, pos=(sizerIndexX,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_SaveLog, pos=(sizerIndexX,1), flag=wx.ALIGN_CENTER_VERTICAL|wx.EXPAND|wx.RIGHT, border=10)
         sizer.Add(self.ck_ExtractVerbose, pos=(sizerIndexX,2), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.ck_OverwriteExisting, pos=(sizerIndexX,3), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.bt_SaveDefaults, pos=(sizerIndexX,5), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_RIGHT, border=10)
-        #sizer.Add(self.bt_AddSched, pos=(sizerIndexX,5), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=10)
+
 
     # --------------------------------------------------------------------------
     # [4] Separator line ------------------------------------------------------
@@ -395,7 +392,7 @@ class ExtractPanel(wx.Panel):
     # --------------------------------------------------------------------------
     # [5] Output/Log Box -------------------------------------------------------
         sizerIndexX += 1
-        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 310), style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 360), style=wx.TE_MULTILINE|wx.TE_READONLY)
         LogFont = wx.Font(7.5, wx.SWISS, wx.NORMAL, wx.NORMAL, False)
         self.LogWindow.SetFont(LogFont)
         help_LogWindow = "Results of a extract will appear here."
@@ -459,6 +456,15 @@ class ExtractPanel(wx.Panel):
                 guiFunctions.statusText(self, "Main Database: " + selection + " selected...")
         dialog.Destroy()
 
+        # This is for extracting the valid genres from the database you just opened.
+        # We may use this to replace the wxTextCtrl that we're currently using.
+        db = sqlite3.connect(selection)
+        cur = db.cursor()
+        cur.execute('SELECT DISTINCT genre FROM tags')
+        a = []
+        self.cmb_Genre.Clear()
+        for row in cur:
+            self.cmb_Genre.AppendItems(row)
 
         # set back to original working directory
         os.chdir(owd)
@@ -581,11 +587,11 @@ class ExtractPanel(wx.Panel):
                 else:
                     searchCMD += " AND year " + self.combo_LogicalYear.Value + " " + self.tc_Year.Value
 
-            if self.tc_Genre.Value != "":
+            if self.cmb_Genre.Value != "":
                 if searchCMD == "":
-                    searchCMD = "where genre=\'" + self.tc_Genre.Value + "\'"
+                    searchCMD = "where genre=\'" + self.cmb_Genre.Value + "\'"
                 else:
-                    searchCMD += " AND genre=\'" + self.tc_Genre.Value + "\'"
+                    searchCMD += " AND genre=\'" + self.cmb_Genre.Value + "\'"
 
             if self.tc_Artist.Value != "":
                 if searchCMD == "":
@@ -621,7 +627,7 @@ class ExtractPanel(wx.Panel):
                             if illegal in self.tc_TargetDatabase.Value:
                                 self.LogWindow.AppendText("\nERROR:\tInvalid target database! You cannot use " + illegal + " in the database name.")
                                 return(1)
-                        self.LogWindow.AppendText("\nRemoving file: " + self.tc_TargetDatabase.Value + " because 'Overwrite' is checked.")
+                        self.LogWindow.AppendText("\nRemoving file: " + self.tc_TargetDatabase.Value + " because 'Overwrite' is checked.\n")
                         os.remove(self.tc_TargetDatabase.Value)
 
                 getOpts = ""
@@ -685,7 +691,7 @@ class ExtractPanel(wx.Panel):
         guiFunctions.configWrite(section, "accessedval", self.tc_DaysAgoAccessed.Value)
         guiFunctions.configWrite(section, "yearidx", self.combo_LogicalYear.GetCurrentSelection())
         guiFunctions.configWrite(section, "yearval", self.tc_Year.Value)
-        guiFunctions.configWrite(section, "genre", self.tc_Genre.Value)
+        guiFunctions.configWrite(section, "genre", self.cmb_Genre.Value)
         guiFunctions.configWrite(section, "artist", self.tc_Artist.Value)
         guiFunctions.configWrite(section, "composer", self.tc_Composer.Value)
         guiFunctions.configWrite(section, "bitrateidx", self.combo_LogicalBitrate.GetCurrentSelection())
@@ -695,3 +701,6 @@ class ExtractPanel(wx.Panel):
         guiFunctions.configWrite(section, "overwrite", self.ck_OverwriteExisting.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
+
+    def updateCombo(self, event):
+        pass
