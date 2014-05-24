@@ -192,7 +192,7 @@ class SonospyFrame(wx.Frame):
 
     def CreateMenu(self, msg):
         # Typically used to be called from another pubsub in other tabs.
-        
+        os.chdir(cmd_folder)
         TB_MENU_STOP = wx.NewId()
         TB_MENU_EXIT = wx.NewId()
         self.menu = wx.Menu()
@@ -201,14 +201,22 @@ class SonospyFrame(wx.Frame):
         
         if msg.data != "":
             msg = msg.data
+
+        owd = os.getcwd()
+        # Now get back to our launch directior to fire off the stop command.
+        os.chdir(os.pardir)
+        os.chdir(os.pardir)
         
-        if msg == 'Stop Sonospy':
-            self.menu.Append(TB_MENU_STOP, msg)
+        if os.path.isfile("windowsPID.pid"):
+            self.menu.Append(TB_MENU_STOP, "Stop Sonospy")
             self.menu.AppendSeparator()
             self.menu.Append(TB_MENU_EXIT, 'E&xit')
         else:
             self.menu.Append(TB_MENU_EXIT, 'E&xit')
 
+        os.chdir(owd)
+        cwd = os.getcwd()
+        
     def OnStop(self, event):
         pub.sendMessage(('startStopSonospy'), "startStopSonospy")
         
