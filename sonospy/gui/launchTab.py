@@ -698,7 +698,7 @@ class LaunchPanel(wx.Panel):
     #                   systray.  Used in the above function to be a bit more efficient as well.
     ########################################################################################################################
     def startStopSonospy(self, event):
-         # back up to the folder below our current one.  save cwd in variable
+        # Reset folder to where this file lives, and then drop down two levels to the "root" of Sonospy.
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
         os.chdir(cmd_folder)
         os.chdir(os.pardir)
@@ -706,10 +706,12 @@ class LaunchPanel(wx.Panel):
 
         launchCMD = self.buildLaunch()
         
-        # TO DO: Find a way to suppress this if the user wants to.
-        
-        if launchCMD.count("-sSonospy=") > 1:
-            wx.MessageBox('Please make sure that you have enough ports open to run multiple SMAPI services in pycpoint.ini', 'Warning!', wx.OK | wx.ICON_INFORMATION)
+        # Check our GUIpref.ini to see if we want to be bothered with warnings.  If we do
+        # then throw up a popup to the user reminding them to open their ports to make
+        # multiple SMAPI databases work.
+        if guiFunctions.configMe("general", "supresswarnings", bool=True) == False:
+            if launchCMD.count("-sSonospy=") > 1:
+                wx.MessageBox('Please make sure that you have enough ports open to run multiple SMAPI services in pycpoint.ini', 'Warning!', wx.OK | wx.ICON_INFORMATION)
 
         # DEBUG ------------------------------------------------------------------------
         # print launchCMD
@@ -740,7 +742,8 @@ class LaunchPanel(wx.Panel):
                 self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
                 guiFunctions.statusText(self, "Sonospy Service Stopped...")
                 if launchCMD.count("TASKKILL") > 0:
-                    os.remove('windowsPID.pid')                
+                    if os.path.isfile('windowsPID.pid') == True:
+                        os.remove('windowsPID.pid')                
                 self.buildLaunch()
                 self.setButtons(True)
                 pub.sendMessage(('CreateMenu'), "Exit Sonospy")
