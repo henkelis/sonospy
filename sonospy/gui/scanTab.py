@@ -376,8 +376,8 @@ class ScanPanel(wx.Panel):
             filehandle=open(os.path.join(self.dirname, self.savefile),'w')
             filehandle.write(self.LogWindow.Value)
             filehandle.close()
-        guiFunctions.statusText(self, savefile + " saved...")
-
+            guiFunctions.statusText(self, savefile + " saved...")
+        
 ########################################################################################################################
 # setButtons: A simple function to enable/disable the panel's buttons when needed.
 ########################################################################################################################

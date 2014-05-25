@@ -749,13 +749,14 @@ class ExtractPanel(wx.Panel):
 ########################################################################################################################
     def bt_SaveLogClick(self, event):
         dialog = wx.FileDialog(self, message='Choose a file', style=wx.SAVE|wx.OVERWRITE_PROMPT)
+
         if dialog.ShowModal() == wx.ID_OK:
             self.savefile=dialog.GetFilename()
             self.dirname=dialog.GetDirectory()
             filehandle=open(os.path.join(self.dirname, self.savefile),'w')
             filehandle.write(self.LogWindow.Value)
             filehandle.close()
-        guiFunctions.statusText(self, savefile + " saved...")
+            guiFunctions.statusText(self, savefile + " saved...")
 
 ########################################################################################################################
 # bt_SaveDefaultsClick: A simple function to write out the defaults for the panel to GUIpref.ini
