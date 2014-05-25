@@ -44,6 +44,7 @@ list_txtctrlLabel = []
 list_buttonID = []
 list_userindexLabel = []
 list_userindexID = []
+sonospyRunning = False
 
 class LaunchPanel(wx.Panel):
     """
@@ -719,15 +720,17 @@ class LaunchPanel(wx.Panel):
                     self.bt_Launch.Label = "Launch"
                     self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
                     guiFunctions.statusText(self, "Sonospy Service Stopped...")
-                    self.buildLaunch()
                     self.setButtons(True)
+                    sonospyRunning = True
+                    self.buildLaunch()
                     pub.sendMessage(('CreateMenu'), "Exit Sonospy")
                 else:
                     self.bt_Launch.Label = "Stop"
                     self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
                     guiFunctions.statusText(self, "Sonospy Service Started...")
-                    self.buildLaunch()
                     self.setButtons(False)
+                    sonospyRunning = False
+                    self.buildLaunch()
                     pub.sendMessage(('CreateMenu'), "Stop Sonospy")
             else:
                 proc = subprocess.Popen(launchCMD, shell=True)
@@ -740,15 +743,17 @@ class LaunchPanel(wx.Panel):
                     if launchCMD.count("TASKKILL") > 0:
                         if os.path.isfile('windowsPID.pid') == True:
                             os.remove('windowsPID.pid')                
-                    self.buildLaunch()
                     self.setButtons(True)
+                    sonospyRunning = True
+                    self.buildLaunch()
                     pub.sendMessage(('CreateMenu'), "Exit Sonospy")
                 else:
                     self.bt_Launch.Label = "Stop"
                     self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
                     guiFunctions.statusText(self, "Sonospy Service Started...")
-                    self.buildLaunch()
                     self.setButtons(False)
+                    sonospyRunning = False
+                    self.buildLaunch()
                     pub.sendMessage(('CreateMenu'), "Stop Sonospy")
 
         # set back to original working directory
@@ -936,12 +941,13 @@ class LaunchPanel(wx.Panel):
             list_txtctrlLabel[item] = wx.FindWindowById(list_txtctrlID[item]).Value
             list_checkboxLabel[item] = wx.FindWindowById(list_checkboxID[item]).Label
             list_userindexLabel[item]= wx.FindWindowById(list_userindexID[item]).Value
-            
+
         # build out the command
-        windowsKill = False
+        sonospyKill = False
         if self.bt_Launch.Label == "Stop":
             if os.name != 'nt':
                 launchME = cmdroot + "sonospy_stop"
+                sonospyKill = True
             else:
                 import codecs
                 with codecs.open('windowsPID.pid', encoding='utf-16') as f:
@@ -949,7 +955,7 @@ class LaunchPanel(wx.Panel):
                     windowsPid = f.readline()
                     windowsPid = windowsPid.splitlines()
                     launchME = "TASKKILL /F /PID " + windowsPid[0] + " > nul"
-                    windowsKill = True
+                    sonospyKill = True
                     self.tc_Scratchpad.Value = "Sonospy currently running with Windows Process ID: " + windowsPid[0] + "\n\nPress STOP below when finished."
         else:
             for item in range(len(list_checkboxID)):
@@ -966,35 +972,34 @@ class LaunchPanel(wx.Panel):
                         launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
 
         if self.ck_ProxyOnly.Value == True:
-            if windowsKill == False:
+            if sonospyKill == False:
                 launchME = launchME + " -p"
             
         if self.ck_SMAPI.Value == True:
-            self.comboDB1.Enable()
-            self.comboDB2.Enable()
-            self.comboDB3.Enable()
-            self.comboDB4.Enable()
-            self.comboDB5.Enable()
-            self.comboDB6.Enable()
-            self.comboDB7.Enable()
-            self.comboDB8.Enable()
-            self.label_UserIndexName.Enable()
-            
-            if windowsKill == False:
+            if sonospyKill == False:
                 launchME = launchME + " -r"
+            self.label_UserIndexName.Enable()
         else:
-            self.comboDB1.Disable()
-            self.comboDB2.Disable()
-            self.comboDB3.Disable()
-            self.comboDB4.Disable()
-            self.comboDB5.Disable()
-            self.comboDB6.Disable()
-            self.comboDB7.Disable()
-            self.comboDB8.Disable()
             self.label_UserIndexName.Disable()
             
-        if windowsKill == False:
+        if sonospyKill == False:
             self.tc_Scratchpad.Value = launchME
+
+        # Disable any database entries that are emtpy
+        # Weirdness with some of the labels.
+        if sonospyKill == False:
+            for item in range(len(list_checkboxID)):
+                DBname = wx.FindWindowById(list_checkboxID[item]).Label
+                if DBname == "<add database>":
+                    wx.FindWindowById(list_checkboxID[item]).Disable()
+                    wx.FindWindowById(list_userindexID[item]).Disable()
+                    wx.FindWindowById(list_txtctrlID[item]).Disable()
+                else:
+                    wx.FindWindowById(list_checkboxID[item]).Enable()
+                    wx.FindWindowById(list_userindexID[item]).Enable()   
+                    wx.FindWindowById(list_txtctrlID[item]).Enable()
+                if self.ck_SMAPI.Value == False:
+                    wx.FindWindowById(list_userindexID[item]).Disable()
 
         # If we don't have any databases, return 0 so that we can throw
         # up a messagebox in startStopSonospy.  Otherwise, return what
