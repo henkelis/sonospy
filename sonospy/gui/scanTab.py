@@ -322,14 +322,14 @@ class ScanPanel(wx.Panel):
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
         os.chdir(os.pardir)
         if guiFunctions.configMe("general", "default_database_path") == "":
-            cmd_folder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(cmd_folder)
+            dbFolder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(dbFolder)
             os.chdir(os.pardir)
-            cmd_folder = os.getcwd()
+            dbFolder = os.getcwd()
         else:
-            cmd_folder = guiFunctions.configMe("general", "default_database_path")
+            dbFolder = guiFunctions.configMe("general", "default_database_path")
         
-        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=str(cmd_folder), wildcard = wildcards, style = wx.FD_OPEN)
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
         
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
@@ -347,7 +347,10 @@ class ScanPanel(wx.Panel):
 # bt_FoldersToScanAddClick: Button for adding folders for scanning to the folders-to-scan frame
 ########################################################################################################################
     def bt_FoldersToScanAddClick(self, event):
-        dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE)
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        musicFolder = guiFunctions.configMe("general", "default_music_path")
+
+        dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=musicFolder, style=wx.DD_DEFAULT_STYLE)
 
         if dialog.ShowModal() == wx.ID_OK:
             if self.multiText.Value == "":
@@ -357,6 +360,7 @@ class ScanPanel(wx.Panel):
 
         dialog.Destroy()
         guiFunctions.statusText(self, "Folder: " + "%s" % dialog.GetPath() + " added.")
+        os.chdir(cmd_folder)
 
 ########################################################################################################################
 # bt_FoldersToScanClearClick: A simple function to clear out the folders-to-scan frame.

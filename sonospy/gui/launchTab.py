@@ -609,6 +609,7 @@ class LaunchPanel(wx.Panel):
     # browseDB: Used to open a sonospy database file (.sdb, .db)
     ########################################################################################################################
     def browseDB(self, event):
+        
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
 
@@ -616,13 +617,13 @@ class LaunchPanel(wx.Panel):
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
 
         if guiFunctions.configMe("general", "default_database_path") == "":
-            os.chdir(cmd_folder)
+            os.chdir(dbFolder)
             os.chdir(os.pardir)
-            cmd_folder = os.getcwd()
+            dbFolder = os.getcwd()
         else:
-            cmd_folder = guiFunctions.configMe("general", "default_database_path")
+            dbFolder = guiFunctions.configMe("general", "default_database_path")
         
-        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=cmd_folder, wildcard = wildcards, style = wx.FD_OPEN)
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
         
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:

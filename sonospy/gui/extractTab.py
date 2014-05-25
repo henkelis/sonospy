@@ -472,14 +472,14 @@ class ExtractPanel(wx.Panel):
 
         
         if guiFunctions.configMe("general", "default_database_path") == "":
-            cmd_folder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(cmd_folder)
+            dbFolder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(dbFolder)
             os.chdir(os.pardir)
-            cmd_folder = os.getcwd()
+            dbFolder = os.getcwd()
         else:
-            cmd_folder = guiFunctions.configMe("general", "default_database_path")
+            dbFolder = guiFunctions.configMe("general", "default_database_path")
         
-        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=cmd_folder, wildcard = wildcards, style = wx.FD_OPEN)
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
         
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
@@ -512,14 +512,14 @@ class ExtractPanel(wx.Panel):
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
 
         if guiFunctions.configMe("general", "default_database_path") == "":
-            cmd_folder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(cmd_folder)
+            dbFolder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(dbFolder)
             os.chdir(os.pardir)
-            cmd_folder = os.getcwd()
+            dbFolder = os.getcwd()
         else:
-            cmd_folder = guiFunctions.configMe("general", "default_database_path")
+            dbFolder = guiFunctions.configMe("general", "default_database_path")
         
-        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=cmd_folder, wildcard = wildcards, style = wx.FD_OPEN)
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
         
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
