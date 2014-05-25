@@ -698,54 +698,58 @@ class LaunchPanel(wx.Panel):
 
         launchCMD = self.buildLaunch()
         
-        # Check our GUIpref.ini to see if we want to be bothered with warnings.  If we do
-        # then throw up a popup to the user reminding them to open their ports to make
-        # multiple SMAPI databases work.
-        if guiFunctions.configMe("general", "supresswarnings", bool=True) == False:
-            if launchCMD.count("-sSonospy=") > 1:
-                wx.MessageBox('Please make sure that you have enough ports open to run multiple SMAPI services in pycpoint.ini', 'Warning!', wx.OK | wx.ICON_INFORMATION)
-
-        # DEBUG ------------------------------------------------------------------------
-        # print launchCMD
-        # ------------------------------------------------------------------------------
-
-        if os.name != 'nt':
-            proc = subprocess.Popen([launchCMD],shell=True)
-            if self.bt_Launch.Label == "Stop":
-                self.bt_Launch.Label = "Launch"
-                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
-                guiFunctions.statusText(self, "Sonospy Service Stopped...")
-                self.buildLaunch()
-                self.setButtons(True)
-                pub.sendMessage(('CreateMenu'), "Exit Sonospy")
+        # This would mean we have no databases selected and should, thus, throw up an error for the user.
+        if launchCMD == 0:
+            wx.MessageBox('You have no databases selected for launch', 'Error!', wx.OK | wx.ICON_INFORMATION)
+        else:            
+            # Check our GUIpref.ini to see if we want to be bothered with warnings.  If we do
+            # then throw up a popup to the user reminding them to open their ports to make
+            # multiple SMAPI databases work.
+            if guiFunctions.configMe("general", "supresswarnings", bool=True) == False:
+                if launchCMD.count("-sSonospy=") > 1:
+                    wx.MessageBox('Please make sure that you have enough ports open to run multiple SMAPI services in pycpoint.ini', 'Warning!', wx.OK | wx.ICON_INFORMATION)
+    
+            # DEBUG ------------------------------------------------------------------------
+            # print launchCMD
+            # ------------------------------------------------------------------------------
+    
+            if os.name != 'nt':
+                proc = subprocess.Popen([launchCMD],shell=True)
+                if self.bt_Launch.Label == "Stop":
+                    self.bt_Launch.Label = "Launch"
+                    self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
+                    guiFunctions.statusText(self, "Sonospy Service Stopped...")
+                    self.buildLaunch()
+                    self.setButtons(True)
+                    pub.sendMessage(('CreateMenu'), "Exit Sonospy")
+                else:
+                    self.bt_Launch.Label = "Stop"
+                    self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
+                    guiFunctions.statusText(self, "Sonospy Service Started...")
+                    self.buildLaunch()
+                    self.setButtons(False)
+                    pub.sendMessage(('CreateMenu'), "Stop Sonospy")
             else:
-                self.bt_Launch.Label = "Stop"
-                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
-                guiFunctions.statusText(self, "Sonospy Service Started...")
-                self.buildLaunch()
-                self.setButtons(False)
-                pub.sendMessage(('CreateMenu'), "Stop Sonospy")
-        else:
-            proc = subprocess.Popen(launchCMD, shell=True)
-            # Trap the windows processID into a windowsPID.txt file so we can read it later to kill the process on stop.
-            temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
-            if self.bt_Launch.Label == "Stop":
-                self.bt_Launch.Label = "Launch"
-                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
-                guiFunctions.statusText(self, "Sonospy Service Stopped...")
-                if launchCMD.count("TASKKILL") > 0:
-                    if os.path.isfile('windowsPID.pid') == True:
-                        os.remove('windowsPID.pid')                
-                self.buildLaunch()
-                self.setButtons(True)
-                pub.sendMessage(('CreateMenu'), "Exit Sonospy")
-            else:
-                self.bt_Launch.Label = "Stop"
-                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
-                guiFunctions.statusText(self, "Sonospy Service Started...")
-                self.buildLaunch()
-                self.setButtons(False)
-                pub.sendMessage(('CreateMenu'), "Stop Sonospy")
+                proc = subprocess.Popen(launchCMD, shell=True)
+                # Trap the windows processID into a windowsPID.txt file so we can read it later to kill the process on stop.
+                temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
+                if self.bt_Launch.Label == "Stop":
+                    self.bt_Launch.Label = "Launch"
+                    self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
+                    guiFunctions.statusText(self, "Sonospy Service Stopped...")
+                    if launchCMD.count("TASKKILL") > 0:
+                        if os.path.isfile('windowsPID.pid') == True:
+                            os.remove('windowsPID.pid')                
+                    self.buildLaunch()
+                    self.setButtons(True)
+                    pub.sendMessage(('CreateMenu'), "Exit Sonospy")
+                else:
+                    self.bt_Launch.Label = "Stop"
+                    self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
+                    guiFunctions.statusText(self, "Sonospy Service Started...")
+                    self.buildLaunch()
+                    self.setButtons(False)
+                    pub.sendMessage(('CreateMenu'), "Stop Sonospy")
 
         # set back to original working directory
         os.chdir(cmd_folder)
@@ -992,6 +996,12 @@ class LaunchPanel(wx.Panel):
         if windowsKill == False:
             self.tc_Scratchpad.Value = launchME
 
+        # If we don't have any databases, return 0 so that we can throw
+        # up a messagebox in startStopSonospy.  Otherwise, return what
+        # would be a valid launch command.
+        if self.bt_Launch.Label != "Stop":
+            if dbCount == 0:
+                return 0
         return launchME
 
     ########################################################################################################################
