@@ -137,3 +137,8 @@ def scrubINI(path, ext=False):
 def statusText(object, line):
     pub.sendMessage(('change_statusbar'), line)
 
+########################################################################################################################
+# errorMsg: Simple error popup.
+########################################################################################################################
+def errorMsg(type, msg):
+    wx.MessageBox(msg, type, wx.OK | wx.ICON_INFORMATION)
