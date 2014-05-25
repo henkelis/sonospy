@@ -67,9 +67,13 @@ class WorkerThread(Thread):
         self._notify_window = notify_window
         self._want_abort = 0
         self.start()
-
+        
     def run(self):
         """Run Worker Thread."""
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(cmd_folder)
+        os.chdir(os.pardir)    
+        
         if os.name == "nt":
             proc = subprocess.Popen(scanCMD.replace("\\", "\\\\"), stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
         else:
@@ -77,11 +81,16 @@ class WorkerThread(Thread):
 
         while True:
             line = proc.stdout.readline()
-            wx.PostEvent(self._notify_window, ResultEvent(line))
             wx.Yield()
+            if line.find("processing tag:") > 0:
+                pass
+            else:
+                pub.sendMessage(('updateLogExtract'), line)
             if not line: break
         proc.wait()
         wx.PostEvent(self._notify_window, ResultEvent(None))
+        # proc.kill() # this throws an exception for some reason.
+        os.chdir(cmd_folder)
         return
 
 ########################################################################################################################
@@ -223,13 +232,10 @@ class ExtractPanel(wx.Panel):
         help_Genre = "Extract files to the Target Database based on the GENRE tag of the music files in the Source Database.  This is case sensitive."
         label_OptionsGenre.SetToolTip(wx.ToolTip(help_Genre))
 
-#        self.tc_Genre = wx.TextCtrl(panel)
-#        self.tc_Genre.SetToolTip(wx.ToolTip(help_Genre))
-#        self.tc_Genre.Value = guiFunctions.configMe("extract", "genre")
         self.cmb_Genre = wx.ComboBox(panel, -1, "", (25,25), (60,20), "", wx.CB_DROPDOWN|wx.MULTIPLE)
         self.cmb_Genre.Bind(wx.EVT_COMBOBOX, self.updateCombo, self.cmb_Genre)
         self.cmb_Genre.SetToolTip(wx.ToolTip("Select Genre to Extract."))        
-
+        
         # Add them to the sizer (optionBoxSizer)
         OptionBoxSizer.Add(label_OptionsGenre, pos=(optSizerIndexX, 4), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=0)
         OptionBoxSizer.Add(self.cmb_Genre, pos=(optSizerIndexX, 5), span=(1,2), flag=wx.TOP|wx.LEFT|wx.RIGHT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=0)
@@ -342,8 +348,22 @@ class ExtractPanel(wx.Panel):
         OptionBoxSizer.Add(self.combo_LogicalYear, pos=(optSizerIndexX,5), flag=wx.ALIGN_CENTER_VERTICAL|wx.ALL, border=1)
         OptionBoxSizer.Add(self.tc_Year, pos=(optSizerIndexX, 6), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=0)
 
+        # Advanced Query
+        optSizerIndexX += 1
+        label_OptionsAdvanced = wx.StaticText(panel, label="Advanced:")
+        help_OptionsAdvanced = "(EXPERIMENTAL): Enter a valid SQL query in here - it will get called as-is."
+        label_OptionsYear.SetToolTip(wx.ToolTip(help_OptionsAdvanced))
+
+        self.tc_OptionsAdvanced = wx.TextCtrl(panel)
+        self.tc_OptionsAdvanced.SetToolTip(wx.ToolTip(help_OptionsAdvanced))
+        self.tc_OptionsAdvanced.Value = guiFunctions.configMe("extract", "advancedquery")
+
+        # Add them to the sizer (optionBoxSizer)
+        OptionBoxSizer.Add(label_OptionsAdvanced, pos=(optSizerIndexX, 0), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT, border=0)
+        OptionBoxSizer.Add(self.tc_OptionsAdvanced, pos=(optSizerIndexX, 1), span=(1,6), flag=wx.ALL|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_LEFT, border=0)
 
         sizerIndexX += 1
+        
         OptionBoxSizer.AddGrowableCol(4)
         sbs_ExtractOptions.Add(OptionBoxSizer, flag=wx.TOP|wx.LEFT|wx.RIGHT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(sbs_ExtractOptions, pos=(sizerIndexX, 0), span=(1,6),flag=wx.TOP|wx.LEFT|wx.RIGHT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
@@ -392,7 +412,7 @@ class ExtractPanel(wx.Panel):
     # --------------------------------------------------------------------------
     # [5] Output/Log Box -------------------------------------------------------
         sizerIndexX += 1
-        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 360), style=wx.TE_MULTILINE|wx.TE_READONLY)
+        self.LogWindow = wx.TextCtrl(panel, -1,"",size=(100, 330), style=wx.TE_MULTILINE|wx.TE_READONLY)
         LogFont = wx.Font(7.5, wx.SWISS, wx.NORMAL, wx.NORMAL, False)
         self.LogWindow.SetFont(LogFont)
         help_LogWindow = "Results of a extract will appear here."
@@ -406,9 +426,11 @@ class ExtractPanel(wx.Panel):
         self.worker = None
 
         pub.subscribe(self.setExtractPanel, 'setExtractPanel')
+        pub.subscribe(self.updateLogExtract, 'updateLogExtract')
 
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
+        self.buildLaunch()
 
 ########################################################################################################################
 # setExtractPanel: This is for the pubsub to receive a call to disable or enable the panel buttons.
@@ -419,6 +441,10 @@ class ExtractPanel(wx.Panel):
         else:
             self.Enable()
 
+    def updateLogExtract(self, msg):
+        if msg.data != "":
+            self.LogWindow.AppendText(msg.data)
+            
     def onResult(self, event):
         """Show Result status."""
         if event.data is None:
@@ -439,49 +465,62 @@ class ExtractPanel(wx.Panel):
 # bt_MainDatabaseClick: Button for loading the database to extract FROM.
 ########################################################################################################################
     def bt_MainDatabaseClick(self, event):
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
 
-        # back up to the folder below our current one.  save cwd in variable
-        owd = os.getcwd()
-        os.chdir(os.pardir)
-
-        dialog = wx.FileDialog ( None, message = 'Select Source Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN)
-
+        
+        if guiFunctions.configMe("general", "default_database_path") == "":
+            dbFolder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(dbFolder)
+            os.chdir(os.pardir)
+            dbFolder = os.getcwd()
+        else:
+            dbFolder = guiFunctions.configMe("general", "default_database_path")
+        
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
+        
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetFilenames()
             for selection in selected:
                 self.tc_MainDatabase.Value = selection
                 guiFunctions.statusText(self, "Main Database: " + selection + " selected...")
+
+                # This is for extracting the valid genres from the database you just opened.
+                # We may use this to replace the wxTextCtrl that we're currently using.
+                db = sqlite3.connect(selection)
+                cur = db.cursor()
+                cur.execute('SELECT DISTINCT genre FROM tags')
+                a = []
+                self.cmb_Genre.Clear()
+                for row in cur:
+                    self.cmb_Genre.AppendItems(row)
         dialog.Destroy()
 
-        # This is for extracting the valid genres from the database you just opened.
-        # We may use this to replace the wxTextCtrl that we're currently using.
-        db = sqlite3.connect(selection)
-        cur = db.cursor()
-        cur.execute('SELECT DISTINCT genre FROM tags')
-        a = []
-        self.cmb_Genre.Clear()
-        for row in cur:
-            self.cmb_Genre.AppendItems(row)
-
         # set back to original working directory
-        os.chdir(owd)
+        os.chdir(cmd_folder)
 
 ########################################################################################################################
 # bt_TargetDatabaseClick: Button for loading the database to extract TO.
 ########################################################################################################################
     def bt_TargetDatabaseClick(self, event):
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
 
-        # back up to the folder below our current one.  save cwd in variable
-        owd = os.getcwd()
-        os.chdir(os.pardir)
-
-        dialog = wx.FileDialog ( None, message = 'Select Target Database File...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN )
-
+        if guiFunctions.configMe("general", "default_database_path") == "":
+            dbFolder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(dbFolder)
+            os.chdir(os.pardir)
+            dbFolder = os.getcwd()
+        else:
+            dbFolder = guiFunctions.configMe("general", "default_database_path")
+        
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
+        
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetFilenames()
@@ -490,9 +529,8 @@ class ExtractPanel(wx.Panel):
                 guiFunctions.statusText(self, "Target Database: " + selection + " selected...")
         dialog.Destroy()
 
-
         # set back to original working directory
-        os.chdir(owd)
+        os.chdir(cmd_folder)
 
 ########################################################################################################################
 # setButtons: A simple function to enable/disable the panel's buttons when needed.
@@ -509,7 +547,6 @@ class ExtractPanel(wx.Panel):
             self.ck_ExtractVerbose.Enable()
             self.ck_OverwriteExisting.Enable()
             self.bt_SaveDefaults.Enable()
-#            self.bt_AddSched.Enable()
             pub.sendMessage(('setLaunchPanel'), "Enable")
             pub.sendMessage(('setScanPanel'), "Enable")
             pub.sendMessage(('setVirtualPanel'), "Enable")
@@ -528,35 +565,52 @@ class ExtractPanel(wx.Panel):
             wx.SetCursor(wx.StockCursor(wx.CURSOR_WATCH))
 
 ########################################################################################################################
-# bt_ExtractClick: A simple function to build the extract command for execution.
+# buildLaunch: The bulk of this panel relies on this function.  It builds out the command that will ultimately be run
+#              and then updates the scratchpad to reflect the changes.
 ########################################################################################################################
-    def bt_ExtractClick(self, event):
+    def buildLaunch(self):
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(cmd_folder)
+        os.chdir(os.pardir)        
+
         global scanCMD
         global getOpts
         global startTime
 
-        # Set Original Working Directory so we can get back to here.
-        owd = os.getcwd()
-        os.chdir(os.pardir)
-
+        self.LogWindow.Enable()
+        
         if os.name == 'nt':
             cmdroot = 'python '
         else:
             cmdroot = './'
 
-        self.LogWindow.Enable()
-
         if self.tc_MainDatabase.Value == "":
-            self.LogWindow.AppendText("ERROR:\tNo source database name selected!\n")
+            return 1
         elif self.tc_TargetDatabase.Value == "":
-            self.LogWindow.AppendText("ERROR:\tNo target database name selected.\n")
+            return 2
         elif self.tc_MainDatabase.Value == self.tc_TargetDatabase.Value:
-            self.LogWindow.AppendText("ERROR:\tSource database and target database cannot be the same database!\n")
+            return 3
         else:
+            if self.tc_MainDatabase.Value.find(".") == -1:
+                self.LogWindow.AppendText("[WARNING]\tNo extension found for source database.  Adding .sdb for default.\n")
+                self.tc_MainDatabase.Value += ".sdb"
+            if self.tc_TargetDatabase.Value.find(".") == -1:
+                self.LogWindow.AppendText("[WARNING]\tNo extension found for target database.  Adding .sdb for default.\n")
+                self.tc_TargetDatabase.Value += ".sdb"
+            
+            # This is for extracting the valid genres from the database you just opened.
+            # We may use this to replace the wxTextCtrl that we're currently using.
+            db = sqlite3.connect(self.tc_MainDatabase.Value)
+            cur = db.cursor()
+            cur.execute('SELECT DISTINCT genre FROM tags')
+            a = []
+            self.cmb_Genre.Clear()
+            for row in cur:
+                self.cmb_Genre.AppendItems(row)            
+
             searchCMD = ""
             # Scrub the fields to see what our extract command should be.
             # Eventually stack these with some sort of AND query.
-
             if self.tc_DaysAgoCreated.Value != "":
                 if searchCMD == "":
                     searchCMD = "where (julianday(datetime(\'now\')) - julianday(datetime(created, \'unixepoch\'))) " + self.combo_LogicalCreated.Value + " " + self.tc_DaysAgoCreated.Value
@@ -616,6 +670,12 @@ class ExtractPanel(wx.Panel):
                     self.LogWindow.AppendText("You cannot combine Last " + self.tc_Last.Value + " albums with other search options...")
                 else:
                     searchCMD = "AS t WHERE t.created >= (SELECT a.created FROM albums AS a WHERE a.albumartistlist != 'Various Artists' ORDER BY a.created DESC LIMIT " + str(int(self.tc_Last.Value) - 1) + ",1)"
+            
+            if self.tc_OptionsAdvanced.Value != "":
+                if searchCMD == "":
+                    searchCMD = "where " + self.tc_OptionsAdvanced.Value
+                else:
+                    searchCMD += "AND " + self.tc_OptionsAdvanced.Value
 
             if searchCMD !="":
                 searchCMD = "\"" + searchCMD + "\""
@@ -625,8 +685,8 @@ class ExtractPanel(wx.Panel):
                         illegals = ["/", "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "+","=",","]
                         for illegal in illegals:
                             if illegal in self.tc_TargetDatabase.Value:
-                                self.LogWindow.AppendText("\nERROR:\tInvalid target database! You cannot use " + illegal + " in the database name.")
-                                return(1)
+                                print "found illegal"
+                                return 4
                         self.LogWindow.AppendText("\nRemoving file: " + self.tc_TargetDatabase.Value + " because 'Overwrite' is checked.\n")
                         os.remove(self.tc_TargetDatabase.Value)
 
@@ -636,42 +696,67 @@ class ExtractPanel(wx.Panel):
                                 
                 scanCMD = cmdroot + "scan.py " + getOpts +"-d " + self.tc_MainDatabase.Value + " -x " + self.tc_TargetDatabase.Value + " -w " + searchCMD                
                 startTime = datetime.now()
-                self.LogWindow.AppendText("[ Starting Extract ]")
+                self.LogWindow.AppendText("[ Starting Extract ]\n")
                 self.LogWindow.AppendText("Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "\n")
                 self.LogWindow.AppendText("Command: " + scanCMD + "\n\n")
                 guiFunctions.statusText(self, "Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "...")
 
 
-
+                return scanCMD
 # DEBUG ------------------------------------------------------------------------
 #                self.LogWindow.AppendText(scanCMD)
 # ------------------------------------------------------------------------------
-
-# Multithreading is below this line.
-                if not self.worker:
-                    self.worker = WorkerThread(self)
-                    self.setButtons(False)
-                    # set back to original working directory
-                    os.chdir(owd)
-# ------------------------------------------------------------------------------
             else:
-                self.LogWindow.AppendText("\nERROR:\tYou have no extract options selected!")
+                return 0
 
             # set back to original working directory
-            os.chdir(owd)
+            os.chdir(cmd_folder)        
+            
+########################################################################################################################
+# bt_ExtractClick: A simple function to build the extract command for execution.
+########################################################################################################################
+    def bt_ExtractClick(self, event):
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(cmd_folder)
+        os.chdir(os.pardir) 
+        
+        runMe = self.buildLaunch()
+        
+        if runMe == 0:
+            guiFunctions.errorMsg("Error!", "No extract options selected!")
+        elif runMe == 1:
+            guiFunctions.errorMsg("Error!", "No source database selected to extract from.")
+        elif runMe == 2:
+            guiFunctions.errorMsg("Error!", "No target database to extract to.")
+        elif runMe == 3:
+            guiFunctions.errorMsg("Error!", "Source and target databases cannot be the same database.")
+        elif runMe == 4:
+            illegals = ["/", "~", "!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "+","=",","]
+            for illegal in illegals:
+                if illegal in self.tc_TargetDatabase.Value:            
+                    guiFunctions.errorMsg("Error!", "Invalid target database! You cannot use " + illegal + " in the database name!")            
+        else:
+            # Multithreading is below this line.
+            if not self.worker:
+                self.worker = WorkerThread(self)
+                self.setButtons(False)
+                # set back to original working directory
+                os.chdir(cmd_folder)            
+
 
 ########################################################################################################################
 # bt_SaveLogClick: Write out the Log Window to a file.
 ########################################################################################################################
     def bt_SaveLogClick(self, event):
         dialog = wx.FileDialog(self, message='Choose a file', style=wx.SAVE|wx.OVERWRITE_PROMPT)
+
         if dialog.ShowModal() == wx.ID_OK:
             self.savefile=dialog.GetFilename()
             self.dirname=dialog.GetDirectory()
             filehandle=open(os.path.join(self.dirname, self.savefile),'w')
             filehandle.write(self.LogWindow.Value)
             filehandle.close()
-        guiFunctions.statusText(self, savefile + " saved...")
+            guiFunctions.statusText(self, savefile + " saved...")
 
 ########################################################################################################################
 # bt_SaveDefaultsClick: A simple function to write out the defaults for the panel to GUIpref.ini
@@ -691,7 +776,7 @@ class ExtractPanel(wx.Panel):
         guiFunctions.configWrite(section, "accessedval", self.tc_DaysAgoAccessed.Value)
         guiFunctions.configWrite(section, "yearidx", self.combo_LogicalYear.GetCurrentSelection())
         guiFunctions.configWrite(section, "yearval", self.tc_Year.Value)
-        guiFunctions.configWrite(section, "genre", self.cmb_Genre.Value)
+        guiFunctions.configWrite(section, "genre", self.cmb_Genre.GetCurrentSelection())
         guiFunctions.configWrite(section, "artist", self.tc_Artist.Value)
         guiFunctions.configWrite(section, "composer", self.tc_Composer.Value)
         guiFunctions.configWrite(section, "bitrateidx", self.combo_LogicalBitrate.GetCurrentSelection())
@@ -699,6 +784,7 @@ class ExtractPanel(wx.Panel):
         guiFunctions.configWrite(section, "last", self.tc_Last.Value)
         guiFunctions.configWrite(section, "verbose", self.ck_ExtractVerbose.Value)
         guiFunctions.configWrite(section, "overwrite", self.ck_OverwriteExisting.Value)
+        guiFunctions.configWrite(section, "advancedquery", self.tc_OptionsAdvanced.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
 

@@ -44,6 +44,7 @@ list_txtctrlLabel = []
 list_buttonID = []
 list_userindexLabel = []
 list_userindexID = []
+sonospyRunning = False
 
 class LaunchPanel(wx.Panel):
     """
@@ -73,10 +74,10 @@ class LaunchPanel(wx.Panel):
         yIndex = 0
 
         # GET INI LIST FOR USER INDEXES
-        owd = os.getcwd()
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
         os.chdir(os.pardir)
         iniList = guiFunctions.scrubINI(os.getcwd(), "*.ini")
-        os.chdir(owd)        
+        os.chdir(cmd_folder)        
     # -------------------------------------------------------------------------
     # [0] Make Header Columns 
         self.label_ProxyName = wx.StaticText(panel, label="Display Name")
@@ -501,10 +502,12 @@ class LaunchPanel(wx.Panel):
         self.ck_SMAPI.Bind(wx.EVT_CHECKBOX, self.enableSMAPI, self.ck_SMAPI)
         self.ck_SMAPI.Value = guiFunctions.configMe("launch", "smapi", bool=True)
 
-    # - SMAPI IP ADDRESS FOR SETUP
-        self.tc_SetupSMAPI = wx.TextCtrl(panel)
-        self.tc_SetupSMAPI.SetToolTip(wx.ToolTip("Enter an IP address for one of your Sonos devices to bind it to a service."))      
-        self.tc_SetupSMAPI.Value = guiFunctions.configMe("launch", "zoneIP")
+    # - PROXY ONLY CHECK BUTTON
+        self.ck_ProxyOnly = wx.CheckBox(panel, label="Proxy Only Mode.")
+        help_ck_ProxyOnly = "Disable the built in web GUI in Sonospy."
+        self.ck_ProxyOnly.SetToolTip(wx.ToolTip(help_ck_ProxyOnly))
+        self.ck_ProxyOnly.Bind(wx.EVT_CHECKBOX, self.proxyOnly, self.ck_ProxyOnly)
+        self.ck_ProxyOnly.Value = guiFunctions.configMe("launch", "proxyonly", bool=True)
 
     # - LAUNCH MODE LABEL
         self.label_launchMode = wx.StaticText(panel, label="Select Launch Mode:")
@@ -528,7 +531,7 @@ class LaunchPanel(wx.Panel):
         self.rd_Web.Bind(wx.EVT_RADIOBUTTON, self.updateScratchPad, self.rd_Web)
 
         sizer.Add(self.ck_SMAPI, pos=(xIndex,0), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)        
-        sizer.Add(self.tc_SetupSMAPI, pos=(xIndex,1), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((200,20))
+        sizer.Add(self.ck_ProxyOnly, pos=(xIndex,1), flag=wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)    
         sizer.Add(self.label_launchMode, pos=(xIndex, 2), flag=wx.ALIGN_CENTER_VERTICAL|wx.ALIGN_RIGHT|wx.RIGHT, border=1)
         sizer.Add(self.rd_Proxy, pos=(xIndex,3), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.rd_Web, pos=(xIndex,4), flag=wx.ALIGN_CENTER_VERTICAL, border=10)
@@ -559,7 +562,7 @@ class LaunchPanel(wx.Panel):
         self.bt_Launch = wx.Button(panel, label="Launch")
         help_bt_Launch = "Click here to launch the Sonospy service."
         self.bt_Launch.SetToolTip(wx.ToolTip(help_bt_Launch))
-        self.bt_Launch.Bind(wx.EVT_BUTTON, self.bt_LaunchClick, self.bt_Launch)    
+        self.bt_Launch.Bind(wx.EVT_BUTTON, self.startStopSonospy, self.bt_Launch)    
 
         # SAVE AS DEFAULTS
         self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
@@ -580,11 +583,9 @@ class LaunchPanel(wx.Panel):
         self.tc_DB6.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB6)
         self.tc_DB7.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB7)
         self.tc_DB8.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_DB8)
-        
-        # And the zoneIP box...
-        self.tc_SetupSMAPI.Bind(wx.EVT_TEXT, self.updateScratchPad, self.tc_SetupSMAPI)
 
         pub.subscribe(self.setLaunchPanel, 'setLaunchPanel')
+        pub.subscribe(self.startStopSonospy, 'startStopSonospy')
 
         panel.Refresh()
         panel.Update()
@@ -608,15 +609,22 @@ class LaunchPanel(wx.Panel):
     # browseDB: Used to open a sonospy database file (.sdb, .db)
     ########################################################################################################################
     def browseDB(self, event):
+        
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
 
-        # back up to the folder below our current one.  save cwd in variable
-        owd = os.getcwd()
-        os.chdir(os.pardir)
+        # Set directory to where launchTab.py lives for reference.
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
 
-        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=guiFunctions.configMe("general", "default_database_path"), wildcard = wildcards, style = wx.FD_OPEN)
-
+        if guiFunctions.configMe("general", "default_database_path") == "":
+            os.chdir(dbFolder)
+            os.chdir(os.pardir)
+            dbFolder = os.getcwd()
+        else:
+            dbFolder = guiFunctions.configMe("general", "default_database_path")
+        
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
+        
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
             selected = dialog.GetFilenames()
@@ -631,7 +639,7 @@ class LaunchPanel(wx.Panel):
         self.Update()
 
         # set back to original working directory
-        os.chdir(owd)
+        os.chdir(cmd_folder)
         self.buildLaunch()
     
     ########################################################################################################################
@@ -674,62 +682,84 @@ class LaunchPanel(wx.Panel):
         self.buildLaunch()
 
     ########################################################################################################################
-    # bt_LaunchClick: Actually launches Sonospy given the data from buildLaunch.  Should run what is printed in the
-    #                 scratchpad.
+    # proxyOnly: Updates scracthpad if Proxy Only is selected
+    ######################################################################################################################## 
+    def proxyOnly(self, event):
+        self.buildLaunch()
+        
     ########################################################################################################################
-    def bt_LaunchClick(self, event):
-        # back up to the folder below our current one.  save cwd in variable
-        owd = os.getcwd()
+    # startStopSonospy: Used in sonospyGUI.py to call a stop to the Sonospy service so that we can use this from the
+    #                   systray.  Used in the above function to be a bit more efficient as well.
+    ########################################################################################################################
+    def startStopSonospy(self, event):
+        # Reset folder to where this file lives, and then drop down two levels to the "root" of Sonospy.
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(cmd_folder)
         os.chdir(os.pardir)
         os.chdir(os.pardir)
 
         launchCMD = self.buildLaunch()
         
-        # TO DO: Find a way to suppress this if the user wants to.
-        
-        if launchCMD.count("-sSonospy=") > 1:
-            wx.MessageBox('Please make sure that you have enough ports open to run multiple SMAPI services in pycpoint.ini', 'Warning!', wx.OK | wx.ICON_INFORMATION)
-
-        # DEBUG ------------------------------------------------------------------------
-        # print launchCMD
-        # ------------------------------------------------------------------------------
-
-        if os.name != 'nt':
-            proc = subprocess.Popen([launchCMD],shell=True)
-            if self.bt_Launch.Label == "Stop":
-                self.bt_Launch.Label = "Launch"
-                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
-                guiFunctions.statusText(self, "Sonospy Service Stopped...")
-                self.buildLaunch()
-                self.setButtons(True)
+        # This would mean we have no databases selected and should, thus, throw up an error for the user.
+        if launchCMD == 0:
+            guiFunctions.errorMsg('Error!', 'You have no databases selected for launch.')
+        else:            
+            # Check our GUIpref.ini to see if we want to be bothered with warnings.  If we do
+            # then throw up a popup to the user reminding them to open their ports to make
+            # multiple SMAPI databases work.
+            if guiFunctions.configMe("general", "supresswarnings", bool=True) == False:
+                if launchCMD.count("-sSonospy=") > 1:
+                    wx.MessageBox('Please make sure that you have enough ports open to run multiple SMAPI services in pycpoint.ini', 'Warning!', wx.OK | wx.ICON_INFORMATION)
+    
+            # DEBUG ------------------------------------------------------------------------
+            # print launchCMD
+            # ------------------------------------------------------------------------------
+    
+            if os.name != 'nt':
+                proc = subprocess.Popen([launchCMD],shell=True)
+                if self.bt_Launch.Label == "Stop":
+                    self.bt_Launch.Label = "Launch"
+                    self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
+                    guiFunctions.statusText(self, "Sonospy Service Stopped...")
+                    self.setButtons(True)
+                    sonospyRunning = True
+                    self.buildLaunch()
+                    pub.sendMessage(('CreateMenu'), "Exit Sonospy")
+                else:
+                    self.bt_Launch.Label = "Stop"
+                    self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
+                    guiFunctions.statusText(self, "Sonospy Service Started...")
+                    self.setButtons(False)
+                    sonospyRunning = False
+                    self.buildLaunch()
+                    pub.sendMessage(('CreateMenu'), "Stop Sonospy")
             else:
-                self.bt_Launch.Label = "Stop"
-                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
-                guiFunctions.statusText(self, "Sonospy Service Started...")
-                self.buildLaunch()
-                self.setButtons(False)
-        else:
-            proc = subprocess.Popen(launchCMD, shell=True)
-            # Trap the windows processID into a windowsPID.txt file so we can read it later to kill the process on stop.
-            temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
-            if self.bt_Launch.Label == "Stop":
-                self.bt_Launch.Label = "Launch"
-                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
-                guiFunctions.statusText(self, "Sonospy Service Stopped...")
-                if launchCMD.count("TASKKILL") > 0:
-                    os.remove('windowsPID.pid')                
-                self.buildLaunch()
-                self.setButtons(True)
-            else:
-                self.bt_Launch.Label = "Stop"
-                self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
-                guiFunctions.statusText(self, "Sonospy Service Started...")
-                self.buildLaunch()
-                self.setButtons(False)
+                proc = subprocess.Popen(launchCMD, shell=True)
+                # Trap the windows processID into a windowsPID.txt file so we can read it later to kill the process on stop.
+                temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
+                if self.bt_Launch.Label == "Stop":
+                    self.bt_Launch.Label = "Launch"
+                    self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
+                    guiFunctions.statusText(self, "Sonospy Service Stopped...")
+                    if launchCMD.count("TASKKILL") > 0:
+                        if os.path.isfile('windowsPID.pid') == True:
+                            os.remove('windowsPID.pid')                
+                    self.setButtons(True)
+                    sonospyRunning = True
+                    self.buildLaunch()
+                    pub.sendMessage(('CreateMenu'), "Exit Sonospy")
+                else:
+                    self.bt_Launch.Label = "Stop"
+                    self.bt_Launch.SetToolTip(wx.ToolTip("Click here to stop the Sonospy service."))
+                    guiFunctions.statusText(self, "Sonospy Service Started...")
+                    self.setButtons(False)
+                    sonospyRunning = False
+                    self.buildLaunch()
+                    pub.sendMessage(('CreateMenu'), "Stop Sonospy")
 
         # set back to original working directory
-        os.chdir(owd)
-
+        os.chdir(cmd_folder)
+        
     ########################################################################################################################
     # bt_SaveDefaultsClick: Will write out the current values in this panel as the defaults in GUIpref.ini    
     ########################################################################################################################
@@ -772,7 +802,7 @@ class LaunchPanel(wx.Panel):
         guiFunctions.configWrite(section, "db8_proxyname", self.tc_DB8.Value)
         guiFunctions.configWrite(section, "db8_userindex", self.comboDB8.GetCurrentSelection())
         guiFunctions.configWrite(section, "SMAPI", self.ck_SMAPI.Value)
-        guiFunctions.configWrite(section, "zoneIP", self.tc_SetupSMAPI.Value)
+        guiFunctions.configWrite(section, "proxyonly", self.ck_ProxyOnly.Value)
 
         guiFunctions.statusText(self, "Defaults saved...")
 
@@ -789,8 +819,9 @@ class LaunchPanel(wx.Panel):
     def populateMe(self):
         filters = guiFunctions.configMe("general", "database_extensions").split()
 
-        # Set Original Working Directory so we can get back to here.
-        owd = os.getcwd()
+        # Set working directory to where launchTab.py lives
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(cmd_folder)
         os.chdir(os.pardir)
 
         #   Get a count of *database from the filesystem
@@ -850,7 +881,7 @@ class LaunchPanel(wx.Panel):
              
         self.buildLaunch()
         # set back to original working directory
-        os.chdir(owd)
+        os.chdir(cmd_folder)
 
     ########################################################################################################################
     # bt_ClearClick: Clear the various fields to wipe the panel clean.
@@ -911,12 +942,13 @@ class LaunchPanel(wx.Panel):
             list_txtctrlLabel[item] = wx.FindWindowById(list_txtctrlID[item]).Value
             list_checkboxLabel[item] = wx.FindWindowById(list_checkboxID[item]).Label
             list_userindexLabel[item]= wx.FindWindowById(list_userindexID[item]).Value
-            
+
         # build out the command
-        windowsKill = False
+        sonospyKill = False
         if self.bt_Launch.Label == "Stop":
             if os.name != 'nt':
                 launchME = cmdroot + "sonospy_stop"
+                sonospyKill = True
             else:
                 import codecs
                 with codecs.open('windowsPID.pid', encoding='utf-16') as f:
@@ -924,7 +956,7 @@ class LaunchPanel(wx.Panel):
                     windowsPid = f.readline()
                     windowsPid = windowsPid.splitlines()
                     launchME = "TASKKILL /F /PID " + windowsPid[0] + " > nul"
-                    windowsKill = True
+                    sonospyKill = True
                     self.tc_Scratchpad.Value = "Sonospy currently running with Windows Process ID: " + windowsPid[0] + "\n\nPress STOP below when finished."
         else:
             for item in range(len(list_checkboxID)):
@@ -940,35 +972,40 @@ class LaunchPanel(wx.Panel):
                     else:
                         launchME += launchMode + list_txtctrlLabel[item].replace(" ", "") + "," + list_checkboxLabel[item] + " "
 
-        if self.ck_SMAPI.Value == True:
-            self.comboDB1.Enable()
-            self.comboDB2.Enable()
-            self.comboDB3.Enable()
-            self.comboDB4.Enable()
-            self.comboDB5.Enable()
-            self.comboDB6.Enable()
-            self.comboDB7.Enable()
-            self.comboDB8.Enable()
-            self.tc_SetupSMAPI.Enable()
-            
-            if windowsKill == False:
+        if self.ck_ProxyOnly.Value == True:
+            if sonospyKill == False:
                 launchME = launchME + " -p"
-                if len(self.tc_SetupSMAPI.Value) >0:
-                    launchME = launchME + " -z" + self.tc_SetupSMAPI.Value
-        else:
-            self.comboDB1.Disable()
-            self.comboDB2.Disable()
-            self.comboDB3.Disable()
-            self.comboDB4.Disable()
-            self.comboDB5.Disable()
-            self.comboDB6.Disable()
-            self.comboDB7.Disable()
-            self.comboDB8.Disable()
-            self.tc_SetupSMAPI.Disable()
-        
-        if windowsKill == False:
+            
+        if self.ck_SMAPI.Value == True:
+            if sonospyKill == False:
+                launchME = launchME + " -r"
+
+            
+        if sonospyKill == False:
             self.tc_Scratchpad.Value = launchME
-        
+
+        # Disable any database entries that are emtpy
+        # Weirdness with some of the labels.
+        if sonospyKill == False:
+            for item in range(len(list_checkboxID)):
+                DBname = wx.FindWindowById(list_checkboxID[item]).Label
+                if DBname == "<add database>":
+                    wx.FindWindowById(list_checkboxID[item]).Disable()
+                    wx.FindWindowById(list_userindexID[item]).Disable()
+                    wx.FindWindowById(list_txtctrlID[item]).Disable()
+                else:
+                    wx.FindWindowById(list_checkboxID[item]).Enable()
+                    wx.FindWindowById(list_userindexID[item]).Enable()   
+                    wx.FindWindowById(list_txtctrlID[item]).Enable()
+                if self.ck_SMAPI.Value == False:
+                    wx.FindWindowById(list_userindexID[item]).Disable()
+
+        # If we don't have any databases, return 0 so that we can throw
+        # up a messagebox in startStopSonospy.  Otherwise, return what
+        # would be a valid launch command.
+        if self.bt_Launch.Label != "Stop":
+            if dbCount == 0:
+                return 0
         return launchME
 
     ########################################################################################################################
@@ -1012,7 +1049,6 @@ class LaunchPanel(wx.Panel):
             self.rd_Web.Enable()
             self.label_ProxyName.Enable()
             self.ck_SMAPI.Enable()
-            self.tc_SetupSMAPI.Enable()
             self.comboDB1.Enable()
             self.comboDB2.Enable()
             self.comboDB3.Enable()
@@ -1021,6 +1057,10 @@ class LaunchPanel(wx.Panel):
             self.comboDB6.Enable()
             self.comboDB7.Enable()
             self.comboDB8.Enable()
+            self.label_UserIndexName.Enable()
+            self.label_launchMode.Enable()
+            self.ck_ProxyOnly.Enable()
+            self.label_UserIndexName.Enable()
         else:
             self.ck_DB1.Disable()
             self.tc_DB1.Disable()
@@ -1054,7 +1094,6 @@ class LaunchPanel(wx.Panel):
             self.rd_Web.Disable()
             self.label_ProxyName.Disable()
             self.ck_SMAPI.Disable()
-            self.tc_SetupSMAPI.Disable()
             self.comboDB1.Disable()
             self.comboDB2.Disable()
             self.comboDB3.Disable()
@@ -1063,5 +1102,9 @@ class LaunchPanel(wx.Panel):
             self.comboDB6.Disable()
             self.comboDB7.Disable()
             self.comboDB8.Disable()
+            self.label_UserIndexName.Disable()
+            self.label_launchMode.Disable()
+            self.ck_ProxyOnly.Disable()
+            
             
 

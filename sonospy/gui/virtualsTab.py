@@ -255,7 +255,8 @@ class VirtualsPanel(wx.Panel):
 # bt_FoldersToScanAddClick: Button for adding folders for scanning to the tc_FilesFolders element
 ########################################################################################################################
     def bt_FoldersToScanAddClick(self, event):
-        dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE)
+        musicFolder = guiFunctions.configMe("general", "default_music_path")
+        dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=musicFolder, style=wx.DD_DEFAULT_STYLE)
         if dialog.ShowModal() == wx.ID_OK:
             if self.tc_FilesFolders.Value == "":
                 self.tc_FilesFolders.AppendText("%s" % dialog.GetPath())
@@ -276,7 +277,8 @@ class VirtualsPanel(wx.Panel):
 # bt_FoldersToScanAddClick: Button for adding files for scanning to the tc_FilesFolders element
 ########################################################################################################################
     def bt_FilesToScanAddClick(self, event):
-        dialog = wx.FileDialog(self, "Add Track(s)...", defaultDir=guiFunctions.configMe("general", "default_music_path"), style=wx.DD_DEFAULT_STYLE|wx.FD_MULTIPLE)
+        musicFolder = guiFunctions.configMe("general", "default_music_path")
+        dialog = wx.FileDialog(self, "Add Track(s)...", defaultDir=musicFolder, style=wx.DD_DEFAULT_STYLE|wx.FD_MULTIPLE)
         if dialog.ShowModal() == wxID_OK:
             selected = dialog.GetFilenames()
             for selection in selected:
@@ -305,8 +307,10 @@ class VirtualsPanel(wx.Panel):
         dataToSave += "\n" + "lastmodified="
         dataToSave += "\n\n"
         dataToSave += self.tc_FilesFolders.Value
+        
+        virtPath = guiFunctions.configMe("general", "default_sp_path")
 
-        dialog = wx.FileDialog(self, message='Choose a file', defaultDir=guiFunctions.configMe("general", "default_sp_path"), wildcard="Playlist Files (*.sp)|*.sp", style=wx.SAVE|wx.OVERWRITE_PROMPT)
+        dialog = wx.FileDialog(self, message='Choose a file', defaultDir=virtPath, wildcard="Playlist Files (*.sp)|*.sp", style=wx.SAVE|wx.OVERWRITE_PROMPT)
         if dialog.ShowModal() == wx.ID_OK:
             savefile = dialog.GetFilename()
             basename, extension = os.path.splitext(savefile)
