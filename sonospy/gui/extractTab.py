@@ -580,6 +580,13 @@ class ExtractPanel(wx.Panel):
         elif self.tc_MainDatabase.Value == self.tc_TargetDatabase.Value:
             self.LogWindow.AppendText("ERROR:\tSource database and target database cannot be the same database!\n")
         else:
+            if self.tc_MainDatabase.Value.find(".") == -1:
+                self.LogWindow.AppendText("ERROR:\tNo extension found for source database.  Adding .sdb for default.\n")
+                self.tc_MainDatabase.Value += ".sdb"
+            if self.tc_TargetDatabase.Value.find(".") == -1:
+                self.LogWindow.AppendText("ERROR:\tNo extension found for target database.  Adding .sdb for default.\n")
+                self.tc_TargetDatabase.Value += ".sdb"
+                
             searchCMD = ""
             # Scrub the fields to see what our extract command should be.
             # Eventually stack these with some sort of AND query.

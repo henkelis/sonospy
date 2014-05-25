@@ -403,6 +403,10 @@ class ScanPanel(wx.Panel):
         if self.tc_MainDatabase.Value == "":
             self.LogWindow.AppendText("ERROR:\tNo database name selected!\n")
         else:
+            if self.tc_MainDatabase.Value.find(".") == -1:
+                self.LogWindow.AppendText("ERROR:\tNo extension found to database.  Adding .sdb for default.\n")
+                self.tc_MainDatabase.Value += ".sdb"
+    
             # Set Original Working Directory so we can get back to here.
             cmd_folder = os.path.dirname(os.path.abspath(__file__))
             os.chdir(os.pardir)
