@@ -70,18 +70,42 @@ class WorkerThread(Thread):
 
     def run(self):
         """Run Worker Thread."""
-        wx.PostEvent(self._notify_window, ResultEvent("\nCommand: " + scanCMD + "\n\n"))
-        proc = subprocess.Popen(scanCMD, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-
+        #wx.Yield()
+        #wx.PostEvent(self._notify_window, ResultEvent("\nCommand: " + scanCMD + "\n\n"))
+        pub.sendMessage(('updateLog'), "\nCommand: " + scanCMD + "\n\n")
+        #wx.Yield()        
+        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        os.chdir(cmd_folder)
+        os.chdir(os.pardir)        
+        proc = subprocess.Popen(scanCMD, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False)
+        #wx.Yield()
         while True:
             line = proc.stdout.readline()
             wx.Yield()
-            wx.PostEvent(self._notify_window, ResultEvent(line))
-            wx.Yield()
+            if line.find("processing tag:") > 0:
+                pass
+            else:
+                pub.sendMessage(('updateLog'), line)
             if not line: break
-        proc.wait()
+        proc.wait
         wx.PostEvent(self._notify_window, ResultEvent(None))
-
+        proc.kill
+        #while True:
+            #wx.Yield()
+            #wx.Yield()
+            #line = proc.stdout.readline()
+            #wx.Yield()
+            #wx.Yield()
+            ##wx.PostEvent(self._notify_window, ResultEvent(line))
+            #wx.Yield()
+            #wx.Yield()
+            #if not line: break
+        #wx.Yield()
+        #proc.wait()
+        #wx.Yield()
+        #wx.PostEvent(self._notify_window, ResultEvent(None))
+        #wx.Yield()
+        os.chdir(cmd_folder)
         return
 
 ########################################################################################################################
@@ -207,6 +231,7 @@ class ScanPanel(wx.Panel):
         self.worker = None
 
         pub.subscribe(self.setScanPanel, 'setScanPanel')
+        pub.subscribe(self.updateLog, 'updateLog')
 
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
@@ -220,6 +245,10 @@ class ScanPanel(wx.Panel):
         else:
             self.Enable()
 
+    def updateLog(self, msg):
+        if msg.data != "":
+            self.LogWindow.AppendText(msg.data)
+            
 ########################################################################################################################
 # onResult: Allows for sending a message from other fuctions to the logWindow
 ########################################################################################################################
