@@ -394,7 +394,6 @@ class PreferencesFrame(wx.Frame):
         dialog = wx.DirDialog(self, "Choose where your Sonospy Database files are stored...", defaultPath=dbFolder, style=wx.DD_DEFAULT_STYLE)
 
         if dialog.ShowModal() == wx.ID_OK:
-            print dialog.GetPath()
             path = str(dialog.GetPath())
             self.tc_DBPath.Value = path
 
