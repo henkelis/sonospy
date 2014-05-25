@@ -104,6 +104,7 @@ class SonospyFrame(wx.Frame):
         pub.subscribe(self.change_statusbar, 'change_statusbar')
 
         # Setting the icon, but using small icon files.
+        os.chdir(cmd_folder)        
         ib = wx.IconBundle()
         ib.AddIconFromFile('icon16.xpm', wx.BITMAP_TYPE_XPM)
         ib.AddIconFromFile('icon32.xpm', wx.BITMAP_TYPE_XPM)
@@ -161,10 +162,15 @@ class SonospyFrame(wx.Frame):
                     f.readline()
                     windowsPid = f.readline()
                     windowsPid = windowsPid.splitlines()
-                    launchCMD = "TASKKILL /F /PID " + windowsPid[0] + " > nul"            
-                    f.close()
-                proc = subprocess.Popen(launchCMD,shell=True)
-                os.remove('windowsPID.pid')
+                    if windowsPid == []:
+                        # The file is corrupt or empty.
+                        f.close()
+                        os.remove('windowsPID.pid')
+                    else:
+                        launchCMD = "TASKKILL /F /PID " + windowsPid[0] + " > nul"            
+                        f.close()
+                        proc = subprocess.Popen(launchCMD,shell=True)
+                        os.remove('windowsPID.pid')
         else:
             cmdroot = './'
             launchCMD = cmdroot + "sonospy_stop"
