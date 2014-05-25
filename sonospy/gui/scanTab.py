@@ -86,7 +86,7 @@ class WorkerThread(Thread):
             if not line: break
         proc.wait()
         wx.PostEvent(self._notify_window, ResultEvent(None))
-        proc.kill()
+        #proc.kill() # this throws an exception for some reason.
         os.chdir(cmd_folder)
         return
     
@@ -293,7 +293,7 @@ class ScanPanel(wx.Panel):
 
         self.LogWindow.Enable()
         if self.tc_MainDatabase.Value == "":
-            self.LogWindow.AppendText("ERROR:\tNo database name selected!\n")
+            guiFunctions.errorMsg("Error!", "No database name selected to repair!")
         else:
             if self.ck_ScanVerbose.Value == True:
                 getOpts = "-v "
@@ -425,10 +425,10 @@ class ScanPanel(wx.Panel):
         self.LogWindow.Enable()
 
         if self.tc_MainDatabase.Value == "":
-            self.LogWindow.AppendText("ERROR:\tNo database name selected!\n")
+            guiFunctions.errorMsg("Error!", "No database name selected!")
         else:
             if self.tc_MainDatabase.Value.find(".") == -1:
-                self.LogWindow.AppendText("ERROR:\tNo extension found to database.  Adding .sdb for default.\n")
+                self.LogWindow.AppendText("WARNING:\tNo extension found to database.  Adding .sdb for default.\n")
                 self.tc_MainDatabase.Value += ".sdb"
     
             # Set Original Working Directory so we can get back to here.
@@ -448,7 +448,7 @@ class ScanPanel(wx.Panel):
             maxLines=(int(self.multiText.GetNumberOfLines()))
 
             if self.multiText.GetLineText(numLines) == "":
-                self.LogWindow.AppendText("ERROR\tNo folder selected to scan!\n")
+                guiFunctions.errorMsg("Error!", "No folder selected to scan from.")
             else:
                 startTime = datetime.now()
                 self.LogWindow.AppendText("[ Starting Scan ]")

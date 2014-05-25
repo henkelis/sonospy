@@ -701,7 +701,7 @@ class LaunchPanel(wx.Panel):
         
         # This would mean we have no databases selected and should, thus, throw up an error for the user.
         if launchCMD == 0:
-            wx.MessageBox('You have no databases selected for launch', 'Error!', wx.OK | wx.ICON_INFORMATION)
+            guiFunctions.errorMsg('Error!', 'You have no databases selected for launch.')
         else:            
             # Check our GUIpref.ini to see if we want to be bothered with warnings.  If we do
             # then throw up a popup to the user reminding them to open their ports to make
@@ -978,9 +978,7 @@ class LaunchPanel(wx.Panel):
         if self.ck_SMAPI.Value == True:
             if sonospyKill == False:
                 launchME = launchME + " -r"
-            self.label_UserIndexName.Enable()
-        else:
-            self.label_UserIndexName.Disable()
+
             
         if sonospyKill == False:
             self.tc_Scratchpad.Value = launchME
@@ -1060,6 +1058,8 @@ class LaunchPanel(wx.Panel):
             self.comboDB8.Enable()
             self.label_UserIndexName.Enable()
             self.label_launchMode.Enable()
+            self.ck_ProxyOnly.Enable()
+            self.label_UserIndexName.Enable()
         else:
             self.ck_DB1.Disable()
             self.tc_DB1.Disable()
@@ -1103,6 +1103,7 @@ class LaunchPanel(wx.Panel):
             self.comboDB8.Disable()
             self.label_UserIndexName.Disable()
             self.label_launchMode.Disable()
+            self.ck_ProxyOnly.Disable()
             
             
 
