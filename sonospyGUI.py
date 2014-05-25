@@ -271,7 +271,7 @@ class PreferencesFrame(wx.Frame):
         """Constructor"""
         global sizer2
                         
-        wx.Frame.__init__(self, None, title="Sonospy Options", size=(520, 550))
+        wx.Frame.__init__(self, None, title="Sonospy Options", size=(520, 390))
         
         panel = wx.Panel(self)
         panel = self
@@ -372,8 +372,11 @@ class PreferencesFrame(wx.Frame):
         sizer2.Add(self.bt_SaveDefaults, pos=(xIndex,0), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL, border=10)
         
         panel.SetSizer(sizer2)
-        sizer2.Fit(panel)
+        #sizer2.Fit(panel)
         
+        self.CreateStatusBar(style=0)
+        self.SetStatusText("")        
+
         panel.Refresh()
         panel.Update()
         panel.Layout()
@@ -381,14 +384,21 @@ class PreferencesFrame(wx.Frame):
     def browseDB(self, event):
         # Set directory to where launchTab.py lives for reference.
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        dbFolder = guiFunctions.configMe("general", "default_database_path")
         
-        dialog = wx.DirDialog(self, "Choose where your Sonospy Database files are stored...", defaultPath=cmd_folder, style=wx.DD_DEFAULT_STYLE)
+        if self.tc_DBPath.Value != "":
+            dbFolder = self.tc_DBPath.Value
+        elif dbFolder == "":
+            dbFolder = cmd_folder
+        
+        dialog = wx.DirDialog(self, "Choose where your Sonospy Database files are stored...", defaultPath=dbFolder, style=wx.DD_DEFAULT_STYLE)
 
         if dialog.ShowModal() == wx.ID_OK:
             print dialog.GetPath()
             path = str(dialog.GetPath())
             self.tc_DBPath.Value = path
 
+        self.SetStatusText("Default database folder set to: " + self.tc_DBPath.Value)
         dialog.Destroy()
         self.Update()
 
@@ -398,14 +408,20 @@ class PreferencesFrame(wx.Frame):
     def browseMusicPath(self, event):
         # Set directory to where launchTab.py lives for reference.
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        musicFolder = guiFunctions.configMe("general", "default_music_path")
         
-        dialog = wx.DirDialog(self, "Choose where your Music files for scanning are stored...", defaultPath=cmd_folder, style=wx.DD_DEFAULT_STYLE)
+        if self.tc_MusicPath.Value != "":
+            musicFolder = self.tc_MusicPath.Value
+        elif musicFolder == "":
+            musicFolder = cmd_folder
+
+        dialog = wx.DirDialog(self, "Choose where your Music files for scanning are stored...", defaultPath=musicFolder, style=wx.DD_DEFAULT_STYLE)
 
         if dialog.ShowModal() == wx.ID_OK:
-            print dialog.GetPath()
             path = str(dialog.GetPath())
             self.tc_MusicPath.Value = path
 
+        self.SetStatusText("Default music folder set to: " + self.tc_MusicPath.Value)
         dialog.Destroy()
         self.Update()
 
@@ -415,14 +431,20 @@ class PreferencesFrame(wx.Frame):
     def browseVirtPath(self, event):
         # Set directory to where launchTab.py lives for reference.
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        virtFolder = guiFunctions.configMe("general", "default_sp_path")
         
-        dialog = wx.DirDialog(self, "Choose where your Virtual Playlists are stored...", defaultPath=cmd_folder, style=wx.DD_DEFAULT_STYLE)
+        if self.tc_VirtPath.Value != "":
+            virtFolder = self.tc_VirtPath.Value
+        elif virtFolder == "":
+            virtFolder = cmd_folder
+            
+        dialog = wx.DirDialog(self, "Choose where your Virtual Playlists are stored...", defaultPath=virtFolder, style=wx.DD_DEFAULT_STYLE)
 
         if dialog.ShowModal() == wx.ID_OK:
-            print dialog.GetPath()
             path = str(dialog.GetPath())
             self.tc_VirtPath.Value = path
-
+        
+        self.SetStatusText("Default database folder set to: " + self.tc_VirtPath.Value)
         dialog.Destroy()
         self.Update()
 
@@ -441,6 +463,8 @@ class PreferencesFrame(wx.Frame):
         guiFunctions.configWrite(section, "default_sp_path", self.tc_VirtPath.Value)
         guiFunctions.configWrite(section, "ignoreini", self.tc_ignoreINI.Value)
         guiFunctions.configWrite(section, "supresswarnings", self.ck_SuppressWarnings.Value)
+        
+        self.SetStatusText("Defaults saved...")
         
 if __name__ == "__main__":
     app = wx.App()
