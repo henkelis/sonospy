@@ -70,15 +70,12 @@ class WorkerThread(Thread):
 
     def run(self):
         """Run Worker Thread."""
-        #wx.Yield()
         #wx.PostEvent(self._notify_window, ResultEvent("\nCommand: " + scanCMD + "\n\n"))
         pub.sendMessage(('updateLog'), "\nCommand: " + scanCMD + "\n\n")
-        #wx.Yield()        
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
         os.chdir(cmd_folder)
         os.chdir(os.pardir)        
-        proc = subprocess.Popen(scanCMD, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=False)
-        #wx.Yield()
+        proc = subprocess.Popen(scanCMD, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
         while True:
             line = proc.stdout.readline()
             wx.Yield()
@@ -87,26 +84,24 @@ class WorkerThread(Thread):
             else:
                 pub.sendMessage(('updateLog'), line)
             if not line: break
-        proc.wait
+        proc.wait()
         wx.PostEvent(self._notify_window, ResultEvent(None))
-        proc.kill
+        proc.kill()
+        os.chdir(cmd_folder)
+        return
+    
+        # THIS IS THE OLD MULTITHREADING SOLUTION. IT THROWS ASSERTS THOUGH
+        # FROM TIME TO TIME.
+        
         #while True:
-            #wx.Yield()
-            #wx.Yield()
             #line = proc.stdout.readline()
-            #wx.Yield()
             #wx.Yield()
             ##wx.PostEvent(self._notify_window, ResultEvent(line))
             #wx.Yield()
-            #wx.Yield()
             #if not line: break
-        #wx.Yield()
         #proc.wait()
-        #wx.Yield()
         #wx.PostEvent(self._notify_window, ResultEvent(None))
-        #wx.Yield()
-        os.chdir(cmd_folder)
-        return
+
 
 ########################################################################################################################
 # ScanPanel: The layout and binding section for the frame.
