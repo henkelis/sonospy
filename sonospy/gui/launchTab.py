@@ -608,28 +608,20 @@ class LaunchPanel(wx.Panel):
     # browseDB: Used to open a sonospy database file (.sdb, .db)
     ########################################################################################################################
     def browseDB(self, event):
-        print "(launchTab) browseDB: Current Folder (function start): \n\t\t" + os.getcwd()
-        
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
 
         # Set directory to where launchTab.py lives for reference.
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
 
-        print "(launchTab) browseDB: Changing directory to where launchTab is found: \n\t\t" + os.getcwd()
-
         if guiFunctions.configMe("general", "default_database_path") == "":
-            print "(launchTab) browseDB: Found nothing in GUIpref.ini for default_database_path"
             os.chdir(cmd_folder)
-            print "(launchTab) browseDB: Changing directory to where launchTab is found: \n\t\t" + os.getcwd()
             os.chdir(os.pardir)
-            print "(launchTab) browseDB: Dropping down one directory to where .db, .sdb files should be: \n\t\t" + os.getcwd()
             cmd_folder = os.getcwd()
         else:
             cmd_folder = guiFunctions.configMe("general", "default_database_path")
         
-        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=str(cmd_folder), wildcard = wildcards, style = wx.FD_OPEN)
-        print "(launchTab) browseDB: I just looked for the .db, .sdb files here: " + os.getcwd()
+        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=cmd_folder, wildcard = wildcards, style = wx.FD_OPEN)
         
         # Open Dialog Box and get Selection
         if dialog.ShowModal() == wx.ID_OK:
