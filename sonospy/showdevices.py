@@ -26,6 +26,8 @@ from brisa.core.threaded_call import run_async_function, run_async_call
 from brisa.utils.looping_call import LoopingCall
 
 from brisa.upnp.upnp_defaults import UPnPDefaults
+from brisa.upnp.control_point.service import is_file, is_relative
+from brisa.upnp.base_service import parse_base_url
 
 from xml.etree.ElementTree import ElementTree
 from xml.etree.ElementTree import tostring
@@ -34,9 +36,20 @@ from controller import Controller
 # monkey patch controller module DeviceAssembler so that we can save the device XML
 import controller
 
+
 class sdDeviceAssembler(controller.DeviceAssembler):
+    
     ns = UPnPDefaults.NAME_SPACE_XML_SCHEMA
     devicexml = {}
+    servicexml = {}
+    
+    def __init__(self, device, location, filename=None):
+        self.device = device
+        self.location = location
+        self.url_base = parse_base_url(self.location)
+        self.filename = filename
+        old_deviceassembler.__init__(self, device, location, filename)
+    
     def mount_device_async(self, callback, cargo):
         self.callback = callback
         self.cargo = cargo
@@ -68,13 +81,57 @@ class sdDeviceAssembler(controller.DeviceAssembler):
 #        print 'Device XML: %s' % tostring(tree)
         self.devicexml[udn] = (friendly_name, tostring(tree))
 
+        self.sd_get_services_xml(udn, tree)
+
     def sd_mount_device_async_error(self, cargo, error):
         log.debug("Error fetching %s - Error: %s" % (self.location,
                                                      str(error)))
         return True
 
+    def sd_get_services_xml(self, udn, tree):
+        for xml_service_element in tree.findall('.//{%s}service' % self.ns):
+            scpd_url = xml_service_element.findtext('{%s}SCPDURL' % self.ns)
+            service_type = xml_service_element.findtext('{%s}serviceType' % self.ns)
+            if scpd_url and not scpd_url.startswith('/'):
+                scpd_url = '/' + scpd_url
+            print '        %s' % service_type
+            if is_file(scpd_url):
+                fd = open(scpd_url[8:], 'r')
+            else:
+                if is_relative(scpd_url, self.url_base):
+                    url = '%s%s' % (self.url_base, scpd_url)
+                else:
+                    url = scpd_url
+                fd = url_fetch(url)
+            if not fd:
+                print 'Could not fetch SCPD URL %s' % scpd_url
+            else:
+                try:
+                    tree = ElementTree(file=fd).getroot()
+                except Exception, e:
+                    print "Bad service XML %s" % e
+                fd.close()
+                self.servicexml[udn] = self.servicexml.get(udn, '') + '%s\n%s\n\n' % (service_type, tostring(tree))
+                
 old_deviceassembler = controller.DeviceAssembler
 controller.DeviceAssembler = sdDeviceAssembler
+
+'''
+
+def _parse_embedded_devices(tree):
+    device_list = self.tree.find('.//{%s}deviceList' % self.ns)
+    if device_list != None:
+        embedded_device_tag = device_list.findall('.//{%s}device' %
+                                                  self.ns)
+
+        for xml_device_element in embedded_device_tag:
+            d = self.device.__class__()
+            DeviceBuilder(d, self.location,
+                          xml_device_element).cleanup()
+            self.device.add_device(d)
+'''
+
+
 
 from brisa import url_fetch_attempts, url_fetch_attempts_interval, __skip_service_xml__, __skip_soap_service__, __tolerate_service_parse_failure__, __enable_logging__, __enable_webserver_logging__, __enable_offline_mode__, __enable_events_logging__
 
@@ -143,12 +200,14 @@ def main():
     web = ShowDevices()
     reactor.main()
     reactor.main_quit()
-    filename = 'devices.xml'
+    filename = 'devices.txt'
     with open(filename, 'w+') as f:
         for udn,v in sdDeviceAssembler.devicexml.iteritems():
             if udn in web.known_zone_players.keys():
                 friendly, xml = v
-                f.write('####\n%s\n%s\n%s\n\n' % (udn, friendly, xml))
+                f.write('#### Device ####\n%s\n%s\n%s\n\n' % (udn, friendly, xml))
+                if udn in sdDeviceAssembler.servicexml.keys():
+                    f.write('#### Services ####\n%s\n\n' % (sdDeviceAssembler.servicexml[udn]))
     
 if __name__ == "__main__":
     main()

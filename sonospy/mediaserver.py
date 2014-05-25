@@ -611,7 +611,7 @@ class MediaServer(object):
         self.debugout('statichierarchy', self.statichierarchy)
 
         # load root, hierarchy, path and index settings data
-        self.allrootitems, self.displayrootitems, self.hierarchies, self.index_settings, self.path_index_entries, self.separator_entries = self.load_hierarchy(index_type)
+        self.allrootitems, self.displayrootitems, self.hierarchies, self.index_settings, self.path_index_entries, self.separator_entries, self.icon_entries = self.load_hierarchy(index_type)
 
         self.debugout('allrootitems', self.allrootitems)
         self.debugout('displayrootitems', self.displayrootitems)
@@ -619,6 +619,7 @@ class MediaServer(object):
         self.debugout('index_settings', self.index_settings)
         self.debugout('path_index_entries', self.path_index_entries)
         self.debugout('separator_entries', self.separator_entries)
+        self.debugout('icon_entries', self.icon_entries)
 
         # create type, id and dynamic lookups
         dynamic_value = self.dynamic_parentid_start
@@ -823,6 +824,7 @@ class MediaServer(object):
         path_index_entries = {}
         path_indexes = {}
         separator_entries = []
+        icon_entries = {}
 
         processing = stop_processing = False
         tree_count = 0
@@ -889,6 +891,13 @@ class MediaServer(object):
                             hierarchy_entries[index_id] = index_key_dict.copy()
                             # reset default index entries                        
                             index_key_dict = self.user_index_key_dict.copy()
+                            # save icon(s)
+			    if icon_entry:
+				icon_entries[index_id] = icon_entry
+                            if icon_path_entry:
+				icon_name, entry_key = icon_path_entry
+				index_entry_id = '%s_%s' % (index_id, entry_key)
+				icon_entries[index_entry_id] = icon_name
                             # save display/expand flags
                             if display_index:
                                 # TODO
@@ -905,6 +914,9 @@ class MediaServer(object):
                                     separator_entries += [curr_index_id]
                             display_index = True
                             expand_index = True
+                            icon_entry = None
+			    icon_path_entry = None
+			    entry = None
                         
                     tree_count += 1
                     tree_id = 'R%s' % tree_count
@@ -915,6 +927,9 @@ class MediaServer(object):
                     path_indexes = {}
                     display_tree = True
                     expand_tree = True
+                    icon_entry = None
+		    icon_path_entry = None
+		    entry = None
                     
                 elif tree_count > 0:
 
@@ -925,6 +940,9 @@ class MediaServer(object):
                         index = None
                         display_index = True
                         expand_index = True
+                        icon_entry = None
+			icon_path_entry = None
+			entry = None
 
                     elif title:
                     
@@ -943,6 +961,13 @@ class MediaServer(object):
                                 hierarchy_entries[index_id] = index_key_dict.copy()
                                 # reset default index entries                        
                                 index_key_dict = self.user_index_key_dict.copy()
+                                # save icon(s)
+				if icon_entry:
+				    icon_entries[index_id] = icon_entry
+				if icon_path_entry:
+				    icon_name, entry_key = icon_path_entry
+				    index_entry_id = '%s_%s' % (index_id, entry_key)
+				    icon_entries[index_entry_id] = icon_name
                                 # save display/expand flags
                                 if display_index:
                                     # TODO
@@ -959,6 +984,9 @@ class MediaServer(object):
                                         separator_entries += [curr_index_id]
                                 display_index = True
                                 expand_index = True
+                                icon_entry = None
+				icon_path_entry = None
+				entry = None
                                 
                             if value in tree:
 
@@ -980,6 +1008,11 @@ class MediaServer(object):
                                 if value.lower() == 'n':
                                     expand_tree = False
 
+                        # look for root level icon
+                        elif not index and key == 'icon':
+
+                            icon_entries[tree_id] = value
+
                         elif index:
                     
                             if key == 'entry':
@@ -991,6 +1024,7 @@ class MediaServer(object):
                                 currentvalue = path_entry.get(path_entry_index, [])
                                 path_entry[path_entry_index] = currentvalue + [(path_id, value)]
                                 path_indexes[index] = path_id
+				entry = path_id
 
                             else:
 
@@ -1010,6 +1044,14 @@ class MediaServer(object):
                                         if value.lower() == 'n':
                                             expand_index = False
                                         
+                                # look for index level icon
+                                elif key == 'icon':
+        
+				    if entry:
+					icon_path_entry = value, entry
+				    else:
+					icon_entry = value
+
                                 elif key in index_key_dict.keys():
 
                                     if key == 'index_range':
@@ -1020,7 +1062,7 @@ class MediaServer(object):
 
             if stop_processing: break
 
-        return allrootitems, displayrootitems, hierarchy_data, hierarchy_entries, path_index_entries, separator_entries
+        return allrootitems, displayrootitems, hierarchy_data, hierarchy_entries, path_index_entries, separator_entries, icon_entries
 
     def load_searches(self, index_type):
 
@@ -1322,32 +1364,61 @@ class MediaServer(object):
         # get query result
         ret = self.hierarchicalQuery(**kwargs)
         
-        # process any SMAPI entries that should not be expanded
+        # process any SMAPI entries that should not be expanded,
+        # and add any icons
         if len(ret) == 4:
             updateditems = []
             items, total, index, itemstype = ret
             for item in items:
                 log.debug('%s - %s' % (itemstype, item))
+
+		#DEBUG	mediaserver :1369:  query() container - ('R8:1300000136:1400000001', u'Last month')
+
                 if itemstype == 'track':
                     updateditems += [item]
                 else:
                     itemkey = item[0]
-                    itemkeyparts = itemkey.split(':')
-                    # keys are held as first and last facets of key
+		    itemkeyparts = itemkey.split(':')
+                    # convert itemkey to icon lookup
+		    icon_lookup2 = None
+		    if len(itemkeyparts) == 1:
+			# root
+			icon_lookup = itemkey
+		    else:
+			icon_lookup = '%s_%s' % (itemkeyparts[0], self.hierarchies[itemkeyparts[0]][len(itemkeyparts)-2])
+			# check for path index
+			log.debug(itemkeyparts[-1])
+			log.debug(self.dynamic_lookup)
+			
+			if int(itemkeyparts[-1]) in self.dynamic_lookup.keys():
+			    icon_lookup2 = '%s_%s' % (icon_lookup, self.dynamic_lookup[int(itemkeyparts[-1])])
+			    log.debug(icon_lookup2)
+                    # get icon
+                    albumarturi = ''
+		    image = None
+		    if icon_lookup2:
+			# check if individual item for this path index entry,
+			# which will override one across the path index
+			image = self.get_icon(icon_lookup2)
+		    if not image:
+			image = self.get_icon(icon_lookup)
+#                    log.debug('image: %s' % image)
+                    if image != '':
+                        albumarturi = '%s/%s' % (self.webserverurl, image)
+                    # process any non expand items - keys are held as first and last facets of key
                     if len(itemkeyparts) < 3:
                         itemkeylookup = itemkey
                     else:
                         itemkeylookup = '%s:%s' % (itemkeyparts[0], itemkeyparts[-1])
                     if itemkeylookup in self.separator_entry_keys:
                         # add tuple entries for canenumerate and canplay (false so they are not expanded)
-                        # plus add albumarturi
-                        updateditems += [((itemkey, False, False), ) + (item[1], ) + ('%s/separator_legacy.png' % self.webserverurl, ) + item[3:]]
+                        updateditems += [((itemkey, False, False), ) + (item[1], ) + (albumarturi, ) + item[3:]]
                     else:
-                        updateditems += [item]
+#                        updateditems += [item]
+                        updateditems += [(itemkey, ) + (item[1], ) + (albumarturi, ) + item[3:]]
             return updateditems, total, index, itemstype
         else:
             return ret
-
 
     def hierarchicalQuery(self, **kwargs):
 
@@ -6215,6 +6286,18 @@ class MediaServer(object):
 #        log.debug('cover: %s  id: %s' % (cover, artid))
         return cover, artid
 
+    def get_icon(self, indexkey):
+        # TODO: support different per controller?
+        log.debug('get_icon indexkey: %s' % indexkey)
+        icon_entry = self.icon_entries.get(indexkey, None)
+        log.debug('get_icon icon_entry: %s' % icon_entry)
+        icon = ''
+        if icon_entry:
+            icon = self.proxy.index_icons.get(icon_entry, '')
+            if icon != '':
+                icon = '%s_legacy.png' % icon
+        return icon
+
     def get_orderby(self, sorttype, controller, dynamic=True, orderby=None):
 
         log.debug('get_orderby sorttype: %s' % sorttype)
@@ -6442,9 +6525,9 @@ class MediaServer(object):
             entrylist += [entry]
             snippetlist += [(entry, snippet)]
 
-        log.debug('snippetlist: %s' % snippetlist)
-        log.debug('entrylist: %s' % entrylist)
-        log.debug('entrystring: %s' % ','.join(entrylist))
+#        log.debug('snippetlist: %s' % snippetlist)
+#        log.debug('entrylist: %s' % entrylist)
+#        log.debug('entrystring: %s' % ','.join(entrylist))
 
         return snippetlist, entrylist, ','.join(entrylist)
 
