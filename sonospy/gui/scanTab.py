@@ -317,17 +317,16 @@ class ScanPanel(wx.Panel):
     def bt_MainDatabaseClick(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
+        dbFolder = guiFunctions.configMe("general", "default_database_path")
 
         # back up to the folder below our current one.  save cwd in variable
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
         os.chdir(os.pardir)
-        if guiFunctions.configMe("general", "default_database_path") == "":
+        if dbFolder == "":
             dbFolder = os.path.dirname(os.path.abspath(__file__))
             os.chdir(dbFolder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
-        else:
-            dbFolder = guiFunctions.configMe("general", "default_database_path")
         
         dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
         

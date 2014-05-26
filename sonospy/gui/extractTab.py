@@ -469,15 +469,13 @@ class ExtractPanel(wx.Panel):
         
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-
+        dbFolder = guiFunctions.configMe("general", "default_database_path")
         
-        if guiFunctions.configMe("general", "default_database_path") == "":
+        if dbFolder == "":
             dbFolder = os.path.dirname(os.path.abspath(__file__))
             os.chdir(dbFolder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
-        else:
-            dbFolder = guiFunctions.configMe("general", "default_database_path")
         
         dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
         
@@ -510,14 +508,14 @@ class ExtractPanel(wx.Panel):
         
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-
-        if guiFunctions.configMe("general", "default_database_path") == "":
+        
+        dbFolder = guiFunctions.configMe("general", "default_database_path") 
+        
+        if dbFolder == "":
             dbFolder = os.path.dirname(os.path.abspath(__file__))
             os.chdir(dbFolder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
-        else:
-            dbFolder = guiFunctions.configMe("general", "default_database_path")
         
         dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
         
