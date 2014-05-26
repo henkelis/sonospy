@@ -5,8 +5,7 @@ SONOSPY GUI READ ME
 -----------------------------------------------------------------------------------------------------------------------
 INSTALLATION
 -----------------------------------------------------------------------------------------------------------------------
-You will need to get wxPython 3.0 in order to run the GUI 
-(http://www.wxpython.org/download.php)
+You will need to get wxPython 3.0 in order to run the GUI (http://www.wxpython.org/download.php)
 
 -----------------------------------------------------------------------------------------------------------------------
 USAGE
@@ -18,7 +17,7 @@ Preferences are stored in gui/GUIpref.ini and can be manually edited or
 can be saved within the app on each specific tab using the SAVE DEFAULTS 
 button.
 
-You can run this by ./sonsopyGUI.py (Linux) or python sonospyGUI.py 
+You can run this by ./sonospyGUI.py (Linux) or python sonospyGUI.py 
 (Linux/Windows).  Databases created here are still stored where scan, etc. 
 uses them.  If you have Windows setup right, you can double clicke on the
 sonospyGUI.py file in your root sonospy folder.
@@ -42,32 +41,40 @@ KNOWN ISSUES
  - Loading virtuals only works with one "set".  If you store more than one 
    virtual/work in an .SP file, it won't work.  Best to use the SP files 
    created with the GUI until I find a solution here in terms of GUI layout.
- - There are a number of asserts that fire off on scan and repair.  I think
-   it is related to the multithreading, but I am having a tough time debugging
-   it.
 
 -----------------------------------------------------------------------------------------------------------------------
 TO DO
 -----------------------------------------------------------------------------------------------------------------------
 [GENERAL]
  - Look at the PIP installer.  Py2Exe?
- - Setup a taskbar for starting, stopping sonospy.
  - Find out how to store comments in the GUIpref.ini
- 
-[USERINDEX.INI]
+ - Detect if windowsPID is running already and setup the GUI to reflect
+   the current state of Sonospy
+ - Add ABOUT tab.
+ - Fix the multiple options windows opening if you use File -> Preferences.
+
+[LAUNCH]
+
+[SCAN]
+
+[USERINDEX]
  - Consider a tab to allow for generation of a userindex.ini file.
 
-[EXTRACT]
- - Figure out how to get the combo box to be a multi-select box.
- - Add Advanced TextCTRL where a user can enter their own SQL query.
-
 [VIRTUALS]
- - How to handle multiple SPs in one File? Do I bother?
+ - How to handle multiple SPs in one file? Do I bother?
  - Implement an ignoreChar list to manage lines to ignore based on line[0]
  
 -----------------------------------------------------------------------------------------------------------------------
 CHANGELIST
 -----------------------------------------------------------------------------------------------------------------------
+May-25-2014: Default extension if none is given for database entries
+             
+May-24-2014: Added Advanced field to Extract Tab to allow for custom SQL queries.
+             Added menu items for exiting and stopping Sonospy to the system tray
+             icon.  Not sure how to do this for starting the service, since you
+             could, in thoery, launch it without any arguments from the launchTab.
+             Added a wx.Yield() command to the WorkerThread in scan and extract to
+             hopefully eliminate the assert issues.
 May-21-2014: Updated for wxPython 3.0 -- please email any weirdness in the 
              application to chowanec@gmail.com
              Added systray icon for minimizing the app.  Restores the app
