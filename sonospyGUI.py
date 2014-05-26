@@ -249,7 +249,7 @@ class SonospyFrame(wx.Frame):
         os.chdir(os.pardir)
         os.chdir(os.pardir)
         
-        if os.name() == "nt":
+        if os.name == 'nt':
             if os.path.isfile("windowsPID.pid"):
                 self.menu.Append(TB_MENU_STOP, "Stop Sonospy")
                 self.menu.AppendSeparator()
