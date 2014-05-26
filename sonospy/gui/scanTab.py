@@ -329,8 +329,8 @@ class ScanPanel(wx.Panel):
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
         os.chdir(os.pardir)
         if dbFolder == "":
-            dbFolder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(dbFolder)
+            cmd_folder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(cmd_folder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
         

@@ -618,7 +618,7 @@ class LaunchPanel(wx.Panel):
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
 
         if dbFolder == "":
-            os.chdir(dbFolder)
+            os.chdir(cmd_folder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
         else:

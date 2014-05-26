@@ -477,8 +477,8 @@ class ExtractPanel(wx.Panel):
         dbFolder = guiFunctions.configMe("general", "default_database_path")
         
         if dbFolder == "":
-            dbFolder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(dbFolder)
+            cmd_folder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(cmd_folder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
         
@@ -518,7 +518,7 @@ class ExtractPanel(wx.Panel):
         
         if dbFolder == "":
             dbFolder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(dbFolder)
+            os.chdir(cmd_folder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
         
