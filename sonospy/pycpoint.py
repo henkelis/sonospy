@@ -603,6 +603,17 @@ Music/Rating                101     object.container
     except ConfigParser.NoOptionError:
         pass
 
+    # get index icons
+    index_icons = {}
+    try:
+        ini_index_icons = config.items('icons')
+        for k, v in ini_index_icons:
+            index_icons[k] = v
+    except ConfigParser.NoSectionError:
+        pass
+    except ConfigParser.NoOptionError:
+        pass
+
     ###########################################################################
     # __init__
     ###########################################################################
@@ -697,7 +708,7 @@ Music/Rating                101     object.container
                                   createwebserver=True, webserverurl=listen_url, wmpurl=serve_url, 
                                   startwmp=startwmp, dbname=dbname, ininame=ininame, wmpudn=self.internal_proxy_udn, 
                                   wmpcontroller=wmpcontroller, wmpcontroller2=wmpcontroller2,
-                                  wmptype=wmptype)
+                                  wmptype=wmptype, index_icons=self.index_icons)
                     proxy.start()
                 except: # catch *all* exceptions
                     e = sys.exc_info()[0]

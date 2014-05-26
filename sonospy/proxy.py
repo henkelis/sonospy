@@ -29,6 +29,7 @@ import sqlite3
 import codecs
 import operator
 import datetime
+import glob
 
 from transcode import checktranscode, checksmapitranscode, checkstream, setalsadevice
 
@@ -71,7 +72,7 @@ class Proxy(object):
                  mediaserver=None, controlpoint=None, createwebserver=False,
                  webserverurl=None, wmpurl=None, startwmp=False, dbname=None, ininame=None,
                  wmpudn=None, wmpcontroller=None, wmpcontroller2=None,
-                 wmptype=None):
+                 wmptype=None, index_icons=None):
         '''
         To serve an internal mediaserver, set:
             port = None
@@ -124,6 +125,12 @@ class Proxy(object):
             self.destaddress = None
         else:
             self.destaddress = mediaserver.address
+
+        if index_icons == None:
+            self.index_icons = {}
+        else:
+            self.index_icons = index_icons
+        log.debug('icons: %s' % self.index_icons)
 
         # get db cache size
         self.db_cache_size = 2000
@@ -272,10 +279,15 @@ class Proxy(object):
         self.root_device.webserver.add_static_file(pmstaticfile)
 
     def _serve_image_files(self):
-        image_path = os.path.join(os.getcwd(), 'images', 'separator_legacy.png')
-        log.debug("image file: %s" % image_path)
-        staticfile = webserver.StaticFile('separator_legacy.png', image_path)
-        self.wmpwebserver.add_static_file(staticfile)
+        for k, v in self.index_icons.iteritems():
+            image_root = os.path.join(os.getcwd(), 'images', '%s_*' % v)
+            image_list = glob.glob(image_root)
+            for image_spec in image_list:
+                image_path, image_name = os.path.split(image_spec)
+                log.debug("image file: %s" % image_spec)
+                staticfile = webserver.StaticFile(image_name, image_spec)
+                self.wmpwebserver.add_static_file(staticfile)
+        log.debug('icons: %s' % self.index_icons)
 
     def _load(self):
         self._add_root_device()
@@ -1102,7 +1114,7 @@ class ContentDirectory(Service):
             pass
         except ConfigParser.NoOptionError:
             pass
-            
+
     ################################
     # ContentDirectory soap services
     ################################
