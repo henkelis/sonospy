@@ -79,11 +79,13 @@ class WorkerThread(Thread):
         else:
             proc = subprocess.Popen([scanCMD], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
-        while True:
-            line = proc.stdout.readline()
-            wx.Yield()
             if line.find("processing tag:") > 0:
-                pass
+                tagCount += 1
+                if tagCount == 5:
+                    pub.sendMessage(('updateLogExtract'), "...processing tags!")
+                    tagCount = 0
+                else:
+                    pass
             else:
                 pub.sendMessage(('updateLogExtract'), line)
             if not line: break
