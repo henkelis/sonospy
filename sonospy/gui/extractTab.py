@@ -79,6 +79,9 @@ class WorkerThread(Thread):
         else:
             proc = subprocess.Popen([scanCMD], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
 
+        while True:
+            line = proc.stdout.readline()
+            wx.Yield()
             if line.find("processing tag:") > 0:
                 tagCount += 1
                 if tagCount == 5:
