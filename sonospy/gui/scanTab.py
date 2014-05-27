@@ -76,11 +76,17 @@ class WorkerThread(Thread):
         os.chdir(cmd_folder)
         os.chdir(os.pardir)        
         proc = subprocess.Popen(scanCMD, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+        tagCount = 0
         while True:
             line = proc.stdout.readline()
             wx.Yield()
             if line.find("processing tag:") > 0:
-                pass
+                tagCount += 1
+                if tagCount == 5:
+                    pub.sendMessage(('updateLog'), "...processing tags!")
+                    tagCount = 0
+                else:
+                    pass
             else:
                 pub.sendMessage(('updateLog'), line)
             if not line: break
@@ -317,17 +323,16 @@ class ScanPanel(wx.Panel):
     def bt_MainDatabaseClick(self, event):
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
+        dbFolder = guiFunctions.configMe("general", "default_database_path")
 
         # back up to the folder below our current one.  save cwd in variable
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
         os.chdir(os.pardir)
-        if guiFunctions.configMe("general", "default_database_path") == "":
-            dbFolder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(dbFolder)
+        if dbFolder == "":
+            cmd_folder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(cmd_folder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
-        else:
-            dbFolder = guiFunctions.configMe("general", "default_database_path")
         
         dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
         

@@ -152,11 +152,20 @@ class SonospyFrame(wx.Frame):
         self.SetStatusText(msg.data)
 
     def OnAbout(self, event):
-        print "Eventually, I will celebrate Mark here."
+        # Replace below with the About Frame
+        frame = AboutFrame()
+        frame.Show(True)
 
     def OnPref(self, event):
         frame = PreferencesFrame()
-        frame.Show()
+        #frame.name = "SingleApp-%s" % wx.GetUserId()
+
+        #self.instance = wx.SingleInstanceChecker(frame.name)
+
+        #if self.instance.IsAnotherRunning() == True:
+            #frame.Raise()
+        #else:        
+        frame.Show(True)
 
     def OnClose(self, event):
         # tell the window to kill itself and kill the running sonospy process
@@ -240,13 +249,14 @@ class SonospyFrame(wx.Frame):
         os.chdir(os.pardir)
         os.chdir(os.pardir)
         
-        if os.path.isfile("windowsPID.pid"):
-            self.menu.Append(TB_MENU_STOP, "Stop Sonospy")
-            self.menu.AppendSeparator()
-            self.menu.Append(TB_MENU_EXIT, 'E&xit')
-        else:
-            self.menu.Append(TB_MENU_START, "Launch Sonospy")
-            self.menu.Append(TB_MENU_EXIT, 'E&xit')
+        if os.name == 'nt':
+            if os.path.isfile("windowsPID.pid"):
+                self.menu.Append(TB_MENU_STOP, "Stop Sonospy")
+                self.menu.AppendSeparator()
+                self.menu.Append(TB_MENU_EXIT, 'E&xit')
+            else:
+                self.menu.Append(TB_MENU_START, "Launch Sonospy")
+                self.menu.Append(TB_MENU_EXIT, 'E&xit')
 
         os.chdir(cmd_folder)
 
@@ -269,118 +279,124 @@ class PreferencesFrame(wx.Frame):
     #----------------------------------------------------------------------
     def __init__(self):
         """Constructor"""
-        global sizer2
-                        
-        wx.Frame.__init__(self, None, title="Sonospy Options", size=(520, 390))
         
-        panel = wx.Panel(self)
-        panel = self
-
-        # SET THE SIZER OBJECT UP
-        sizer2 = wx.GridBagSizer(13, 9)
-
-        # SET BASELINE INDEX VARIABLES
+        wx.Frame.__init__(self, None, title="Sonospy Options", size=(520, 390))
+            
+    # Setting the background color is a total hack.
+        self.SetBackgroundColour((250, 250, 250, 255))
+        prefPanel = wx.Panel(self)
+        prefPanel = self
+ 
+    # SET THE SIZER OBJECT UP
+        prefSizer = wx.GridBagSizer(13, 9)
+ 
+    # SET BASELINE INDEX VARIABLES
         xIndex = 0
-        yIndex = 0
+ 
+    # SETUP CLOSE FUNCTION
+        self.Bind(wx.EVT_CLOSE, self.OnClosePref)
         
     # DEFAULT DATABSE EXTENSIONS
-        self.tc_DBExt = wx.TextCtrl(panel, -1, "", (0,0), (150,21))
-        self.label_DBExt = wx.StaticText(panel, label="Default Database Extensions:")
+        self.tc_DBExt = wx.TextCtrl(prefPanel, -1, "", (0,0), (150,21))
+        self.label_DBExt = wx.StaticText(prefPanel, label="Default Database Extensions:")
         help_tc_DBExt= "Enter this as: *.<extension>"
         self.tc_DBExt.SetToolTip(wx.ToolTip(help_tc_DBExt))        
         self.tc_DBExt.Value = guiFunctions.configMe("general", "database_extensions")
-
-        sizer2.Add(self.label_DBExt, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-        sizer2.Add(self.tc_DBExt, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
+ 
+        prefSizer.Add(self.label_DBExt, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        prefSizer.Add(self.tc_DBExt, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
         
         xIndex += 1
-
+ 
     # DEFAULT DATABASE PATH
-        self.tc_DBPath = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
-        self.label_DBPath = wx.StaticText(panel, label="Default Database Path:")
+        self.tc_DBPath = wx.TextCtrl(prefPanel, -1, "", (0,0), (60,21))
+        self.label_DBPath = wx.StaticText(prefPanel, label="Default Database Path:")
         help_DBPath= "Enter this as: *.<extension>"
         self.tc_DBPath.SetToolTip(wx.ToolTip(help_DBPath))
         self.bt_DBPath = wx.Button(self, label="Browse")
         self.bt_DBPath.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DBPath)
         self.tc_DBPath.Value = guiFunctions.configMe("general", "default_database_path")           
         
-        sizer2.Add(self.label_DBPath, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-        sizer2.Add(self.tc_DBPath, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
-        sizer2.Add(self.bt_DBPath, pos=(xIndex, 6), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.RIGHT, border=10)
+        prefSizer.Add(self.label_DBPath, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        prefSizer.Add(self.tc_DBPath, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
+        prefSizer.Add(self.bt_DBPath, pos=(xIndex, 6), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.RIGHT, border=10)
         
         xIndex += 1
-
+ 
     # DEFAULT MUSIC PATH
-        self.tc_MusicPath = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
-        self.label_MusicPath = wx.StaticText(panel, label="Default Music Path:")
+        self.tc_MusicPath = wx.TextCtrl(prefPanel, -1, "", (0,0), (60,21))
+        self.label_MusicPath = wx.StaticText(prefPanel, label="Default Music Path:")
         help_MusicPath= "Enter location where music is stored."
         self.tc_MusicPath.SetToolTip(wx.ToolTip(help_MusicPath))
         self.bt_MusicPath = wx.Button(self, label="Browse")
         self.bt_MusicPath.Bind(wx.EVT_BUTTON, self.browseMusicPath, self.bt_MusicPath)
         self.tc_MusicPath.Value = guiFunctions.configMe("general", "default_music_path")
         
-        sizer2.Add(self.label_MusicPath, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-        sizer2.Add(self.tc_MusicPath, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
-        sizer2.Add(self.bt_MusicPath, pos=(xIndex, 6), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.RIGHT, border=10)
+        prefSizer.Add(self.label_MusicPath, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        prefSizer.Add(self.tc_MusicPath, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
+        prefSizer.Add(self.bt_MusicPath, pos=(xIndex, 6), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.RIGHT, border=10)
         
         xIndex += 1
-
+ 
     # DEFAULT VIRTUAL PLAYLISTS PATH
-        self.tc_VirtPath = wx.TextCtrl(panel, -1, "", (0,0), (60,21))
-        self.label_VirtPath = wx.StaticText(panel, label="Default Virtuals Path:")
+        self.tc_VirtPath = wx.TextCtrl(prefPanel, -1, "", (0,0), (60,21))
+        self.label_VirtPath = wx.StaticText(prefPanel, label="Default Virtuals Path:")
         help_VirtPath= "Enter location where virtual playlists are stored."
         self.tc_VirtPath.SetToolTip(wx.ToolTip(help_VirtPath))
         self.bt_VirtPath = wx.Button(self, label="Browse")
         self.bt_VirtPath.Bind(wx.EVT_BUTTON, self.browseVirtPath, self.bt_VirtPath)
         self.tc_VirtPath.Value = guiFunctions.configMe("general", "default_sp_path")
         
-        sizer2.Add(self.label_VirtPath, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-        sizer2.Add(self.tc_VirtPath, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
-        sizer2.Add(self.bt_VirtPath, pos=(xIndex, 6), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.RIGHT, border=10)
+        prefSizer.Add(self.label_VirtPath, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        prefSizer.Add(self.tc_VirtPath, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
+        prefSizer.Add(self.bt_VirtPath, pos=(xIndex, 6), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.RIGHT, border=10)
         
         xIndex += 1
-
+ 
     # WHICH INI FILES TO IGNORE FOR USERINDEX.INI COMBO ON LAUNCHPANEL
-        self.tc_ignoreINI = wx.TextCtrl(panel, -1, "", (0,0), (150,21))
-        self.label_ignoreINI = wx.StaticText(panel, label="INI files to ignore:")
+        self.tc_ignoreINI = wx.TextCtrl(prefPanel, -1, "", (0,0), (150,21))
+        self.label_ignoreINI = wx.StaticText(prefPanel, label="INI files to ignore:")
         help_tc_ignoreINI= "INI files to ignore for userindex entries."
         self.tc_ignoreINI.SetToolTip(wx.ToolTip(help_tc_DBExt))  
         self.tc_ignoreINI.Value = guiFunctions.configMe("general", "ignoreini")
-
-        sizer2.Add(self.label_ignoreINI, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-        sizer2.Add(self.tc_ignoreINI, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
+ 
+        prefSizer.Add(self.label_ignoreINI, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        prefSizer.Add(self.tc_ignoreINI, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
         
         xIndex += 1
-
+ 
     # SUPPRESS WARNINGS CHECKBOX
-        self.label_SuppressWarnings = wx.StaticText(panel, label="Suppress Warnings?:")
+        self.label_SuppressWarnings = wx.StaticText(prefPanel, label="Suppress Warnings?:")
         self.ck_SuppressWarnings = wx.CheckBox(self, -1, "")
         self.ck_SuppressWarnings.SetToolTip(wx.ToolTip("Set to TRUE if you want to ignore the SMAPI warning."))    
         self.ck_SuppressWarnings.Value = guiFunctions.configMe("general", "supresswarnings", bool=True)
-
-        sizer2.Add(self.label_SuppressWarnings, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
-        sizer2.Add(self.ck_SuppressWarnings, pos=(xIndex,1), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+ 
+        prefSizer.Add(self.label_SuppressWarnings, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        prefSizer.Add(self.ck_SuppressWarnings, pos=(xIndex,1), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
         self.ck_SuppressWarnings.Bind(wx.EVT_CHECKBOX, self.suppressWarningsClicked, self.ck_SuppressWarnings)
         
         xIndex += 1
         
-        self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
+        self.bt_SaveDefaults = wx.Button(prefPanel, label="Save Defaults")
         help_SaveDefaults = "Save current settings as default."
         self.bt_SaveDefaults.SetToolTip(wx.ToolTip(help_SaveDefaults))
         self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
         
-        sizer2.Add(self.bt_SaveDefaults, pos=(xIndex,0), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL, border=10)
+        prefSizer.Add(self.bt_SaveDefaults, pos=(xIndex,0), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL, border=10)
         
-        panel.SetSizer(sizer2)
-        #sizer2.Fit(panel)
+        prefPanel.SetSizer(prefSizer)
+        #prefSizer.Fit(panel)
         
         self.CreateStatusBar(style=0)
         self.SetStatusText("")        
-
-        panel.Refresh()
-        panel.Update()
-        panel.Layout()
-        
+ 
+        prefPanel.Refresh()
+        prefPanel.Update()
+        prefPanel.Layout()
+    
+    def OnClosePref(self, event):
+        self.Destroy()
+    
     def browseDB(self, event):
         # Set directory to where launchTab.py lives for reference.
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
@@ -464,8 +480,61 @@ class PreferencesFrame(wx.Frame):
         guiFunctions.configWrite(section, "supresswarnings", self.ck_SuppressWarnings.Value)
         
         self.SetStatusText("Defaults saved...")
+
+class AboutFrame(wx.Frame):
+    """"""
+
+    #----------------------------------------------------------------------
+    def __init__(self):
+        """Constructor"""
         
+        wx.Frame.__init__(self, None, title="About Sonospy", size=(520, 360))
+            
+    # Setting the background color is a total hack.
+        self.SetBackgroundColour((250, 250, 250, 255))
+        aboutPanel = wx.Panel(self)
+        aboutPanel = self
+ 
+    # SET THE SIZER OBJECT UP
+        aboutSizer = wx.BoxSizer(wx.VERTICAL)
+ 
+    # SET BASELINE INDEX VARIABLES
+        xIndex = 0
+ 
+    # SETUP CLOSE FUNCTION
+        self.Bind(wx.EVT_CLOSE, self.OnCloseAbout)
+        
+    # DEFAULT DATABSE EXTENSIONS
+        AboutText = """
+Sonospy Project copyright (c) 2010-2014 Mark Henkelis <mark.henkelis@tesco.net>
+sonospyGUI copyright (c) 2010-2014 John Chowanec <chowanec@gmail.com>
+mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is 
+Licensed under GPL version 2.0)
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+        """
+        self.About = wx.StaticText(aboutPanel, label=AboutText)
+        aboutSizer.Add(self.About, -1, flag=wx.ALL|wx.LEFT|wx.RIGHT, border=20)
+        aboutPanel.SetSizer(aboutSizer)
+
+    def OnCloseAbout(self, event):
+        self.Destroy()    
+
 if __name__ == "__main__":
     app = wx.App()
     frame = SonospyFrame()
+#    COMMENT ME IN IF YOU WANT TO USE THE INSPECTION BROWSER!
+#    import wx.lib.inspection
+#    wx.lib.inspection.InspectionTool().Show()       
     app.MainLoop()

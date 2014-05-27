@@ -612,12 +612,13 @@ class LaunchPanel(wx.Panel):
         
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-
+        dbFolder = guiFunctions.configMe("general", "default_database_path")
+        
         # Set directory to where launchTab.py lives for reference.
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
 
-        if guiFunctions.configMe("general", "default_database_path") == "":
-            os.chdir(dbFolder)
+        if dbFolder == "":
+            os.chdir(cmd_folder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
         else:
@@ -699,7 +700,7 @@ class LaunchPanel(wx.Panel):
         os.chdir(os.pardir)
 
         launchCMD = self.buildLaunch()
-        
+                
         # This would mean we have no databases selected and should, thus, throw up an error for the user.
         if launchCMD == 0:
             guiFunctions.errorMsg('Error!', 'You have no databases selected for launch.')

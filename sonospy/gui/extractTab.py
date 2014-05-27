@@ -83,7 +83,12 @@ class WorkerThread(Thread):
             line = proc.stdout.readline()
             wx.Yield()
             if line.find("processing tag:") > 0:
-                pass
+                tagCount += 1
+                if tagCount == 5:
+                    pub.sendMessage(('updateLogExtract'), "...processing tags!")
+                    tagCount = 0
+                else:
+                    pass
             else:
                 pub.sendMessage(('updateLogExtract'), line)
             if not line: break
@@ -469,15 +474,13 @@ class ExtractPanel(wx.Panel):
         
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-
+        dbFolder = guiFunctions.configMe("general", "default_database_path")
         
-        if guiFunctions.configMe("general", "default_database_path") == "":
-            dbFolder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(dbFolder)
+        if dbFolder == "":
+            cmd_folder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(cmd_folder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
-        else:
-            dbFolder = guiFunctions.configMe("general", "default_database_path")
         
         dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
         
@@ -510,14 +513,14 @@ class ExtractPanel(wx.Panel):
         
         filters = guiFunctions.configMe("general", "database_extensions")
         wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-
-        if guiFunctions.configMe("general", "default_database_path") == "":
+        
+        dbFolder = guiFunctions.configMe("general", "default_database_path") 
+        
+        if dbFolder == "":
             dbFolder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(dbFolder)
+            os.chdir(cmd_folder)
             os.chdir(os.pardir)
             dbFolder = os.getcwd()
-        else:
-            dbFolder = guiFunctions.configMe("general", "default_database_path")
         
         dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
         
