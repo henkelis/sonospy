@@ -854,6 +854,7 @@ class MediaServer(object):
 
                             # get keys of any higher path indexes
                             higher_types = self.get_higher_types(index, tree, path_indexes)
+			    log.debug('%s - %s' % (index, higher_types))
                             if higher_types:
                                 index_id = '%s_%s_%s' % (tree_id, higher_types, index)
                             else:
@@ -924,6 +925,7 @@ class MediaServer(object):
 
                                 # get type of higher index
                                 higher_types = self.get_higher_types(index, tree, path_indexes)
+				log.debug('%s - %s' % (index, higher_types))
                                 if higher_types:
                                     index_id = '%s_%s_%s' % (tree_id, higher_types, index)
                                 else:
@@ -1225,14 +1227,30 @@ class MediaServer(object):
         else:
             return key, value
 
+    def get_path_indexes(self, key):
+        # get concatenated list of all path indexes in key before last entry
+
+	#DEBUG	mediaserver :1369:  query() container - ('R8:1300000136:1400000001', u'Last month')
+
+	key_facets = key.split(':')
+	types = ''
+	if len(key_facets) < 3:
+	    # root plus one entry, so no intermediate indexes
+	    return types
+	for i in range(1, len(key_facets) - 1):
+	    entry = int(key_facets[i])
+	    if entry in self.dynamic_lookup.keys():
+		types = '_'.join(filter(None,(types, self.dynamic_lookup[entry])))
+	return types
+
     def get_higher_types(self, index, tree, path_indexes):
         # get concatenated list of all path indexes above passed index
         # get position of index in tree
         pos = tree.index(index)
+	types = ''
         # get type of previous entry if there is one
-        if pos == 0: return None
+        if pos == 0: return types
         else:
-            types = ''
             for i in range(pos):
                 entry = tree[i]
                 if entry in path_indexes.keys():
@@ -1390,11 +1408,16 @@ class MediaServer(object):
 			# root
 			icon_lookup = itemkey
 		    else:
-			icon_lookup = '%s_%s' % (itemkeyparts[0], self.hierarchies[itemkeyparts[0]][len(itemkeyparts)-2])
-			# check for path index
+			# check if there are path entries in the keys
+			current_index = self.hierarchies[itemkeyparts[0]][len(itemkeyparts)-2]
+			path_indexes = self.get_path_indexes(itemkey)
+			if path_indexes:
+			    icon_lookup = '%s_%s_%s' % (itemkeyparts[0], path_indexes, current_index)
+			else:
+			    icon_lookup = '%s_%s' % (itemkeyparts[0], current_index)
+			# check for path index alternative icon
 			log.debug(itemkeyparts[-1])
 			log.debug(self.dynamic_lookup)
-			
 			if int(itemkeyparts[-1]) in self.dynamic_lookup.keys():
 			    icon_lookup2 = '%s_%s' % (icon_lookup, self.dynamic_lookup[int(itemkeyparts[-1])])
 			    log.debug(icon_lookup2)
