@@ -45,6 +45,8 @@ import guiFunctions
 # import nowPlayingTab
 
 
+PrefShown = False
+AboutShown = False
 
 def OnTaskBarRight(event):
     app.ExitMainLoop()
@@ -154,24 +156,20 @@ class SonospyFrame(wx.Frame):
         self.SetStatusText(msg.data)
 
     def OnAbout(self, event):
-        # Replace below with the About Frame
+        global AboutShown
         frame = AboutFrame()
-        frame.Show(True)
-
-    def OnPref(self, event):
-        frame = PreferencesFrame()
-        print frame.IsShown()
-        if frame.IsShown():
-            print "already shown"
-        else:
-        #frame.name = "SingleApp-%s" % wx.GetUserId()
-
-        #self.instance = wx.SingleInstanceChecker(frame.name)
-
-        #if self.instance.IsAnotherRunning() == True:
-            #frame.Raise()
-        #else:        
+        if AboutShown == False:
             frame.Show(True)
+            AboutShown = True
+        
+    def OnPref(self, event):
+        # Hacking this in for now.
+        
+        global PrefShown
+        frame = PreferencesFrame()
+        if PrefShown == False:
+            frame.Show(True)
+            PrefShown = True
 
     def OnClose(self, event):
         # tell the window to kill itself and kill the running sonospy process
@@ -406,6 +404,9 @@ class PreferencesFrame(wx.Frame):
     
     def OnClosePref(self, event):
         self.Destroy()
+        global PrefShown
+        PrefShown = False
+        
     
     def browseDB(self, event):
         # Set directory to where launchTab.py lives for reference.
@@ -501,15 +502,10 @@ class AboutFrame(wx.Frame):
         wx.Frame.__init__(self, None, title="About Sonospy", size=(520, 360))
             
     # Setting the background color is a total hack.
-        self.SetBackgroundColour((250, 250, 250, 255))
         aboutPanel = wx.Panel(self)
-        aboutPanel = self
- 
+        
     # SET THE SIZER OBJECT UP
         aboutSizer = wx.BoxSizer(wx.VERTICAL)
- 
-    # SET BASELINE INDEX VARIABLES
-        xIndex = 0
  
     # SETUP CLOSE FUNCTION
         self.Bind(wx.EVT_CLOSE, self.OnCloseAbout)
@@ -539,7 +535,10 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         aboutPanel.SetSizer(aboutSizer)
 
     def OnCloseAbout(self, event):
-        self.Destroy()    
+        self.Destroy() 
+        global AboutShown
+        AboutShown = False
+        
 
 if __name__ == "__main__":
     app = wx.App()
