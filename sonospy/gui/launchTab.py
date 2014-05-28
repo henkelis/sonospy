@@ -61,9 +61,7 @@ class LaunchPanel(wx.Panel):
         self.initialize()
 
     def initialize(self):
-
-        global sizer
-        
+       
         panel = self
         
         # SET THE SIZER OBJECT UP
@@ -586,6 +584,7 @@ class LaunchPanel(wx.Panel):
 
         pub.subscribe(self.setLaunchPanel, 'setLaunchPanel')
         pub.subscribe(self.startStopSonospy, 'startStopSonospy')
+        pub.subscribe(self.alreadyRunning, 'alreadyRunning')
 
         panel.Refresh()
         panel.Update()
@@ -682,6 +681,11 @@ class LaunchPanel(wx.Panel):
     def enableSMAPI(self, event):
         self.buildLaunch()
 
+    def alreadyRunning(self, msg):
+        if msg.data == "alreadyRunning":
+            self.bt_Launch.Label = "Stop"
+            self.buildLaunch()
+        
     ########################################################################################################################
     # proxyOnly: Updates scracthpad if Proxy Only is selected
     ######################################################################################################################## 
