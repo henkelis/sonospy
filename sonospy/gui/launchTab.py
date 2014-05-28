@@ -682,7 +682,6 @@ class LaunchPanel(wx.Panel):
         self.buildLaunch()
 
     def alreadyRunning(self, msg):
-        print "made it!"
         if msg.data == "alreadyRunning":
             self.bt_Launch.Label = "Stop"
             self.buildLaunch()
