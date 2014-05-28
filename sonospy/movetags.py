@@ -185,10 +185,10 @@ def process_tags(args, options, tagdatabase, trackdatabase):
         pass
 
     # names
-    album_work_name_structure = '"%s - %s - %s" % (composer, work, artist)'
-    composer_album_work_name_structure = '"%s - %s - %s" % (genre, work, artist)'
-    albumartist_album_work_name_structure = '"%s - %s - %s" % (composer, genre, work)'
-    artist_album_work_name_structure = '"%s - %s - %s" % (composer, genre, work)'
+    lookup_name_dict = {}
+    workvirtualvalues = {}
+    workvirtualvalues['_ALBUM'] = 10
+
     work_name_structures = []
     try:        
         work_name_structures = config.items('work name format')
@@ -196,22 +196,17 @@ def process_tags(args, options, tagdatabase, trackdatabase):
         pass
     except ConfigParser.NoOptionError:
         pass
-    lookup_name_dict = {}
-    work_name_dict = {}
+    workstructurelist = [('_DEFAULT_WORK', '"%s - %s - %s" % (composer, work, artist)', 200)]
+    workvirtualvalues['_DEFAULT_WORK'] = 200
+    work_number = 201
     for k,v in work_name_structures:
         if k[0] == '_':
             lookup_name_dict[k] = v
         else:
-            work_name_dict[k] = v
-    album_work = work_name_dict.get('ALBUM', album_work_name_structure)
-    composer_album_work = work_name_dict.get('COMPOSER_ALBUM', composer_album_work_name_structure)
-    albumartist_album_work = work_name_dict.get('ALBUMARTIST_ALBUM', albumartist_album_work_name_structure)
-    artist_album_work = work_name_dict.get('ARTIST_ALBUM', artist_album_work_name_structure)
+            workstructurelist += [(k, v, work_number)]
+            workvirtualvalues[k] = work_number
+            work_number += 1
 
-    album_virtual_name_structure = '"%s" % (virtual)'
-    composer_album_virtual_name_structure = '"%s" % (virtual)'
-    albumartist_album_virtual_name_structure = '"%s" % (virtual)'
-    artist_album_virtual_name_structure = '"%s" % (virtual)'
     virtual_name_structures = []
     try:        
         virtual_name_structures = config.items('virtual name format')
@@ -219,23 +214,29 @@ def process_tags(args, options, tagdatabase, trackdatabase):
         pass
     except ConfigParser.NoOptionError:
         pass
-    lookup_name_dict = {}
-    virtual_name_dict = {}
+    workvirtualvalues['_DEFAULT_VIRTUAL'] = 100
+    virtualstructurelist = [('_DEFAULT_VIRTUAL', '"%s" % (virtual)', 100)]
+    virtual_number = 101
     for k,v in virtual_name_structures:
         if k[0] == '_':
             lookup_name_dict[k] = v
         else:
-            virtual_name_dict[k] = v
-    album_virtual = virtual_name_dict.get('ALBUM', album_virtual_name_structure)
-    composer_album_virtual = virtual_name_dict.get('COMPOSER_ALBUM', composer_album_virtual_name_structure)
-    albumartist_album_virtual = virtual_name_dict.get('ALBUMARTIST_ALBUM', albumartist_album_virtual_name_structure)
-    artist_album_virtual = virtual_name_dict.get('ARTIST_ALBUM', artist_album_virtual_name_structure)
+            virtualstructurelist += [(k, v, virtual_number)]
+            workvirtualvalues[k] = virtual_number
+            virtual_number += 1
+    # virtualstructurelist = [('_DEFAULT_VIRTUAL', '"%s" % (virtual)', 100), ('ALBUM_VIRTUAL', '"%s - %s" % (virtual, artist)', 101)]
 
     # convert user defined fields and create old and new structures
-    workstructurelist = [('album_work', album_work), ('composer_album_work', composer_album_work), ('artist_album_work', artist_album_work), ('albumartist_album_work', albumartist_album_work), ('artist_album_work', artist_album_work)]
     old_structures_work, new_structures_work = convertstructure(workstructurelist, lookup_name_dict)
-    virtualstructurelist = [('album_virtual', album_virtual), ('composer_album_virtual', composer_album_virtual), ('artist_album_virtual', artist_album_virtual), ('albumartist_album_virtual', albumartist_album_virtual), ('artist_album_virtual', artist_album_virtual)]
     old_structures_virtual, new_structures_virtual = convertstructure(virtualstructurelist, lookup_name_dict)
+
+    # save workvirtual numbers to database
+    try:
+        for k, v in workvirtualvalues.iteritems():
+            cs2.execute('insert into wvlookup values (?, ?)', (k, v))
+    except sqlite3.Error, e:
+        errorstring = "Error writing workvirtual numbers: %s" % e.args[0]
+        filelog.write_error(errorstring)
 
     # get outstanding scan details
     db3 = sqlite3.connect(tagdatabase)
@@ -667,7 +668,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
 
                 if updatetype != 'I':
                     if albumtypestring == 'album':
-                        albumentries.append((o_tracknumber, o_albumliststringfull, 0, albumtypestring, 'old'))
+                        albumentries.append((o_tracknumber, o_albumliststringfull, workvirtualvalues['_ALBUM'], albumtypestring, 'old'))
                     elif albumtypestring == 'work':
                         structures.append((old_structures_work, o_tracknumber, 'old'))
                         o_worklist = o_albumlist
@@ -676,7 +677,7 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                         o_virtuallist = o_albumlist
                 if updatetype != 'D':
                     if albumtypestring == 'album':
-                        albumentries.append((tracknumber, albumliststringfull, 0, albumtypestring, 'new'))
+                        albumentries.append((tracknumber, albumliststringfull, workvirtualvalues['_ALBUM'], albumtypestring, 'new'))
                     elif albumtypestring == 'work':
                         structures.append((new_structures_work, tracknumber, 'new'))
                         worklist = albumlist
@@ -761,15 +762,11 @@ def process_tags(args, options, tagdatabase, trackdatabase):
                 
                     if albumoldnew_entry == 'old':
                         o_album = album_entry
-                        o_albumvalue = albumvalue_entry
-                        o_albumtypevalue = translatealbumtype(albumtype_entry)
-                        o_albumtype = (o_albumtypevalue * 10) + o_albumvalue
+                        o_albumtype = albumvalue_entry
                         album_updatetype = 'D'
                     else:
                         album = album_entry
-                        albumvalue = albumvalue_entry
-                        albumtypevalue = translatealbumtype(albumtype_entry)
-                        albumtype = (albumtypevalue * 10) + albumvalue
+                        albumtype = albumvalue_entry
                         album_updatetype = 'I'
                     albumtypestring = albumtype_entry
                 
@@ -1861,6 +1858,7 @@ work_sep = 'work='
 virtual_sep = 'virtual='
 wv_sep = '(%s|%s)' % (work_sep, virtual_sep)
 
+'''
 def translatealbumtype(albumtype):
     if albumtype == 'album':
         return 1
@@ -1886,12 +1884,15 @@ def translatestructuretype(structuretype):
         return 3
     elif structuretype == 'composer_album_work':
         return 4
+'''
 
 def convertstructure(structurelist, lookup_name_dict):
     old_structures = []
     new_structures = []
-    for name, structure in structurelist:
-        namevalue = translatestructuretype(name)
+    
+    #            virtualstructurelist = [('_DEFAULT_VIRTUAL', '"%s" % (virtual)', 100), ('ALBUM_VIRTUAL', '"%s - %s" % (virtual, artist)', 101)]
+    
+    for name, structure, namevalue in structurelist:
         field_sep_pos = structure.rfind('(')
         field_string = structure[:field_sep_pos]
         fields = structure[field_sep_pos+1:]
@@ -1977,6 +1978,14 @@ def create_database(database):
                                               album_identification text)
                       ''')
             c.execute('''insert into params values ('1', 0, 0, ' ', '', '', '')''')
+
+        # work and virtual numbers
+        c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="wvlookup"')
+        n, = c.fetchone()
+        if n == 0:
+            c.execute('''create table wvlookup (wvtype text,
+                                                wvnumber integer)
+                      ''')
 
         # tracks - contain all detail from tags
         c.execute('SELECT count(*) FROM sqlite_master WHERE type="table" AND name="tracks"')
@@ -2482,6 +2491,7 @@ def empty_database(database):
         filelog.write_log(logstring)
         try:
             c.execute('''drop table if exists params''')
+            c.execute('''drop table if exists wvlookup''')
             c.execute('''drop table if exists tracks''')
             c.execute('''drop table if exists albums''')
             c.execute('''drop table if exists albumsonly''')

@@ -29,6 +29,7 @@ import codecs
 import operator
 import datetime
 import string
+import copy
 from operator import itemgetter
 
 from brisa.core import log
@@ -151,16 +152,11 @@ class MediaServer(object):
         'sort_order': '',
         'entry_prefix': '',
         'entry_suffix': '',
+        'show_albums': [10],
         'active': 'y',
-        }
-
-    range_index_key_dict = {
         'range_field': '',
         'index_range': ('','',''),
         }
-
-    user_index_key_dict = default_index_key_dict.copy()
-    user_index_key_dict.update(range_index_key_dict)
 
     SMAPI_CanonicalSearchIds = {
         'albumartist': 'artists',
@@ -178,6 +174,8 @@ class MediaServer(object):
 #        '': 'tags',
         'track': 'tracks',
     }
+    
+    albumtypes = {}
 
     ######
     # init
@@ -254,8 +252,11 @@ class MediaServer(object):
         self.load_ini_indexing()
         log.debug('alternative_indexing: %s' % self.alternative_indexing)
 
+	# get work and virtual albumtypes from database
+	self.load_albumtypes()
+
         # default index settings to empty
-        self.index_settings = []
+        self.index_settings = {}
 
         # get index properties from ini
         if self.structure == 'HIERARCHY_DEFAULT':
@@ -268,8 +269,6 @@ class MediaServer(object):
             # get user defined indexes
             self.load_indexes('USER')
             
-        log.debug(self.index_settings)
-        
     ################
     # ini processing
     ################
@@ -381,91 +380,28 @@ class MediaServer(object):
         self.groupby_composer = '%s' % ('album')
 
         # get virtual display settings
-        self.display_virtuals_in_album_index = True
-        try:
-            ini_display_virtuals_in_album_index = self.proxy.config.get('virtuals', 'display_virtuals_in_album_index')
-            if ini_display_virtuals_in_album_index[:1].lower() == 'n':
-                self.display_virtuals_in_album_index = False
-        except ConfigParser.NoSectionError:
-            pass
-        except ConfigParser.NoOptionError:
-            pass
-        self.display_virtuals_in_albumartist_index = True
-        try:
-            ini_display_virtuals_in_albumartist_index = self.proxy.config.get('virtuals', 'display_virtuals_in_albumartist_index')
-            if ini_display_virtuals_in_albumartist_index[:1].lower() == 'n':
-                self.display_virtuals_in_albumartist_index = False
-        except ConfigParser.NoSectionError:
-            pass
-        except ConfigParser.NoOptionError:
-            pass
-        self.display_virtuals_in_artist_index = True
-        try:
-            ini_display_virtuals_in_artist_index = self.proxy.config.get('virtuals', 'display_virtuals_in_artist_index')
-            if ini_display_virtuals_in_artist_index[:1].lower() == 'n':
-                self.display_virtuals_in_artist_index = False
-        except ConfigParser.NoSectionError:
-            pass
-        except ConfigParser.NoOptionError:
-            pass
-        self.display_virtuals_in_composer_index = True
-        try:
-            ini_display_virtuals_in_composer_index = self.proxy.config.get('virtuals', 'display_virtuals_in_composer_index')
-            if ini_display_virtuals_in_composer_index[:1].lower() == 'n':
-                self.display_virtuals_in_composer_index = False
-        except ConfigParser.NoSectionError:
-            pass
-        except ConfigParser.NoOptionError:
-            pass
+	self.display_virtuals_by_default = True
+	try:
+	    ini_display_virtuals_by_default = self.proxy.config.get('virtuals', 'display_virtuals_by_default')
+	    if ini_display_virtuals_by_default[:1].lower() == 'n':
+		self.display_virtuals_by_default = False
+	except ConfigParser.NoSectionError:
+	    pass
+	except ConfigParser.NoOptionError:
+	    pass
 
         # get work display settings
-        self.display_works_in_album_index = True
-        try:
-            ini_display_works_in_album_index = self.proxy.config.get('works', 'display_works_in_album_index')
-            if ini_display_works_in_album_index[:1].lower() == 'n':
-                self.display_works_in_album_index = False
-        except ConfigParser.NoSectionError:
-            pass
-        except ConfigParser.NoOptionError:
-            pass
-        self.display_works_in_albumartist_index = True
-        try:
-            ini_display_works_in_albumartist_index = self.proxy.config.get('works', 'display_works_in_albumartist_index')
-            if ini_display_works_in_albumartist_index[:1].lower() == 'n':
-                self.display_works_in_albumartist_index = False
-        except ConfigParser.NoSectionError:
-            pass
-        except ConfigParser.NoOptionError:
-            pass
-        self.display_works_in_artist_index = True
-        try:
-            ini_display_works_in_artist_index = self.proxy.config.get('works', 'display_works_in_artist_index')
-            if ini_display_works_in_artist_index[:1].lower() == 'n':
-                self.display_works_in_artist_index = False
-        except ConfigParser.NoSectionError:
-            pass
-        except ConfigParser.NoOptionError:
-            pass
-        self.display_works_in_composer_index = True
-        try:
-            ini_display_works_in_composer_index = self.proxy.config.get('works', 'display_works_in_composer_index')
-            if ini_display_works_in_composer_index[:1].lower() == 'n':
-                self.display_works_in_composer_index = False
-        except ConfigParser.NoSectionError:
-            pass
-        except ConfigParser.NoOptionError:
-            pass
+	self.display_works_by_default = True
+	try:
+	    ini_display_works_by_default = self.proxy.config.get('virtuals', 'display_works_by_default')
+	    if ini_display_works_by_default[:1].lower() == 'n':
+		self.display_works_by_default = False
+	except ConfigParser.NoSectionError:
+	    pass
+	except ConfigParser.NoOptionError:
+	    pass
 
-        # get albumtypes
-        self.album_albumtypes = self.get_possible_albumtypes('album_album')
-        self.albumartist_album_albumtypes = self.get_possible_albumtypes('albumartist_album')
-        self.artist_album_albumtypes = self.get_possible_albumtypes('artist_album')
-        self.composer_album_albumtypes = self.get_possible_albumtypes('composer_album')
-        self.album_albumtype_where = self.get_albumtype_where(self.album_albumtypes)
-        self.albumartist_album_albumtype_where = self.get_albumtype_where(self.albumartist_album_albumtypes)
-        self.artist_album_albumtype_where = self.get_albumtype_where(self.artist_album_albumtypes)
-        self.composer_album_albumtype_where = self.get_albumtype_where(self.composer_album_albumtypes)
-
+	# separators
         self.prefix_sep = u'\u00a0'     # non-breaking space
         self.suffix_sep = u'\u007f'     # delete
 
@@ -599,6 +535,41 @@ class MediaServer(object):
 
         # get date format setting
         dummy, self.smapi_date_format = self.get_delim('smapi_date_format', '%Y/%m/%d', ' ', section='SMAPI formats')
+
+    def load_albumtypes(self):
+
+	# get albumtype values from wvlookup
+
+	if self.proxy.db_persist_connection:
+	    db = self.proxy.db
+	else:
+	    db = sqlite3.connect(self.dbspec)
+	c = db.cursor()
+	try:
+	    c.execute("""select * from wvlookup""")
+	    for row in c:
+		wvtype, wvnumber = row
+		self.albumtypes[wvtype.lower()] = wvnumber
+	except sqlite3.Error, e:
+	    # TEMP - default so albums work for DBs that have not been updated
+	    self.albumtypes['_album'] = 10
+	    print "Error reading albumtypes:", e.args[0]
+	c.close()
+	if not self.proxy.db_persist_connection:
+	    db.close()
+
+	self.debugout('albumtypes', self.albumtypes)
+
+	# update show_albums defaults
+	self.user_index_key_dict = copy.deepcopy(self.default_index_key_dict)
+	show_albums = self.user_index_key_dict['show_albums']
+	if self.display_virtuals_by_default:
+	    show_albums += [self.albumtypes['_default_virtual']]
+	if self.display_works_by_default:
+	    show_albums += [self.albumtypes['_default_work']]
+	self.user_index_key_dict['show_albums'] = show_albums
+	
+	log.debug('show_albums: %s' % self.user_index_key_dict['show_albums'])
 
     def load_indexes(self, index_type):
 
@@ -883,6 +854,7 @@ class MediaServer(object):
 
                             # get keys of any higher path indexes
                             higher_types = self.get_higher_types(index, tree, path_indexes)
+			    log.debug('%s - %s' % (index, higher_types))
                             if higher_types:
                                 index_id = '%s_%s_%s' % (tree_id, higher_types, index)
                             else:
@@ -953,6 +925,7 @@ class MediaServer(object):
 
                                 # get type of higher index
                                 higher_types = self.get_higher_types(index, tree, path_indexes)
+				log.debug('%s - %s' % (index, higher_types))
                                 if higher_types:
                                     index_id = '%s_%s_%s' % (tree_id, higher_types, index)
                                 else:
@@ -1056,6 +1029,9 @@ class MediaServer(object):
 
                                     if key == 'index_range':
                                         value = self.convert_range(value)
+
+				    elif key == 'show_albums':
+					value = self.convert_albumtypes(value)
                                 
                                     # is a key for a user defined index
                                     index_key_dict[key] = value
@@ -1251,14 +1227,30 @@ class MediaServer(object):
         else:
             return key, value
 
+    def get_path_indexes(self, key):
+        # get concatenated list of all path indexes in key before last entry
+
+	#DEBUG	mediaserver :1369:  query() container - ('R8:1300000136:1400000001', u'Last month')
+
+	key_facets = key.split(':')
+	types = ''
+	if len(key_facets) < 3:
+	    # root plus one entry, so no intermediate indexes
+	    return types
+	for i in range(1, len(key_facets) - 1):
+	    entry = int(key_facets[i])
+	    if entry in self.dynamic_lookup.keys():
+		types = '_'.join(filter(None,(types, self.dynamic_lookup[entry])))
+	return types
+
     def get_higher_types(self, index, tree, path_indexes):
         # get concatenated list of all path indexes above passed index
         # get position of index in tree
         pos = tree.index(index)
+	types = ''
         # get type of previous entry if there is one
-        if pos == 0: return None
+        if pos == 0: return types
         else:
-            types = ''
             for i in range(pos):
                 entry = tree[i]
                 if entry in path_indexes.keys():
@@ -1306,6 +1298,33 @@ class MediaServer(object):
                 rangeend = rangefacets[1]
         return (rangestart, rangeend, units)
 
+    albumtype_keys = {'a': '_album',
+                      'v':'_default_virtual',
+                      'w': '_default_work'}
+
+    def convert_albumtypes(self, albumtypedata):
+	log.debug(albumtypedata)
+	albumtypes = []
+        albumtypeslist = albumtypedata.strip().lower().split(',')
+	for albumtypestring in albumtypeslist:
+	    albumtypestring = albumtypestring.strip()
+	    albumtypefacets = re.split('\(|\)', albumtypestring)
+	    log.debug(albumtypefacets)
+	    albumtypetype = albumtypefacets[0][0]
+	    albumtypelookup = None
+	    if len(albumtypefacets) > 1:
+		albumtypelookup = albumtypefacets[1]
+	    albumtype = None
+	    if albumtypelookup:
+		albumtype = self.albumtypes.get(albumtypelookup, None)
+	    if not albumtype:
+		albumtypetype = self.albumtype_keys.get(albumtypetype, None)
+		if albumtypetype:
+		    albumtype = self.albumtypes.get(albumtypetype, None)
+	    if albumtype:
+		albumtypes += [albumtype]
+	return albumtypes	
+		
     ##########
     # database
     ##########
@@ -1373,10 +1392,14 @@ class MediaServer(object):
                 log.debug('%s - %s' % (itemstype, item))
 
 		#DEBUG	mediaserver :1369:  query() container - ('R8:1300000136:1400000001', u'Last month')
+		#DEBUG	mediaserver :1374:  query() container - ('R2:350000003', u'V1 - Test', u'http://192.168.1.67:50105/wmp/test.db.1.jpg')
 
                 if itemstype == 'track':
                     updateditems += [item]
-                else:
+                elif len(item) > 2 and item[2] != '':
+		    # already has albumart
+		    updateditems += [item]
+		else:
                     itemkey = item[0]
 		    itemkeyparts = itemkey.split(':')
                     # convert itemkey to icon lookup
@@ -1385,11 +1408,16 @@ class MediaServer(object):
 			# root
 			icon_lookup = itemkey
 		    else:
-			icon_lookup = '%s_%s' % (itemkeyparts[0], self.hierarchies[itemkeyparts[0]][len(itemkeyparts)-2])
-			# check for path index
+			# check if there are path entries in the keys
+			current_index = self.hierarchies[itemkeyparts[0]][len(itemkeyparts)-2]
+			path_indexes = self.get_path_indexes(itemkey)
+			if path_indexes:
+			    icon_lookup = '%s_%s_%s' % (itemkeyparts[0], path_indexes, current_index)
+			else:
+			    icon_lookup = '%s_%s' % (itemkeyparts[0], current_index)
+			# check for path index alternative icon
 			log.debug(itemkeyparts[-1])
 			log.debug(self.dynamic_lookup)
-			
 			if int(itemkeyparts[-1]) in self.dynamic_lookup.keys():
 			    icon_lookup2 = '%s_%s' % (icon_lookup, self.dynamic_lookup[int(itemkeyparts[-1])])
 			    log.debug(icon_lookup2)
@@ -1414,7 +1442,6 @@ class MediaServer(object):
                         # add tuple entries for canenumerate and canplay (false so they are not expanded)
                         updateditems += [((itemkey, False, False), ) + (item[1], ) + (albumarturi, ) + item[3:]]
                     else:
-#                        updateditems += [item]
                         updateditems += [(itemkey, ) + (item[1], ) + (albumarturi, ) + item[3:]]
             return updateditems, total, index, itemstype
         else:
@@ -1844,7 +1871,7 @@ class MediaServer(object):
             searchstring = escape_sql(searchstring)
             searchwhere = "albumartist like '%s%%'" % searchstring
 
-        albumwhere = '%s' % self.albumartist_album_albumtype_where
+	albumwhere = self.get_albumtype_where(albumtype)
 
         where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
         if where != '':
@@ -1868,7 +1895,7 @@ class MediaServer(object):
             searchstring = escape_sql(searchstring)
             searchwhere = "artist like '%s%%'" % searchstring
 
-        albumwhere = '%s' % self.artist_album_albumtype_where
+	albumwhere = self.get_albumtype_where(albumtype)
 
         where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
         if where != '':
@@ -1886,7 +1913,7 @@ class MediaServer(object):
         rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'albumartist'
-        albumwhere = 'and %s' % self.albumartist_album_albumtype_where
+        albumwhere = 'and %s' % self.get_albumtype_where(albumtype)
         
         countstatement = "select count(distinct albumartist) from GenreAlbumartistAlbum where genre=? %s" % albumwhere
         orderstatement = "select rowid, albumartist, lastplayed, playcount from GenreAlbumartistAlbum where genre=? %s group by albumartist order by %s limit ?, ?" % (albumwhere, orderby)
@@ -1899,7 +1926,8 @@ class MediaServer(object):
         rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'artist'
-        albumwhere = 'and %s' % self.artist_album_albumtype_where
+	albumwhere = 'and %s' % self.get_albumtype_where(albumtype)
+
         countstatement = "select count(distinct artist) from GenreArtistAlbum where genre=? %s" % albumwhere
         orderstatement = "select rowid, artist, lastplayed, playcount from GenreArtistAlbum where genre=? %s group by artist order by %s limit ?, ?" % (albumwhere, orderby)
         alphastatement = ''
@@ -1918,7 +1946,7 @@ class MediaServer(object):
             rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
             artisttype = 'albumartist'
-            albumwhere = '%s' % self.albumartist_album_albumtype_where
+            albumwhere = self.get_albumtype_where(albumtype)
 
             where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
             if where != '':
@@ -1937,7 +1965,7 @@ class MediaServer(object):
             rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
             artisttype = 'artist'
-            albumwhere = '%s' % self.artist_album_albumtype_where
+            albumwhere = self.get_albumtype_where(albumtype)
 
             where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
             if where != '':
@@ -1963,7 +1991,7 @@ class MediaServer(object):
             searchstring = escape_sql(searchstring)
             searchwhere = "composer like '%s%%'" % searchstring
 
-        albumwhere = '%s' % self.composer_album_albumtype_where
+        albumwhere = self.get_albumtype_where(albumtype)
 
         where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
         if where != '':
@@ -1985,8 +2013,7 @@ class MediaServer(object):
             searchstring = escape_sql(searchstring)
             searchwhere = "album like '%s%%'" % searchstring
 
-        at = self.get_albumtype_where(albumtype, table='aa')
-        albumwhere = '%s' % at
+        albumwhere = self.get_albumtype_where(albumtype, table='aa')
 
         where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
         if where != '':
@@ -6121,7 +6148,10 @@ class MediaServer(object):
         else:
             return '10', 'album'
     '''
+
+    '''
     def get_possible_albumtypes(self, sorttype, filteralbum=None):
+	log.debug(sorttype)
         if not filteralbum:
             album = virtual = work = True
         else:
@@ -6136,7 +6166,7 @@ class MediaServer(object):
             at = [10]
         else:
             at = []
-        if sorttype == 'album_album':
+        if sorttype == 'album_album' or sorttype == 'album':
             if self.display_virtuals_in_album_index and virtual: at.append(21)
             if self.display_works_in_album_index and work: at.append(31)
         elif sorttype == 'albumartist_album' or sorttype == 'albumartist' or sorttype == 'genre_albumartist_album' or sorttype == 'genre_albumartist':
@@ -6148,7 +6178,9 @@ class MediaServer(object):
         elif sorttype == 'composer_album' or sorttype == 'composer':
             if self.display_virtuals_in_composer_index and virtual: at.append(24)
             if self.display_works_in_composer_index and work: at.append(34)
+	log.debug(at)
         return at
+    '''
 
     def get_albumtype_where(self, albumtypes, table=None):
         if table:
@@ -6302,7 +6334,7 @@ class MediaServer(object):
 
         log.debug('get_orderby sorttype: %s' % sorttype)
         log.debug('get_orderby orderby: %s' % orderby)
-        albumtypes = self.get_possible_albumtypes(sorttype)
+        albumtypes = self.user_index_key_dict['show_albums']
         
         # static = sort_order, entry_prefix, entry_suffix, albumtypes
         default_static_orderby = (orderby, None, None, albumtypes, '', ('','',''))
@@ -6358,11 +6390,11 @@ class MediaServer(object):
                 sort_order = foundvalues['sort_order']
                 if sort_order == None or sort_order == '': sort_order = orderby
                 if dynamic:
-                    return (foundvalues['range_field'], foundvalues['index_range'], sort_order, foundvalues['entry_prefix'], foundvalues['entry_suffix'], albumtypes)
+                    return (foundvalues['range_field'], foundvalues['index_range'], sort_order, foundvalues['entry_prefix'], foundvalues['entry_suffix'], foundvalues['show_albums'])
                 else:
                     range_field = foundvalues['range_field']
                     if range_field == None or range_field == '': range_field = orderby
-                    return (sort_order, foundvalues['entry_prefix'], foundvalues['entry_suffix'], albumtypes, range_field, foundvalues['index_range'])
+                    return (sort_order, foundvalues['entry_prefix'], foundvalues['entry_suffix'], foundvalues['show_albums'], range_field, foundvalues['index_range'])
 
     def static_makepresuffix(self, fix, replace, fixdict, ps):
         EMPTY = '__EMPTY__'

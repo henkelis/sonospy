@@ -157,6 +157,9 @@ class ID3(DictProxy, mutagen.Metadata):
                             self.picture = True
                     self.frameoffset += self.framesize
                     if isinstance(frame, Frame): self.add(frame)
+                    elif frame == 'ID3JunkFrameError': 
+                        # skip junk frame passed up so we can count its size
+                        pass
                     else: self.unknown_frames.append(frame)
         finally:
             self.__fileobj.close()
@@ -334,8 +337,10 @@ class ID3(DictProxy, mutagen.Metadata):
                 else:
                     try: yield self.__load_framedata(tag, flags, framedata)
                     except NotImplementedError: yield header + framedata
-                    except ID3JunkFrameError: pass
-
+                    except ID3JunkFrameError: 
+                        # return a dummy so we can count size of frame in caller (used to just pass)
+                        yield 'ID3JunkFrameError'
+                        
         elif (2,2,0) <= self.version:
             while data:
                 header = data[0:6]
@@ -353,7 +358,9 @@ class ID3(DictProxy, mutagen.Metadata):
                 else:
                     try: yield self.__load_framedata(tag, 0, framedata)
                     except NotImplementedError: yield header + framedata
-                    except ID3JunkFrameError: pass
+                    except ID3JunkFrameError:
+                        # return a dummy so we can count size of frame in caller (used to just pass)
+                        yield 'ID3JunkFrameError'
 
     def __load_framedata(self, tag, flags, framedata):
         return tag.fromData(self, flags, framedata)
