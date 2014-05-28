@@ -83,35 +83,35 @@ class MediaServer(object):
     favouritetrack_parentid    = 1000000000
     keywordsearch_parentid     = 1100000000
     dynamic_parentid_start     = 1200000000
-    
+
     # default values, overriden by caller if required
 
     containerstart = {
-                      'album':               album_parentid,
-                      'albumartist':         albumartist_parentid,
-                      'artist':              artist_parentid,
-                      'composer':            composer_parentid,
-                      'favourite':           favourite_parentid,
-                      'genre':               genre_parentid,
-                      'playlist':            playlist_parentid,
-                      'track':               track_parentid,
-                      'usersearch':          user_parentid,
-                     }
+        'album':               album_parentid,
+        'albumartist':         albumartist_parentid,
+        'artist':              artist_parentid,
+        'composer':            composer_parentid,
+        'favourite':           favourite_parentid,
+        'genre':               genre_parentid,
+        'playlist':            playlist_parentid,
+        'track':               track_parentid,
+        'usersearch':          user_parentid,
+    }
 
     statichierarchy = {
-                       'album':               'track',
-                       'albumartist':         'album',
-                       'artist':              'album',
-                       'composer':            'album',
-                       'playlist':            'track',
-                       'track':               'leaf',
-                      }
+        'album':               'track',
+        'albumartist':         'album',
+        'artist':              'album',
+        'composer':            'album',
+        'playlist':            'track',
+        'track':               'leaf',
+    }
 
     tracktypes = [
-                  favouritetrack_parentid,  # Favourite track
-                  track_parentid,           # Track
-                 ]
-    
+        favouritetrack_parentid,  # Favourite track
+        track_parentid,           # Track
+    ]
+
     '''
     flatrootitems = [
                      ('%s' % album_parentid, 'Albums'),
@@ -144,7 +144,7 @@ class MediaServer(object):
     playlist_class = 'object.container.playlistContainer'
 
     # default key settings for alternative indexes
-    
+
     default_index_key_dict = {
         'proxyname': 'all',
         'servicename': 'all',
@@ -156,25 +156,25 @@ class MediaServer(object):
         'active': 'y',
         'range_field': '',
         'index_range': ('','',''),
-        }
+    }
 
     SMAPI_CanonicalSearchIds = {
         'albumartist': 'artists',
         'album': 'albums',
         'composer': 'composers',
 #        '': 'date',
-        'genre': 'genres',
+'genre': 'genres',
 #        '': 'hosts',
 #        '': 'location',
 #        '': 'podcasts',
 #        '': 'people',
-        'playlist': 'playlists',
+'playlist': 'playlists',
 #        '': 'shows',
 #        '': 'stations',
 #        '': 'tags',
-        'track': 'tracks',
+'track': 'tracks',
     }
-    
+
     albumtypes = {}
 
     ######
@@ -244,7 +244,7 @@ class MediaServer(object):
         # file will contain a user defined list of indexes, plus
         # optionally some adjustments to the display of those
         # indexes.
-        
+
         # get display properties from ini
         self.load_ini_display()
 
@@ -252,23 +252,23 @@ class MediaServer(object):
         self.load_ini_indexing()
         log.debug('alternative_indexing: %s' % self.alternative_indexing)
 
-	# get work and virtual albumtypes from database
-	self.load_albumtypes()
+        # get work and virtual albumtypes from database
+        self.load_albumtypes()
 
         # default index settings to empty
         self.index_settings = {}
 
         # get index properties from ini
         if self.structure == 'HIERARCHY_DEFAULT':
-        
+
             # get default indexes
             self.load_indexes('DEFAULT')
 
         elif self.structure == 'HIERARCHY':
-        
+
             # get user defined indexes
             self.load_indexes('USER')
-            
+
     ################
     # ini processing
     ################
@@ -380,28 +380,28 @@ class MediaServer(object):
         self.groupby_composer = '%s' % ('album')
 
         # get virtual display settings
-	self.display_virtuals_by_default = True
-	try:
-	    ini_display_virtuals_by_default = self.proxy.config.get('virtuals', 'display_virtuals_by_default')
-	    if ini_display_virtuals_by_default[:1].lower() == 'n':
-		self.display_virtuals_by_default = False
-	except ConfigParser.NoSectionError:
-	    pass
-	except ConfigParser.NoOptionError:
-	    pass
+        self.display_virtuals_by_default = True
+        try:
+            ini_display_virtuals_by_default = self.proxy.config.get('virtuals', 'display_virtuals_by_default')
+            if ini_display_virtuals_by_default[:1].lower() == 'n':
+                self.display_virtuals_by_default = False
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
 
         # get work display settings
-	self.display_works_by_default = True
-	try:
-	    ini_display_works_by_default = self.proxy.config.get('virtuals', 'display_works_by_default')
-	    if ini_display_works_by_default[:1].lower() == 'n':
-		self.display_works_by_default = False
-	except ConfigParser.NoSectionError:
-	    pass
-	except ConfigParser.NoOptionError:
-	    pass
+        self.display_works_by_default = True
+        try:
+            ini_display_works_by_default = self.proxy.config.get('virtuals', 'display_works_by_default')
+            if ini_display_works_by_default[:1].lower() == 'n':
+                self.display_works_by_default = False
+        except ConfigParser.NoSectionError:
+            pass
+        except ConfigParser.NoOptionError:
+            pass
 
-	# separators
+        # separators
         self.prefix_sep = u'\u00a0'     # non-breaking space
         self.suffix_sep = u'\u007f'     # delete
 
@@ -538,38 +538,38 @@ class MediaServer(object):
 
     def load_albumtypes(self):
 
-	# get albumtype values from wvlookup
+        # get albumtype values from wvlookup
 
-	if self.proxy.db_persist_connection:
-	    db = self.proxy.db
-	else:
-	    db = sqlite3.connect(self.dbspec)
-	c = db.cursor()
-	try:
-	    c.execute("""select * from wvlookup""")
-	    for row in c:
-		wvtype, wvnumber = row
-		self.albumtypes[wvtype.lower()] = wvnumber
-	except sqlite3.Error, e:
-	    # TEMP - default so albums work for DBs that have not been updated
-	    self.albumtypes['_album'] = 10
-	    print "Error reading albumtypes:", e.args[0]
-	c.close()
-	if not self.proxy.db_persist_connection:
-	    db.close()
+        if self.proxy.db_persist_connection:
+            db = self.proxy.db
+        else:
+            db = sqlite3.connect(self.dbspec)
+        c = db.cursor()
+        try:
+            c.execute("""select * from wvlookup""")
+            for row in c:
+                wvtype, wvnumber = row
+                self.albumtypes[wvtype.lower()] = wvnumber
+        except sqlite3.Error, e:
+            # TEMP - default so albums work for DBs that have not been updated
+            self.albumtypes['_album'] = 10
+            print "Error reading albumtypes:", e.args[0]
+        c.close()
+        if not self.proxy.db_persist_connection:
+            db.close()
 
-	self.debugout('albumtypes', self.albumtypes)
+        self.debugout('albumtypes', self.albumtypes)
 
-	# update show_albums defaults
-	self.user_index_key_dict = copy.deepcopy(self.default_index_key_dict)
-	show_albums = self.user_index_key_dict['show_albums']
-	if self.display_virtuals_by_default:
-	    show_albums += [self.albumtypes['_default_virtual']]
-	if self.display_works_by_default:
-	    show_albums += [self.albumtypes['_default_work']]
-	self.user_index_key_dict['show_albums'] = show_albums
-	
-	log.debug('show_albums: %s' % self.user_index_key_dict['show_albums'])
+        # update show_albums defaults
+        self.user_index_key_dict = copy.deepcopy(self.default_index_key_dict)
+        show_albums = self.user_index_key_dict['show_albums']
+        if self.display_virtuals_by_default:
+            show_albums += [self.albumtypes['_default_virtual']]
+        if self.display_works_by_default:
+            show_albums += [self.albumtypes['_default_work']]
+        self.user_index_key_dict['show_albums'] = show_albums
+
+        log.debug('show_albums: %s' % self.user_index_key_dict['show_albums'])
 
     def load_indexes(self, index_type):
 
@@ -613,11 +613,11 @@ class MediaServer(object):
                     index_id_list += [dynamic_value]
                     dynamic_id = dynamic_value + 1
                     dynamic_value += self.id_length
-                    
+
                     # as we have assigned a dynamic range, then we need to create 
                     # lookups between the keys in that range against the P numbers
                     # for the entries in that range
-                    
+
                     # get the path index entry 
                     path_index_key = '%s_%s' % (entry, hierarchy[i])
                     if path_index_key in self.path_index_entries.keys():
@@ -660,7 +660,7 @@ class MediaServer(object):
         # (we could decide to create a list of valid fields, but
         # obviously they are index specific - we'll just go 
         # dynamic if it's not the field we know)
-        
+
         for entry, entrydict in self.index_types.iteritems():
             # check if index starts with dynamic and there are no other dynamic entries
             if entrydict[0] == 'DYNAMIC' and not 'DYNAMIC' in entrydict[1:]:
@@ -726,7 +726,7 @@ class MediaServer(object):
                     searchitemid = '%s:%09i' % (rootid, firstindexstart)
                     self.searchitems += [(searchitemid, rootname)]
                     self.pmitems += [('root', firstindex, searchitemid, rootname)]
-                    
+
         self.debugout('searchitems', self.searchitems)
         self.debugout('pmitems', self.pmitems)
 
@@ -740,7 +740,7 @@ class MediaServer(object):
         pm_xml += '</browseIconSizeMap>\n'
         pm_xml += '</Match>\n'
         pm_xml += '</PresentationMap>\n'
-        
+
         pm_xml += '<PresentationMap type="Search">\n'
         pm_xml += '<Match>\n'
         pm_xml += '<SearchCategories>\n'
@@ -755,7 +755,7 @@ class MediaServer(object):
         pm_xml += '</Match>\n'
         pm_xml += '</PresentationMap>\n'
         pm_xml += '</Presentation>\n'
-  
+
         pm_xml_path = os.path.join(os.getcwd(), self.proxy.presentation_map_file)
         log.debug("pm file: %s" % pm_xml_path)
         try:
@@ -802,7 +802,7 @@ class MediaServer(object):
         path_count = 0
         processing_index = None
         index_key_dict = self.user_index_key_dict.copy()
-        
+
         # read line by line so we can process EOF to tidy up
         f = codecs.open(inifile,'r','utf-8')
         while True:
@@ -812,20 +812,20 @@ class MediaServer(object):
             # if EOF, pretend we have a new section
             if not line: 
                 line = '['
-        
+
             line = self.strip_line(line)
             if not line: continue
 
             if processing and line.startswith('['):
-            
+
                 # force one more time through to tidy up
                 line = 'tree=_dummy_'
                 stop_processing = True
-            
+
             if line == '[indexes]':
-            
+
                 processing = True
-                
+
             elif processing:
 
                 # look for tree entry, format is:
@@ -836,7 +836,7 @@ class MediaServer(object):
                 if key == 'tree':
 
                     if tree_count > 0 and title:
-                    
+
                         # save previous tree data
                         allrootitems += [(tree_id, title)]
                         if display_tree:
@@ -854,7 +854,7 @@ class MediaServer(object):
 
                             # get keys of any higher path indexes
                             higher_types = self.get_higher_types(index, tree, path_indexes)
-			    log.debug('%s - %s' % (index, higher_types))
+#                            log.debug('%s - %s' % (index, higher_types))
                             if higher_types:
                                 index_id = '%s_%s_%s' % (tree_id, higher_types, index)
                             else:
@@ -864,12 +864,12 @@ class MediaServer(object):
                             # reset default index entries                        
                             index_key_dict = self.user_index_key_dict.copy()
                             # save icon(s)
-			    if icon_entry:
-				icon_entries[index_id] = icon_entry
+                            if icon_entry:
+                                icon_entries[index_id] = icon_entry
                             if icon_path_entry:
-				icon_name, entry_key = icon_path_entry
-				index_entry_id = '%s_%s' % (index_id, entry_key)
-				icon_entries[index_entry_id] = icon_name
+                                icon_name, entry_key = icon_path_entry
+                                index_entry_id = '%s_%s' % (index_id, entry_key)
+                                icon_entries[index_entry_id] = icon_name
                             # save display/expand flags
                             if display_index:
                                 # TODO
@@ -887,9 +887,9 @@ class MediaServer(object):
                             display_index = True
                             expand_index = True
                             icon_entry = None
-			    icon_path_entry = None
-			    entry = None
-                        
+                            icon_path_entry = None
+                            entry = None
+
                     tree_count += 1
                     tree_id = 'R%s' % tree_count
                     tree = value.split('/')
@@ -900,24 +900,24 @@ class MediaServer(object):
                     display_tree = True
                     expand_tree = True
                     icon_entry = None
-		    icon_path_entry = None
-		    entry = None
-                    
+                    icon_path_entry = None
+                    entry = None
+
                 elif tree_count > 0:
 
                     # look for tree title
                     if key == 'title':
-                    
+
                         title = value
                         index = None
                         display_index = True
                         expand_index = True
                         icon_entry = None
-			icon_path_entry = None
-			entry = None
+                        icon_path_entry = None
+                        entry = None
 
                     elif title:
-                    
+
                         # look for index key or new tree
                         if key == 'index' or key == 'tree':
 
@@ -925,7 +925,7 @@ class MediaServer(object):
 
                                 # get type of higher index
                                 higher_types = self.get_higher_types(index, tree, path_indexes)
-				log.debug('%s - %s' % (index, higher_types))
+#                                log.debug('%s - %s' % (index, higher_types))
                                 if higher_types:
                                     index_id = '%s_%s_%s' % (tree_id, higher_types, index)
                                 else:
@@ -935,12 +935,12 @@ class MediaServer(object):
                                 # reset default index entries                        
                                 index_key_dict = self.user_index_key_dict.copy()
                                 # save icon(s)
-				if icon_entry:
-				    icon_entries[index_id] = icon_entry
-				if icon_path_entry:
-				    icon_name, entry_key = icon_path_entry
-				    index_entry_id = '%s_%s' % (index_id, entry_key)
-				    icon_entries[index_entry_id] = icon_name
+                                if icon_entry:
+                                    icon_entries[index_id] = icon_entry
+                                if icon_path_entry:
+                                    icon_name, entry_key = icon_path_entry
+                                    index_entry_id = '%s_%s' % (index_id, entry_key)
+                                    icon_entries[index_entry_id] = icon_name
                                 # save display/expand flags
                                 if display_index:
                                     # TODO
@@ -958,9 +958,9 @@ class MediaServer(object):
                                 display_index = True
                                 expand_index = True
                                 icon_entry = None
-				icon_path_entry = None
-				entry = None
-                                
+                                icon_path_entry = None
+                                entry = None
+
                             if value in tree:
 
                                 index = value
@@ -972,12 +972,12 @@ class MediaServer(object):
                                 value = value[0]
 
                             if key == 'display':
-        
+
                                 if value.lower() == 'n':
                                     display_tree = False
-                            
+
                             elif key == 'expand':
-        
+
                                 if value.lower() == 'n':
                                     expand_tree = False
 
@@ -987,9 +987,9 @@ class MediaServer(object):
                             icon_entries[tree_id] = value
 
                         elif index:
-                    
+
                             if key == 'entry':
-                            
+
                                 # is an entry for a user defined path
                                 path_count += 1
                                 path_id = 'P%s' % path_count
@@ -997,7 +997,7 @@ class MediaServer(object):
                                 currentvalue = path_entry.get(path_entry_index, [])
                                 path_entry[path_entry_index] = currentvalue + [(path_id, value)]
                                 path_indexes[index] = path_id
-				entry = path_id
+                                entry = path_id
 
                             else:
 
@@ -1008,31 +1008,31 @@ class MediaServer(object):
                                         value = value[0]
 
                                     if key == 'display':
-                
+
                                         if value.lower() == 'n':
                                             display_index = False
-                                    
+
                                     elif key == 'expand':
-                
+
                                         if value.lower() == 'n':
                                             expand_index = False
-                                        
+
                                 # look for index level icon
                                 elif key == 'icon':
-        
-				    if entry:
-					icon_path_entry = value, entry
-				    else:
-					icon_entry = value
+
+                                    if entry:
+                                        icon_path_entry = value, entry
+                                    else:
+                                        icon_entry = value
 
                                 elif key in index_key_dict.keys():
 
                                     if key == 'index_range':
                                         value = self.convert_range(value)
 
-				    elif key == 'show_albums':
-					value = self.convert_albumtypes(value)
-                                
+                                    elif key == 'show_albums':
+                                        value = self.convert_albumtypes(value)
+
                                     # is a key for a user defined index
                                     index_key_dict[key] = value
 
@@ -1061,14 +1061,14 @@ class MediaServer(object):
             if not line:
                 processing = True
                 line = '['
-        
+
             line = self.strip_line(line)
             if not line: continue
 
             if processing and line.startswith('['):
-            
+
                 break
-            
+
             if line == '[searches]':
 
                 processing = True
@@ -1124,7 +1124,7 @@ class MediaServer(object):
                             user_search_entry = ('multi', convindexentries)
 
                 elif key == 'subsearch':
-                
+
                     user_search_entry = None
                     # is a lower level search type
                     indexentries = value.split('/')
@@ -1143,9 +1143,9 @@ class MediaServer(object):
                                 indexentrystart = self.index_ids[rootkey][indexentrypos]
                                 # save entry
                                 user_search_entry = ('lower', [(rootkey, indexentrystart, lookupindex)])
-                    
+
                 elif key == 'title':
-                    
+
                     title = value
 
                     if user_search_entry != None:
@@ -1167,7 +1167,7 @@ class MediaServer(object):
             self.next_user_id += 1
 
         return user_search_entries
-    
+
     '''
     default_indexes = {
         'album': 'album_album',
@@ -1230,24 +1230,24 @@ class MediaServer(object):
     def get_path_indexes(self, key):
         # get concatenated list of all path indexes in key before last entry
 
-	#DEBUG	mediaserver :1369:  query() container - ('R8:1300000136:1400000001', u'Last month')
+        #DEBUG	mediaserver :1369:  query() container - ('R8:1300000136:1400000001', u'Last month')
 
-	key_facets = key.split(':')
-	types = ''
-	if len(key_facets) < 3:
-	    # root plus one entry, so no intermediate indexes
-	    return types
-	for i in range(1, len(key_facets) - 1):
-	    entry = int(key_facets[i])
-	    if entry in self.dynamic_lookup.keys():
-		types = '_'.join(filter(None,(types, self.dynamic_lookup[entry])))
-	return types
+        key_facets = key.split(':')
+        types = ''
+        if len(key_facets) < 3:
+            # root plus one entry, so no intermediate indexes
+            return types
+        for i in range(1, len(key_facets) - 1):
+            entry = int(key_facets[i])
+            if entry in self.dynamic_lookup.keys():
+                types = '_'.join(filter(None,(types, self.dynamic_lookup[entry])))
+        return types
 
     def get_higher_types(self, index, tree, path_indexes):
         # get concatenated list of all path indexes above passed index
         # get position of index in tree
         pos = tree.index(index)
-	types = ''
+        types = ''
         # get type of previous entry if there is one
         if pos == 0: return types
         else:
@@ -1256,7 +1256,7 @@ class MediaServer(object):
                 if entry in path_indexes.keys():
                     types = '_'.join(filter(None,(types, path_indexes[entry])))
             return types
-        
+
     def get_lower_types(self, index, tree, path_indexes):
         # get next type down in path index below passed index
         # get position of index in tree
@@ -1271,7 +1271,7 @@ class MediaServer(object):
                 return curr_key, next_entry
             else:
                 return None
-        
+
     def convert_range(self, rangestring):
         rangestring = rangestring.strip().lower()
         rangestring = " ".join(rangestring.split())
@@ -1303,28 +1303,28 @@ class MediaServer(object):
                       'w': '_default_work'}
 
     def convert_albumtypes(self, albumtypedata):
-	log.debug(albumtypedata)
-	albumtypes = []
+        log.debug(albumtypedata)
+        albumtypes = []
         albumtypeslist = albumtypedata.strip().lower().split(',')
-	for albumtypestring in albumtypeslist:
-	    albumtypestring = albumtypestring.strip()
-	    albumtypefacets = re.split('\(|\)', albumtypestring)
-	    log.debug(albumtypefacets)
-	    albumtypetype = albumtypefacets[0][0]
-	    albumtypelookup = None
-	    if len(albumtypefacets) > 1:
-		albumtypelookup = albumtypefacets[1]
-	    albumtype = None
-	    if albumtypelookup:
-		albumtype = self.albumtypes.get(albumtypelookup, None)
-	    if not albumtype:
-		albumtypetype = self.albumtype_keys.get(albumtypetype, None)
-		if albumtypetype:
-		    albumtype = self.albumtypes.get(albumtypetype, None)
-	    if albumtype:
-		albumtypes += [albumtype]
-	return albumtypes	
-		
+        for albumtypestring in albumtypeslist:
+            albumtypestring = albumtypestring.strip()
+            albumtypefacets = re.split('\(|\)', albumtypestring)
+            log.debug(albumtypefacets)
+            albumtypetype = albumtypefacets[0][0]
+            albumtypelookup = None
+            if len(albumtypefacets) > 1:
+                albumtypelookup = albumtypefacets[1]
+            albumtype = None
+            if albumtypelookup:
+                albumtype = self.albumtypes.get(albumtypelookup, None)
+            if not albumtype:
+                albumtypetype = self.albumtype_keys.get(albumtypetype, None)
+                if albumtypetype:
+                    albumtype = self.albumtypes.get(albumtypetype, None)
+            if albumtype:
+                albumtypes += [albumtype]
+        return albumtypes	
+
     ##########
     # database
     ##########
@@ -1356,7 +1356,7 @@ class MediaServer(object):
         if not self.proxy.db_persist_connection:
             db.close()
         log.debug("prime end: %.3f" % time.time())
-        
+
     ###############
     # query service
     ###############
@@ -1382,7 +1382,7 @@ class MediaServer(object):
 
         # get query result
         ret = self.hierarchicalQuery(**kwargs)
-        
+
         # process any SMAPI entries that should not be expanded,
         # and add any icons
         if len(ret) == 4:
@@ -1391,45 +1391,45 @@ class MediaServer(object):
             for item in items:
                 log.debug('%s - %s' % (itemstype, item))
 
-		#DEBUG	mediaserver :1369:  query() container - ('R8:1300000136:1400000001', u'Last month')
-		#DEBUG	mediaserver :1374:  query() container - ('R2:350000003', u'V1 - Test', u'http://192.168.1.67:50105/wmp/test.db.1.jpg')
+                #DEBUG	mediaserver :1369:  query() container - ('R8:1300000136:1400000001', u'Last month')
+                #DEBUG	mediaserver :1374:  query() container - ('R2:350000003', u'V1 - Test', u'http://192.168.1.67:50105/wmp/test.db.1.jpg')
 
                 if itemstype == 'track':
                     updateditems += [item]
                 elif len(item) > 2 and item[2] != '':
-		    # already has albumart
-		    updateditems += [item]
-		else:
+                    # already has albumart
+                    updateditems += [item]
+                else:
                     itemkey = item[0]
-		    itemkeyparts = itemkey.split(':')
+                    itemkeyparts = itemkey.split(':')
                     # convert itemkey to icon lookup
-		    icon_lookup2 = None
-		    if len(itemkeyparts) == 1:
-			# root
-			icon_lookup = itemkey
-		    else:
-			# check if there are path entries in the keys
-			current_index = self.hierarchies[itemkeyparts[0]][len(itemkeyparts)-2]
-			path_indexes = self.get_path_indexes(itemkey)
-			if path_indexes:
-			    icon_lookup = '%s_%s_%s' % (itemkeyparts[0], path_indexes, current_index)
-			else:
-			    icon_lookup = '%s_%s' % (itemkeyparts[0], current_index)
-			# check for path index alternative icon
-			log.debug(itemkeyparts[-1])
-			log.debug(self.dynamic_lookup)
-			if int(itemkeyparts[-1]) in self.dynamic_lookup.keys():
-			    icon_lookup2 = '%s_%s' % (icon_lookup, self.dynamic_lookup[int(itemkeyparts[-1])])
-			    log.debug(icon_lookup2)
+                    icon_lookup2 = None
+                    if len(itemkeyparts) == 1:
+                        # root
+                        icon_lookup = itemkey
+                    else:
+                        # check if there are path entries in the keys
+                        current_index = self.hierarchies[itemkeyparts[0]][len(itemkeyparts)-2]
+                        path_indexes = self.get_path_indexes(itemkey)
+                        if path_indexes:
+                            icon_lookup = '%s_%s_%s' % (itemkeyparts[0], path_indexes, current_index)
+                        else:
+                            icon_lookup = '%s_%s' % (itemkeyparts[0], current_index)
+                        # check for path index alternative icon
+                        log.debug(itemkeyparts[-1])
+                        log.debug(self.dynamic_lookup)
+                        if int(itemkeyparts[-1]) in self.dynamic_lookup.keys():
+                            icon_lookup2 = '%s_%s' % (icon_lookup, self.dynamic_lookup[int(itemkeyparts[-1])])
+                            log.debug(icon_lookup2)
                     # get icon
                     albumarturi = ''
-		    image = None
-		    if icon_lookup2:
-			# check if individual item for this path index entry,
-			# which will override one across the path index
-			image = self.get_icon(icon_lookup2)
-		    if not image:
-			image = self.get_icon(icon_lookup)
+                    image = None
+                    if icon_lookup2:
+                        # check if individual item for this path index entry,
+                        # which will override one across the path index
+                        image = self.get_icon(icon_lookup2)
+                    if not image:
+                        image = self.get_icon(icon_lookup)
 #                    log.debug('image: %s' % image)
                     if image != '':
                         albumarturi = '%s/%s' % (self.webserverurl, image)
@@ -1469,7 +1469,7 @@ class MediaServer(object):
         #     a track
 #        #     a playlist
         #     a list of IDs
-        
+
         items = None
         track = False
         playlist = False
@@ -1494,12 +1494,12 @@ class MediaServer(object):
             track = True
         else:
             # must be a list of IDs separated by :
-            
+
             # remove any search flag and store it
             if queryID.startswith('S'):
                 wassearch = True
                 queryID = queryID[1:]
-                
+
             ids = queryID.split(':')
 
         log.debug("items: %s" % items)
@@ -1533,7 +1533,7 @@ class MediaServer(object):
         # TODO: remember we need to only reject this for SMAPI getMetadata (not getMediametadata)
 
         elif track:
-        
+
             if self.source == 'SMAPI':
 
                 # not allowed to call getMetadata for track for SMAPI
@@ -1545,7 +1545,7 @@ class MediaServer(object):
                 return self.staticQuery(**kwargs)
 
         elif playlist:
-        
+
             if self.source == 'SMAPI':
 
                 # not allowed to call getMetadata for playlist for SMAPI
@@ -1608,18 +1608,18 @@ class MediaServer(object):
                             hierarchy = queryID
                             idkeys = {}
                             return self.keywordQuery(Controller=controllername,
-                                                      Address=controlleraddress,
-                                                      QueryID=queryID,
-                                                      StartingIndex=StartingIndex,
-                                                      RequestedCount=RequestedCount,
-                                                      SMAPI=hierarchy,
-                                                      idkeys=idkeys,
-                                                      Action='BROWSE',
-                                                      term=term,
-                                                      searchfields=searchfields)
+                                                     Address=controlleraddress,
+                                                     QueryID=queryID,
+                                                     StartingIndex=StartingIndex,
+                                                     RequestedCount=RequestedCount,
+                                                     SMAPI=hierarchy,
+                                                     idkeys=idkeys,
+                                                     Action='BROWSE',
+                                                     term=term,
+                                                     searchfields=searchfields)
 
             elif isid and not indexentryid in self.tracktypes:
-            
+
                 # current entry is a container, but a key has been passed,
                 # append next container to key list
                 next_container = self.index_ids[rootname][indexentryposition + 1]
@@ -1635,15 +1635,15 @@ class MediaServer(object):
                 itemtype = 'track'
             else:
                 itemtype = 'container'
-                
+
             log.debug('itemtype: %s' % itemtype)
 
             # check whether this call is supported by static or dynamic
             static = False
             firstindexentryname = self.hierarchies[rootname][0]
-            
+
             if wassearch:
-            
+
                 # TEMP - if its a search, assume dynamic
                 static = 'DYNAMIC'
 
@@ -1663,10 +1663,10 @@ class MediaServer(object):
                     if 'DYNAMIC' in self.index_types[rootname][:indexentryposition]:
 #                    #   immediately before this index entry
 #                    if self.index_types[rootname][indexentryposition] == 'DYNAMIC':
-                    
+
                         # TEMP - if there is a dynamic above it, assume it is dynamic
                         static = 'DYNAMIC'
-                
+
 #                        index_key = self.get_index_key(ids)
 #                        log.debug("index_key: %s" % index_key)
 #                        if index_key in self.index_settings.keys():
@@ -1678,7 +1678,7 @@ class MediaServer(object):
 #                                static = 'DYNAMIC'
 
             log.debug('static: %s' % static)
-            
+
             # if recursive requested, replace last item in hierarchy
             # with track
             # (assumes all hierarchies end in track, or at least
@@ -1705,7 +1705,7 @@ class MediaServer(object):
                     indexkeys[-1] = self.track_parentid
                 log.debug('ids: %s' % ids)
                 log.debug('indexkeys: %s' % indexkeys)
-            
+
             # process ids
             idkeys = {}
             hierarchy = ''
@@ -1726,7 +1726,7 @@ class MediaServer(object):
 
                 # check if entry is id rather than container
                 isid = False if indexentrykey == indexentryid else True
-                
+
                 # build up hierarchy
                 hierarchy = ':'.join(filter(None, (hierarchy, indexentryname)))
 
@@ -1736,9 +1736,9 @@ class MediaServer(object):
 
             log.debug('hierarchy: %s' % hierarchy)
             log.debug('idkeys: %s' % idkeys)
-            
+
             # if we get this far we have a list of IDs and we need to query the database
-            
+
             if indexentryname == 'usersearch' or static == 'DYNAMIC' or static == 'RANGE':
 
                 # dynamic
@@ -1750,14 +1750,14 @@ class MediaServer(object):
                 RequestedCount = str(count)
 
                 return self.dynamicQuery(Controller=controllername,
-                                           Address=controlleraddress,
-                                           QueryID=queryID,
-                                           SearchCriteria=SearchCriteria,
-                                           StartingIndex=StartingIndex,
-                                           RequestedCount=RequestedCount,
-                                           SMAPI=hierarchy,
-                                           idkeys=idkeys,
-                                           wassearch=wassearch)
+                                         Address=controlleraddress,
+                                         QueryID=queryID,
+                                         SearchCriteria=SearchCriteria,
+                                         StartingIndex=StartingIndex,
+                                         RequestedCount=RequestedCount,
+                                         SMAPI=hierarchy,
+                                         idkeys=idkeys,
+                                         wassearch=wassearch)
 
             else:
 
@@ -1771,15 +1771,15 @@ class MediaServer(object):
                 RequestedCount = str(count)
 
                 return self.staticQuery(Controller=controllername,
-                                          Address=controlleraddress,
-                                          QueryID=queryID,
-                                          BrowseFlag=BrowseFlag,
-                                          SearchCriteria=SearchCriteria,
-                                          StartingIndex=StartingIndex,
-                                          RequestedCount=RequestedCount,
-                                          SMAPI=hierarchy,
-                                          idkeys=idkeys,
-                                          Action='BROWSE')
+                                        Address=controlleraddress,
+                                        QueryID=queryID,
+                                        BrowseFlag=BrowseFlag,
+                                        SearchCriteria=SearchCriteria,
+                                        StartingIndex=StartingIndex,
+                                        RequestedCount=RequestedCount,
+                                        SMAPI=hierarchy,
+                                        idkeys=idkeys,
+                                        Action='BROWSE')
 
     def staticQuery(self, *args, **kwargs):
 
@@ -1832,14 +1832,14 @@ class MediaServer(object):
 
         # create call data for metadata/mediametadata and call it
         return self.querymetadata(Controller=controllername,
-                                   Address=controlleraddress,
-                                   QueryID='%s' % queryID,
-                                   SearchCriteria=searchCriteria,
-                                   StartingIndex=startingIndex,
-                                   RequestedCount=requestedCount,
-                                   SMAPI=SMAPI,
-                                   idkeys=idkeys,
-                                   browsetype=browsetype)
+                                  Address=controlleraddress,
+                                  QueryID='%s' % queryID,
+                                  SearchCriteria=searchCriteria,
+                                  StartingIndex=startingIndex,
+                                  RequestedCount=requestedCount,
+                                  SMAPI=SMAPI,
+                                  idkeys=idkeys,
+                                  browsetype=browsetype)
 
     ###############################
     # static queries for containers
@@ -1858,7 +1858,7 @@ class MediaServer(object):
             querystatement = "select * from playlists where track_id = ?"
 
         return querystatement, prefix, suffix, artisttype
-            
+
     def getQueryAlbumartist(self, searchcontainer, searchstring, sorttype, controllername):
 
         orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='albumartist')
@@ -1871,7 +1871,7 @@ class MediaServer(object):
             searchstring = escape_sql(searchstring)
             searchwhere = "albumartist like '%s%%'" % searchstring
 
-	albumwhere = self.get_albumtype_where(albumtype)
+        albumwhere = self.get_albumtype_where(albumtype)
 
         where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
         if where != '':
@@ -1882,7 +1882,7 @@ class MediaServer(object):
         alphastatement = self.smapialphastatement % ('albumartist', 'AlbumartistAlbum %s group by albumartist order by %%s' % where)
 
         return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
-            
+
     def getQueryArtist(self, searchcontainer, searchstring, sorttype, controllername):
 
         orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='artist')
@@ -1895,7 +1895,7 @@ class MediaServer(object):
             searchstring = escape_sql(searchstring)
             searchwhere = "artist like '%s%%'" % searchstring
 
-	albumwhere = self.get_albumtype_where(albumtype)
+        albumwhere = self.get_albumtype_where(albumtype)
 
         where = ' and '.join(filter(None,(rangewhere, searchwhere, albumwhere)))
         if where != '':
@@ -1914,7 +1914,7 @@ class MediaServer(object):
 
         artisttype = 'albumartist'
         albumwhere = 'and %s' % self.get_albumtype_where(albumtype)
-        
+
         countstatement = "select count(distinct albumartist) from GenreAlbumartistAlbum where genre=? %s" % albumwhere
         orderstatement = "select rowid, albumartist, lastplayed, playcount from GenreAlbumartistAlbum where genre=? %s group by albumartist order by %s limit ?, ?" % (albumwhere, orderby)
         alphastatement = ''
@@ -1926,7 +1926,7 @@ class MediaServer(object):
         rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
         artisttype = 'artist'
-	albumwhere = 'and %s' % self.get_albumtype_where(albumtype)
+        albumwhere = 'and %s' % self.get_albumtype_where(albumtype)
 
         countstatement = "select count(distinct artist) from GenreArtistAlbum where genre=? %s" % albumwhere
         orderstatement = "select rowid, artist, lastplayed, playcount from GenreArtistAlbum where genre=? %s group by artist order by %s limit ?, ?" % (albumwhere, orderby)
@@ -1939,9 +1939,9 @@ class MediaServer(object):
         if searchcontainer:
             searchstring = escape_sql(searchstring)
             searchwhere = "genre like '%s%%'" % searchstring
-            
+
         if self.use_albumartist:
-        
+
             orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='genre')
             rangetype, rangewhere = self.format_range(rangefield, indexrange)
 
@@ -2047,7 +2047,7 @@ class MediaServer(object):
                 alphastatement = self.smapialphastatement % ('album', 'AlbumartistAlbumsonly aa %s group by %s%s order by %%s' % (where, album_groupby, separate_albums))
 
         else:
-        
+
             artisttype = 'artist'
             album_distinct = self.distinct_artist
             album_groupby = self.groupby_artist
@@ -2296,7 +2296,7 @@ class MediaServer(object):
 
         orderby, prefix, suffix, albumtype, rangefield, indexrange = self.get_orderby(sorttype, controllername, dynamic=False, orderby='album')
         rangetype, rangewhere = self.format_range(rangefield, indexrange)
-        
+
         albumtypewhere = self.get_albumtype_where(albumtype, table='aa')
 
         artisttype = 'artist'
@@ -2478,7 +2478,7 @@ class MediaServer(object):
                                 limit ?, ?
                              '''
         alphastatement = ''
-                             
+
         return countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange
 
     def getQueryGenreArtistAlbumTrack(self, searchcontainer, searchstring, sorttype, controllername, queryalbumtype):
@@ -2574,7 +2574,7 @@ class MediaServer(object):
         return res, items, count
 
     def processQueryGenre(self, c, artisttype, prefix, suffix, idkeys, queryIDprefix):
-                
+
         items = []
         res = ''
         count = 0
@@ -2607,7 +2607,7 @@ class MediaServer(object):
         return res, items, count
 
     def processQueryPlaylist(self, c, artisttype, prefix, suffix, idkeys, queryIDprefix):
-                
+
         items = []
         res = ''
         count = 0
@@ -2658,7 +2658,7 @@ class MediaServer(object):
 
             # get entries/entry positions
             if artisttype == 'albumartist':
-            
+
                 if not 'albumartist' in self.album_group:
                     if albumartist == '': albumartist = '[unknown albumartist]'
                     if self.now_playing_artist == 'selected':
@@ -2676,9 +2676,9 @@ class MediaServer(object):
 #                    log.debug("artist: %s", artist)
                     artist_entry = self.get_entry_position(artist, artistlist, self.now_playing_artist, self.now_playing_artist_combiner)
 #                    log.debug("artist_entry: %s", artist_entry)
-                    
+
             elif artisttype == 'artist':
-            
+
                 if not 'artist' in self.album_group:
                     if artist == '': artist = '[unknown artist]'
                     if self.now_playing_artist == 'selected':
@@ -2692,9 +2692,9 @@ class MediaServer(object):
                 else:
                     albumartist = self.get_entry(albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
                     albumartist_entry = self.get_entry_position(albumartist, albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
-                    
+
             else:
-            
+
                 if self.now_playing_artist == 'selected':
                     artist = self.get_entry(artistlist, self.now_playing_artist_selected_default, self.now_playing_artist_combiner)
                 else:
@@ -2705,7 +2705,7 @@ class MediaServer(object):
                 else:
                     albumartist = self.get_entry(albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
                 albumartist_entry = self.get_entry_position(albumartist, albumartistlist, self.now_playing_artist, self.now_playing_artist_combiner)
-                
+
             if album == '': album = '[unknown album]'
 #            log.debug("album: %s", album)
             if self.now_playing_album == 'selected':
@@ -2790,16 +2790,16 @@ class MediaServer(object):
         ret = ''
         count = 0
         roottype = browsetype.split(':')[0]
-        
+
         if tracktype == None: tracktype = 'T'
         call_tracktype = tracktype
-        
+
         for row in c:
             log.debug("row: %s", row)
             count += 1
 
             if call_tracktype == 'S':
-            
+
                 # is a call for mediametadata for a playlist stream entry
                 playlist, pl_id, pl_plfile, pl_trackfile, pl_occurs, pl_track, pl_track_id, pl_track_rowid, pl_inserted, pl_created, pl_lastmodified, pl_plfilecreated, pl_plfilelastmodified, pl_trackfilecreated, pl_trackfilelastmodified, pl_scannumber, pl_lastscanned = row
                 log.debug(pl_trackfile)
@@ -2840,7 +2840,7 @@ class MediaServer(object):
                     albumlist = 'Stream'
                     id = pl_track_id
                     titlesort = albumsort = None
-            
+
             else:
 
                 # is a call for mediametadata for a single track of the tracks from an album/virtual/work
@@ -2876,7 +2876,7 @@ class MediaServer(object):
                         mime = getMime(ext)
                 else:
                     transcode, newtype = checktranscode(filetype, bitrate, samplerate, bitspersample, channels, codec)
-                
+
             if transcode:
                 dummyfile = self.dbname + '.' + id + '.' + newtype
             elif stream:
@@ -2929,7 +2929,7 @@ class MediaServer(object):
                     self.proxy.wmpcontroller2.add_static_file(dummycoverstaticfile)
 
             else:
-            
+
                 if cover == '':
                     coverres = ''
                 elif cover != '' and not cover.startswith('EMBEDDED_'):
@@ -3018,13 +3018,13 @@ class MediaServer(object):
                 album_entry_id = str(self.get_entry_position(album, albumlist, self.now_playing_album, self.now_playing_album_combiner))
 
             fixdict = {'year':year, 'lastplayed':lastplayed, 'playcount':playcount, 'created':created,
-                        'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist,
-                        'composer':composerlist, 'album':album, 'genre':genre, 'tracknumber':tracknumber, 'length':length,
-                        'path':path, 'filename':filename, 'size':size,
-                        'titlesort':titlesort, 'discnumber':discnumber,
-                        'codec':codec, 'bitrate':bitrate, 'samplerate':samplerate, 'bitspersample':bitspersample, 'channels':channels,
-                      }
-                      
+                       'lastmodified':lastmodified, 'inserted':inserted, 'artist':artist, 'albumartist':albumartist,
+                       'composer':composerlist, 'album':album, 'genre':genre, 'tracknumber':tracknumber, 'length':length,
+                       'path':path, 'filename':filename, 'size':size,
+                       'titlesort':titlesort, 'discnumber':discnumber,
+                       'codec':codec, 'bitrate':bitrate, 'samplerate':samplerate, 'bitspersample':bitspersample, 'channels':channels,
+                       }
+
             if container == 'playlist':
                 fixdict['playlist'] = playlist
 
@@ -3133,7 +3133,7 @@ class MediaServer(object):
         return artist
 
     def runQueryGenre(self, c, idkeys):
-        
+
         genreidval, browsebyid, containerstart = idkeys['genre']
         rowid = genreidval
         statement = """select genre from genre where rowid=%s""" % rowid
@@ -3188,7 +3188,7 @@ class MediaServer(object):
 
         playlistidval, browsebyid, containerstart = idkeys['playlist']
         rowid = playlistidval - containerstart
-        
+
         playliststatement = """select id from playlists where rowid=%s""" % rowid
         log.debug("playliststatement: %s", playliststatement)
         c.execute(playliststatement)
@@ -3334,7 +3334,7 @@ class MediaServer(object):
             res += '<upnp:albumArtURI>%s</upnp:albumArtURI>' % (coverres)
         res += '</container>'
         return res
-        
+
     def track_didl(self, id, parentid, title, albumartist, artist, album, tracknumber, duration, protocol, res):
         ret  = '<item id="%s" parentID="%s" restricted="true">' % (id, parentid)
         ret += '<dc:title>%s</dc:title>' % (title)
@@ -3350,7 +3350,7 @@ class MediaServer(object):
 #            ret += '<upnp:albumArtURI>%s</upnp:albumArtURI>' % (coverres)
         ret += '</item>'
         return ret
-        
+
     #############################
     # track id metadata processor
     #############################
@@ -3371,7 +3371,7 @@ class MediaServer(object):
             p = passed.split('w')
             specialpassed = p[0]
             specialrowid = p[1]
-            
+
         return specialtype, specialpassed, specialrowid
 
     ###########################################
@@ -3432,29 +3432,29 @@ class MediaServer(object):
         xml = ''
 
         if browsetype == '':
-        
+
             # must have been passed a track ID plus metadata
             browsetype = 'singletrack'
             queryIDprefix = ''
-            
+
             if len(queryID) == 32 and not ':' in queryID and not '_' in queryID:
                 # track id is 32 hex chars
                 # TODO: check valid hex
                 passed_album = passed_artist = passed_albumartist = None                        
             elif '__' in queryID:
-                    idfacets = queryID.split('__')
-                    tracktype = idfacets[0][0]
-                    roottype = idfacets[0][1:]
-                    # TODO: check if this can occur (no album etc details)
-                    if len(idfacets) == 2:
-                        passed_album = passed_artist = passed_albumartist = None                        
-                        queryID = idfacets[1]
-                    else:
-                        passedfielddata = idfacets[1].split('_')
-                        passed_album = passedfielddata[0]                        
-                        passed_artist = passedfielddata[1]
-                        passed_albumartist = passedfielddata[2]
-                        queryID = idfacets[2]
+                idfacets = queryID.split('__')
+                tracktype = idfacets[0][0]
+                roottype = idfacets[0][1:]
+                # TODO: check if this can occur (no album etc details)
+                if len(idfacets) == 2:
+                    passed_album = passed_artist = passed_albumartist = None                        
+                    queryID = idfacets[1]
+                else:
+                    passedfielddata = idfacets[1].split('_')
+                    passed_album = passedfielddata[0]                        
+                    passed_artist = passedfielddata[1]
+                    passed_albumartist = passedfielddata[2]
+                    queryID = idfacets[2]
 
             else:
                 # will cause this to fall through
@@ -3475,14 +3475,14 @@ class MediaServer(object):
             log.debug('indexkeys: %s' % indexkeys)
 
             # get sorttype
-            
+
             # if there is only one index key and it's a dynamic one, it means we are running
             # a static query with an associated range. If there is more than one index key
             # and the first key is a dynamic one, we need to filter out the dynamic key (as
             # we have already taken account of the range in a previous query).
             # Either way we will need to insert the dynamic key into the sort type to get
             # the range, plus remove the dynamic facet of the browsetype
-            
+
             if int(indexkeys[0]) in self.dynamic_lookup.keys():
                 # get sorttype containing dynamic facet
 
@@ -3498,7 +3498,7 @@ class MediaServer(object):
                 # remove dynamic facet of browsetype
                 browsetype = ':'.join(idhierarchy[1:])
                 log.debug("browsetype: %s" % browsetype)
-                
+
             else:
                 sorttype = self.get_index_key(ids, idhierarchy)
 
@@ -3544,7 +3544,7 @@ class MediaServer(object):
             querystatement, prefix, suffix, artisttype = self.getQuerySingletrack(roottype, controllername, tracktype)
 
             totalMatches = 1
-            
+
             log.debug("querystatement: %s", querystatement)
 
             c.execute(querystatement, (queryID, ))
@@ -3577,7 +3577,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAalbum':
@@ -3603,7 +3603,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAalbumartist':
@@ -3629,7 +3629,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAartist':
@@ -3656,7 +3656,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAcomposer':
@@ -3680,17 +3680,17 @@ class MediaServer(object):
             c.execute(countstatement)
             totalMatches, = c.fetchone()
             totalMatches = int(totalMatches)
-            
+
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAgenre':
                     return self.processAlphaQuery(c, orderby, alphastatement)
 
                 c.execute(orderstatement, (startingIndex, requestedCount))
-                
+
                 xml, items, count = self.processQueryGenre(c, artisttype, prefix, suffix, idkeys, queryIDprefix)
 
         elif browsetype == '!ALPHAplaylist' or \
@@ -3707,17 +3707,17 @@ class MediaServer(object):
             c.execute(countstatement)
             totalMatches, = c.fetchone()
             totalMatches = int(totalMatches)
-            
+
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAplaylist':
                     return self.processAlphaQuery(c, orderby, alphastatement)
 
                 c.execute(orderstatement, (startingIndex, requestedCount))
-                
+
                 xml, items, count = self.processQueryPlaylist(c, artisttype, prefix, suffix, idkeys, queryIDprefix)
 
         elif browsetype == '!ALPHAtrack' or \
@@ -3734,10 +3734,10 @@ class MediaServer(object):
             c.execute(countstatement)
             totalMatches, = c.fetchone()
             totalMatches = int(totalMatches)
-            
+
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 if browsetype == '!ALPHAtrack':
@@ -3745,7 +3745,7 @@ class MediaServer(object):
 
 #                c.execute(orderstatement, (startingIndex, requestedCount))
                 c.execute(orderstatement, (startingIndex, startingIndex + requestedCount))
-                
+
                 xml, items, count = self.processQueryTrack(c, artisttype, prefix, suffix, idkeys, queryIDprefix, browsetype)
 
         #################
@@ -3789,13 +3789,13 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
 
                 log.debug("paramtuple: %s", paramtuple)
-                
+
                 c.execute(orderstatement, paramtuple)
 
                 xml, items, count = self.processQueryTrack(c, artisttype, prefix, suffix, idkeys, queryIDprefix, browsetype, albumtype=albumtype)
@@ -3819,7 +3819,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (playlistid, startingIndex, requestedCount))
@@ -3845,7 +3845,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (albumartist, startingIndex, requestedCount))
@@ -3853,7 +3853,7 @@ class MediaServer(object):
                 xml, items, count = self.processQueryAlbum(c, artisttype, prefix, suffix, idkeys, queryIDprefix)
 
         elif browsetype == 'artist:album':
-             
+
             log.debug('albums for artist')
 
             artist = self.runQueryArtist(c, idkeys)
@@ -3871,7 +3871,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (artist, startingIndex, requestedCount))
@@ -3897,7 +3897,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (composer, startingIndex, requestedCount))
@@ -3911,7 +3911,7 @@ class MediaServer(object):
 
             genre = self.runQueryGenre(c, idkeys)
             log.debug('    genre: %s', genre)
-            
+
             countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreAlbumartist(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
@@ -3924,7 +3924,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, startingIndex, requestedCount))
@@ -3938,7 +3938,7 @@ class MediaServer(object):
 
             genre = self.runQueryGenre(c, idkeys)
             log.debug('    genre: %s', genre)
-            
+
             countstatement, orderstatement, alphastatement, orderby, prefix, suffix, artisttype, rangetype, indexrange = self.getQueryGenreArtist(searchcontainer, searchstring, sorttype, controllername)
 
             log.debug("countstatement: %s", countstatement)
@@ -3951,7 +3951,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, startingIndex, requestedCount))
@@ -3982,7 +3982,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, albumartist, startingIndex, requestedCount))
@@ -4009,7 +4009,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, artist, startingIndex, requestedCount))
@@ -4039,7 +4039,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (albumartist, startingIndex, requestedCount))
@@ -4065,7 +4065,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (artist, startingIndex, requestedCount))
@@ -4091,7 +4091,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (composer, startingIndex, requestedCount))
@@ -4117,7 +4117,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, startingIndex, requestedCount))
@@ -4144,7 +4144,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, albumartist, startingIndex, requestedCount))
@@ -4171,7 +4171,7 @@ class MediaServer(object):
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 c.execute(orderstatement, (genre, artist, startingIndex, requestedCount))
@@ -4200,14 +4200,14 @@ class MediaServer(object):
             paramtuple = (albumartist, album)
             if albumtype != 10:
                 paramtuple += (albumtype, )
-                
+
             c.execute(countstatement, paramtuple)
             matches, = c.fetchone()
             totalMatches = int(matches)
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -4233,14 +4233,14 @@ class MediaServer(object):
             paramtuple = (artist, album)
             if albumtype != 10:
                 paramtuple += (albumtype, )
-                
+
             c.execute(countstatement, paramtuple)
             matches, = c.fetchone()
             totalMatches = int(matches)
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -4266,14 +4266,14 @@ class MediaServer(object):
             paramtuple = (composer, album)
             if albumtype != 10:
                 paramtuple += (albumtype, )
-                
+
             c.execute(countstatement, paramtuple)
             matches, = c.fetchone()
             totalMatches = int(matches)
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -4300,14 +4300,14 @@ class MediaServer(object):
             paramtuple = (genre, albumartist, album)
             if albumtype != 10:
                 paramtuple += (albumtype, )
-                
+
             c.execute(countstatement, paramtuple)
             matches, = c.fetchone()
             totalMatches = int(matches)
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -4334,14 +4334,14 @@ class MediaServer(object):
             paramtuple = (genre, artist, album)
             if albumtype != 10:
                 paramtuple += (albumtype, )
-                
+
             c.execute(countstatement, paramtuple)
             matches, = c.fetchone()
             totalMatches = int(matches)
 
             if rangetype == 'count':
                 totalMatches, orderstatement, alphastatement = self.adjust_for_range(indexrange, totalMatches, orderstatement, alphastatement)
-                
+
             if totalMatches != 0:
 
                 paramtuple += (startingIndex, requestedCount)
@@ -4385,10 +4385,10 @@ class MediaServer(object):
 
         queryID = kwargs.get('QueryID','')
         log.debug('queryID: %s' % str(queryID))
-        
+
         ids = queryID.split(':')
         log.debug('ids: %s' % ids)
-        
+
         searchCriteria = kwargs['SearchCriteria']
         searchCriteria = self.fixcriteria(searchCriteria)
         log.debug('searchCriteria: %s' % searchCriteria)
@@ -4471,7 +4471,7 @@ class MediaServer(object):
 
         if SMAPI.startswith('!ALPHA'):
             # process alpha request
-            
+
             field = self.convert_field_name(idhierarchy[0])
             browsetable = self.get_table(field, field)
             alphastatement = self.smapialphastatement % (field, '%s %s group by %s order by %s' % (browsetable, where, field, field))
@@ -4492,7 +4492,7 @@ class MediaServer(object):
 
         # ID is always passed prepended with root name
         rootname, indexkeys = self.get_index_parts(ids)
-        
+
         log.debug('rootname: %s' % rootname)
         log.debug('indexkeys: %s' % indexkeys)
 
@@ -4513,12 +4513,12 @@ class MediaServer(object):
             if entry == 'usersearch':
                 # save id used
                 itemidprefix = ':'.join(filter(None,(itemidprefix, str(idval))))
-            
+
             if entry == 'usersearch' and len(idhierarchy) != 1:
                 # don't process entry if it's a user search key
                 # and there are further entries
                 continue
-            
+
             field = self.convert_field_name(entry)
             log.debug('field: %s' % field)
 
@@ -4558,7 +4558,7 @@ class MediaServer(object):
 
         # process last item in hierarchy
         ################################
-        
+
         user_index = False
         searchtype = ''
         searchname = ''
@@ -4571,7 +4571,7 @@ class MediaServer(object):
             log.debug('path_name: %s' % path_name)
 
             if searchcontainer:
-            
+
                 # search is always at root level, or a direct call to a lower level,
                 # so where clause will only contain search details
 
@@ -4660,7 +4660,7 @@ class MediaServer(object):
                 else:
 
                     # TODO: explain this code and work out what indexsuffix was intended for
-                    
+
                     ids += [self.index_ids[rootname][len(idhierarchy) - 1]]
 
                     log.debug("ids: %s" % ids)
@@ -4709,9 +4709,9 @@ class MediaServer(object):
             log.debug(self.path_index_entries)
 
             if path_name in self.path_index_entries.keys():
-            
+
                 # is a user defined path index
-                
+
                 user_index = True
                 recordtype = 'userindex'
                 index_entries = self.path_index_entries[path_name]
@@ -4744,7 +4744,7 @@ class MediaServer(object):
                         if rangefield == '': rangefield = field
 
                         rangetype, rangewhere = self.format_range(rangefield, indexrange)
-                        
+
                         if rangetype == 'where':
 
                             # add it to the start of the where clause
@@ -4752,7 +4752,7 @@ class MediaServer(object):
                                 where = 'and %s' % where[5:]
                             where = 'where %s %s' % (rangewhere, where)
                             log.debug('where: %s' % where)
-                            
+
                 if searchcontainer and len(searchlist) > 1:
 
                     # multi container search
@@ -4766,7 +4766,7 @@ class MediaServer(object):
                         where = searchwhere
 
                         rangefield, indexrange, sortorder, prefixstring, suffixstring, containerstart, \
-                        prefixlist, numprefix, prefixstart, suffixlist, numsuffix, suffixstart = searchmetadata
+                            prefixlist, numprefix, prefixstart, suffixlist, numsuffix, suffixstart = searchmetadata
 
                         selectfield = field
                         if numprefix:
@@ -4821,15 +4821,15 @@ class MediaServer(object):
                 else:
 
                     # single container or single search
-                    
+
 #                    log.debug(field)
 #                    log.debug(searchtype)
 #                    log.debug(numprefix)
 #                    log.debug(numsuffix)
 #                    log.debug(sortorder)
-                    
+
                     selectfield = field
-                    
+
                     if numprefix:
                         selectfield += ',' + prefixstring
                     if numsuffix:
@@ -4837,7 +4837,7 @@ class MediaServer(object):
 
                     if field.lower() == 'album' or field.lower() == 'work' or field.lower() == 'virtual':
                         selectfield = '%s, %s' % (selectfield, 'folderart, trackart, folderartid, trackartid')
-                    
+
                     groupfield = field
                     if groupfield.lower() in ['inserted', 'created', 'lastmodified', 'lastscanned', 'lastplayed']:
                         groupfield = "date(%s, 'unixepoch')" % groupfield
@@ -4913,7 +4913,7 @@ class MediaServer(object):
             rangefield, indexrange, sortorder, entryprefix, entrysuffix, albumtype = self.get_orderby(sorttype, controllername, dynamic=True)
             numprefix = 0
             prefixstart = 0
-            
+
             prefixsnippets, prefixlist, prefixstring = self.get_code_snippets(entryprefix)
 #            prefixlist = self.split_sql_fields(entryprefix)
             if entryprefix != '':
@@ -4940,7 +4940,7 @@ class MediaServer(object):
                     if rangefield == '': rangefield = field
 
                     rangetype, rangewhere = self.format_range(rangefield, indexrange)
-                    
+
                     if rangetype == 'where':
 
                         # add it to the start of the where clause
@@ -4959,7 +4959,7 @@ class MediaServer(object):
             orderfield = 'discnumber, tracknumber, title'
             if sortorder:
                 orderfield = sortorder
-            
+
             countstatement = "select count(title) from %s %s" % (browsetable, where)
             statement = "select 'track' as recordtype, rowid, %s from %s %s order by %s limit ?, ?" % (selectfield, browsetable, where, orderfield)
             log.debug("countstatement: %s", countstatement)
@@ -4987,7 +4987,7 @@ class MediaServer(object):
                 # adjust the SQL to limit what we get back
                 # we need to limit the initial (full) result, which may be further 
                 # limited by the requested count
-                
+
                 # for the count, we'll just limit what was returned
                 originalMatches = totalMatches
                 if totalMatches > rangecount:
@@ -4996,21 +4996,21 @@ class MediaServer(object):
 
                 # for the select, we need to add a bounding limit to the initial
                 # query before applying the existing requested count/startindex
-                
+
                 # work out bounding limit clause
                 if rangeset == 'first':
                     limitclause = ' limit %s)' % rangecount
                 elif rangeset == 'last':
                     limitclause = ' limit %s, %s)' % (originalMatches - rangecount, rangecount)
-                
+
                 # add outer select
                 statement = 'SELECT * from (%s' % statement
-                
+
                 # insert outer select limit before call limit
                 statement = statement.replace(' limit ', ' %s limit ' % limitclause)
 
                 log.debug('range adjusted statement: %s' % statement)
-                
+
             if totalMatches > 0:
 
                 c.execute(statement, (startingIndex, requestedCount))
@@ -5035,7 +5035,7 @@ class MediaServer(object):
 
                         if searchcontainer:
                             searchfieldtype = recordtype
-                            
+
                             if len(searchlist) > 1:
                                 field = searchconvertlookup[searchfieldtype]
                                 pos = searchpositionlookup[field]
@@ -5046,7 +5046,7 @@ class MediaServer(object):
                                 pos = 0
 
                             rangefield, indexrange, sortorder, prefixstring, suffixstring, containerstart, \
-                            prefixlist, numprefix, prefixstart, suffixlist, numsuffix, suffixstart = metadata[pos]
+                                prefixlist, numprefix, prefixstart, suffixlist, numsuffix, suffixstart = metadata[pos]
 #                            log.debug(containerstart)
 
 #                        log.debug(field)
@@ -5086,9 +5086,9 @@ class MediaServer(object):
                         trackart = None if not 'trackart' in row.keys() else row['trackart']
                         folderartid = None if not 'folderartid' in row.keys() else row['folderartid']
                         trackartid = None if not 'trackartid' in row.keys() else row['trackartid']
-                        
+
                         log.debug('%s, %s, %s, %s' % (folderart, trackart, folderartid, trackartid))
-                        
+
                         if folderart or trackart:
                             cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
 
@@ -5132,7 +5132,7 @@ class MediaServer(object):
                             log.debug('itemidprefixes: %s' % itemidprefixes)
                             # TODO - fix this search on lower levels
                             rowitemidprefix = itemidprefixes[recordtype]
-                            
+
                         elif searchtype == 'multi':
 #                        if searchcontainer and len(searchlist) > 1:
                             # if we are processing multiple containers, we need
@@ -5214,12 +5214,12 @@ class MediaServer(object):
 #                        if searchtype == 'multi':
                         # TODO - do we need to do anything special for searches?
                         # TODO - what about playlist fields?
-  
+
 ##                      # Why this?                      
 ##                        if prefixstart < 25:
 ##                            prefixstart += 25
 ##                            suffixstart += 25
-                        
+
                         if numprefix:
 #                            prefixdata = list(row[prefixstart:prefixstart+numprefix])
                             prefixdata = []
@@ -5368,9 +5368,9 @@ class MediaServer(object):
             else:
                 itemtype = 'track'
             return items, totalMatches, startingIndex, itemtype
-            
+
         else:
-        
+
             ret  = '<DIDL-Lite xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" xmlns:r="urn:schemas-rinconnetworks-com:metadata-1-0/" xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/">'
 
             log.debug(items)
@@ -5378,7 +5378,7 @@ class MediaServer(object):
             for entry in items:
 
                 log.debug(entry)
-                
+
                 if len(entry) == 2 or len(entry) == 3:
                     id = entry[0]
                     title = entry[1]
@@ -5388,7 +5388,7 @@ class MediaServer(object):
                         cover = ''
                     ret += '<container id="%s" parentID="%s" restricted="true">' % (id, queryID)
                     ret += '<dc:title>%s</dc:title>' % (title)
-                    
+
                     # recordtype will contain type of last entry - assume all entries are the same type
                     if recordtype == 'artist':
                         classtype = 'object.container.person.musicArtist'
@@ -5430,7 +5430,7 @@ class MediaServer(object):
 
             ret += '</DIDL-Lite>'
             count = len(items)
-            
+
             if count == 0: ret = ''
 
             return ret, count, totalMatches
@@ -5463,10 +5463,10 @@ class MediaServer(object):
 
         queryID = kwargs.get('QueryID','')
         log.debug('queryID: %s' % str(queryID))
-        
+
         ids = queryID.split(':')
         log.debug('ids: %s' % ids)
-        
+
         term = kwargs.get('term', None)
         log.debug("term: %s" % term)
 
@@ -5511,7 +5511,7 @@ class MediaServer(object):
 
         # ID is always passed prepended with root name
         rootname, indexkeys = self.get_index_parts(ids)
-        
+
         log.debug('rootname: %s' % rootname)
         log.debug('indexkeys: %s' % indexkeys)
 
@@ -5539,7 +5539,7 @@ class MediaServer(object):
 
         if not albumartist and not album and not track:
             return items, -2, -2, 'container'
-            
+
         log.debug('albumartist=%s, album=%s, track=%s' % (albumartist, album, track))
         albumartistwhere = '' if not albumartist else "albumartist like '%%%s%%'" % (albumartist)
         albumwhere = '' if not album else "album like '%%%s%%'" % (album)
@@ -5557,7 +5557,7 @@ class MediaServer(object):
         countstatement += " union all "
         countstatement += "select count(*) as total from (select albumartist from tracks where %s group by albumartist) '3'" % where
         countstatement += ")"
-        
+
         statement  = "select * from (select 'track' as recordtype, rowid, id, title, artist, album, genre, tracknumber, albumartist, composer, codec, length, path, filename, folderart, trackart, bitrate, samplerate, bitspersample, channels, mime, folderartid, trackartid from tracks where %s order by %s) '1'" % (where, orderby)
         statement += " union all "
         statement += "select * from (select 'album' as recordtype, rowid, '', '', '', album, '', '', '', '', '', '', '', '', folderart, trackart, '', '', '', '', '', folderartid, trackartid from tracks where %s group by album order by %s) '2'" % (where, orderby)
@@ -5579,7 +5579,7 @@ class MediaServer(object):
         for searchroot, searchfieldparent, searchfield in searchfields:        
             extraskeydata['%s:root' % searchfield] = searchroot
             extraskeydata['%s:parent' % searchfield] = searchfieldparent
-        
+
         if totalMatches > 0:
 
             c.execute(statement, (startingIndex, requestedCount))
@@ -5619,7 +5619,7 @@ class MediaServer(object):
                 tracktype = 'T'
 
                 cover, artid = self.choosecover(folderart, trackart, folderartid, trackartid)
-                
+
                 if recordtype == 'track':
 
                     mime = fixMime(mime)
@@ -5784,7 +5784,7 @@ class MediaServer(object):
 #            else:
 #                itemtype = 'track'
             return items, totalMatches, startingIndex, itemtype
-            
+
 
 
 
@@ -5812,13 +5812,13 @@ class MediaServer(object):
 
             # range is empty        
             return None, None
-            
+
         # check if it is a count of records
         if units == 'records':
-        
+
             return 'count', None
-        
-        
+
+
         # we need to convert that to a where clause
         # and add it to the start of any existing where clause
 
@@ -5891,7 +5891,7 @@ class MediaServer(object):
 
         # rangedetails contains the type and count
         rangeset, rangecount, units = rangedetails
-        
+
         # rangeset can be either 'first' or 'last'
         # rangecount is a number of records to retrieve
         # units will be 'records'
@@ -5900,7 +5900,7 @@ class MediaServer(object):
         # adjust the SQL to limit what we get back
         # we need to limit the initial (full) result, which may be further 
         # limited by the requested count
-        
+
         # for the count, we'll just limit what was returned
         originalMatches = totalMatches
         if totalMatches > rangecount:
@@ -5929,7 +5929,7 @@ class MediaServer(object):
             # we need to add a bounding limit to the inner query
             alphastatement = alphastatement.replace('order by %%s)', 'order by %%s limit %s)' % limitclause)
             log.debug('range adjusted alphastatement: %s' % alphastatement)
-        
+
         return totalMatches, orderstatement, alphastatement
 
     #################    
@@ -5939,7 +5939,7 @@ class MediaServer(object):
     def removepresuf(self, title, sourcetable, controllername):
 
         # not currently used
-        
+
         possibleentries = []
         # strip quotes
         fullentry = title[1:-1]
@@ -5971,19 +5971,19 @@ class MediaServer(object):
             return self.get_entry(entrylist, entrytype, combiner)
         entrylist = entrylist.split(MULTI_SEPARATOR)
         try:
-           inx = entrylist.index(entry)
+            inx = entrylist.index(entry)
         except ValueError:
-            # shouldn't happen, but return first item position just in case
-           inx = 0
+                # shouldn't happen, but return first item position just in case
+            inx = 0
         return inx
 
     def get_entry_at_position(self, position, entrylist):
         entrylist = entrylist.split(MULTI_SEPARATOR)
         try:
-           return entrylist[position]
+            return entrylist[position]
         except IndexError:
-            # shouldn't happen, but return first item just in case
-           return entrylist[0]
+                # shouldn't happen, but return first item just in case
+            return entrylist[0]
 
 
     '''
@@ -6001,7 +6001,7 @@ class MediaServer(object):
 
         return proxyfound and controllerfound
     '''
-    
+
     '''
     def get_proxy_simple_sorts(self):
         simple_sorts = []
@@ -6034,7 +6034,7 @@ class MediaServer(object):
                 simple_sorts.append((index[:-1], simple_keys))
         return simple_sorts
     '''
-    
+
     '''
     def get_proxy_orderby(self, sorttype, controller):
 
@@ -6195,7 +6195,7 @@ class MediaServer(object):
     #####################
     # updateid processors
     #####################
-    
+
     def get_containerupdateid(self):
         # get containerupdateid from db
         if self.proxy.db_persist_connection:
@@ -6268,11 +6268,11 @@ class MediaServer(object):
         self._state_variables['SystemUpdateID'].update(self.systemupdateid)
         log.debug("ContainerUpdateIDs value: %s" % self._state_variables['ContainerUpdateIDs'].get_value())
 
-    
+
     #########
     # helpers
     #########
-    
+
     def fixcriteria(self, criteria):
         criteria = criteria.replace('\\"', '"')
         criteria = criteria.replace('\\\\', '\\')
@@ -6335,7 +6335,7 @@ class MediaServer(object):
         log.debug('get_orderby sorttype: %s' % sorttype)
         log.debug('get_orderby orderby: %s' % orderby)
         albumtypes = self.user_index_key_dict['show_albums']
-        
+
         # static = sort_order, entry_prefix, entry_suffix, albumtypes
         default_static_orderby = (orderby, None, None, albumtypes, '', ('','',''))
 
@@ -6400,7 +6400,7 @@ class MediaServer(object):
         EMPTY = '__EMPTY__'
         outfix = ''
         if fix and fix != '':
-        
+
             fixes, entries, entrystring = self.get_code_snippets(fix)
             log.debug('fixes: %s' % fixes)
             log.debug('entries: %s' % entries)
@@ -6437,7 +6437,7 @@ class MediaServer(object):
                         else:
                             # other tags just pass through
                             if data == '': data = EMPTY
-                        
+
                     if data == EMPTY and ps == 'P' and self.dont_display_separator_for_empty_prefix == False:
                         pass
                     elif data == EMPTY and ps == 'S' and self.dont_display_separator_for_empty_suffix == False:
@@ -6460,7 +6460,7 @@ class MediaServer(object):
         log.debug('snippetlist: %s' % snippetlist)
 #        log.debug(replace)
 #        log.debug(fixdata)
-    
+
         EMPTY = '__EMPTY__'
         outfix = ''
         if snippetlist and snippetlist != []:
@@ -6514,7 +6514,7 @@ class MediaServer(object):
         return outfix
 
     def get_code_snippets(self, fix):
-    
+
         # entries are separated by comma
         # code snippets are surrounded by braces
         # create list of entry/code tuples, list of entries and string of entries
@@ -6794,10 +6794,10 @@ class MediaServer(object):
         return delim2, delim
 
     def debugout(self, label, data):
-    
+
         # note that when logging with debugout, the callers details will be
         # logger rather than debugout's details (hacked in brisa/log.py)
-    
+
         if isinstance(data, dict):
             dbo = ''
             for k,v in data.iteritems():
@@ -6900,4 +6900,3 @@ escape_entities = {'"' : '&quot;', "'" : '&apos;', " " : '%20'}
 escape_entities_quotepos = {'"' : '&quot;', "'" : '&apos;'}
 unescape_entities = {'&quot;' : '"', '&apos;' : "'", '%20' : " ", '&amp;' : "&"}
 unescape_entities_quotepos = {'&quot;' : '"', '&apos;' : "'"}
-

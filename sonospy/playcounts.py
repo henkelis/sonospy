@@ -3,7 +3,7 @@
 #
 # pycpoint
 #
-# pycpoint and sonospy copyright (c) 2009-2010 Mark Henkelis
+# pycpoint and sonospy copyright (c) 2009-2014 Mark Henkelis
 # BRisa copyright (c) Brisa Team <brisa-develop@garage.maemo.org> (BRisa is licenced under the MIT License)
 # circuits.web copyright (c) 2004-2010 James Mills (Circuits is covered by the MIT license)
 # cherrypy copyright (c) 2002-2008, CherryPy Team (team@cherrypy.org) (cherrypy is covered by the BSD license)
@@ -335,9 +335,9 @@ class ControlPointScrob(object):
         device_list = []
         if device_object.devices:
             root_device = device_object
-            root_device.devices = []
+#            root_device.devices = []
             device_list.append(root_device)
-            device_list.extend(device_object.devices)
+            device_list.extend(device_object.devices.values())
         else:
             device_list.append(device_object)
 
@@ -351,10 +351,14 @@ class ControlPointScrob(object):
             newmediarenderer = False
             t = device_item.device_type
             if 'ZonePlayer' in t:
-                self.on_new_zone_player(device_item)
-                # now register zoneplayer as server and renderer
-#                newmediaserver = self.on_new_media_server(device_item)
-                newmediarenderer = self.on_new_media_renderer(device_item)
+                # only process for Zoneplayers, not Dock etc
+                # - assume player if it has embedded devices
+                if device_object.devices:
+                    self.on_new_zone_player(device_item)
+                    newmediarenderer = self.on_new_media_renderer(device_item)
+                else:
+                    pass
+                
             log.debug('new device fn: %s' % str(device_item.friendly_name))                                    
 
     def on_new_zone_player(self, device_object):
