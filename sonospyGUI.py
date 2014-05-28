@@ -44,9 +44,11 @@ import guiFunctions
 # import scheduleTab
 # import nowPlayingTab
 
+
+
 def OnTaskBarRight(event):
     app.ExitMainLoop()
-             
+    
 # set our working directory for the rest of the functions to work right.
 os.chdir(cmd_folder)
 ################################################################################
@@ -158,6 +160,10 @@ class SonospyFrame(wx.Frame):
 
     def OnPref(self, event):
         frame = PreferencesFrame()
+        print frame.IsShown()
+        if frame.IsShown():
+            print "already shown"
+        else:
         #frame.name = "SingleApp-%s" % wx.GetUserId()
 
         #self.instance = wx.SingleInstanceChecker(frame.name)
@@ -165,7 +171,7 @@ class SonospyFrame(wx.Frame):
         #if self.instance.IsAnotherRunning() == True:
             #frame.Raise()
         #else:        
-        frame.Show(True)
+            frame.Show(True)
 
     def OnClose(self, event):
         # tell the window to kill itself and kill the running sonospy process
@@ -273,6 +279,8 @@ class SonospyFrame(wx.Frame):
             pub.sendMessage(('CreateMenu'), "Exit Sonospy") # As a backup if we never launch the service, give us a way out via Exit.
         
 ################################################################################
+
+
 class PreferencesFrame(wx.Frame):
     """"""
 
@@ -282,14 +290,12 @@ class PreferencesFrame(wx.Frame):
         
         wx.Frame.__init__(self, None, title="Sonospy Options", size=(520, 390))
             
-    # Setting the background color is a total hack.
-        self.SetBackgroundColour((250, 250, 250, 255))
         prefPanel = wx.Panel(self)
-        prefPanel = self
+        prefPanel.SetSize((600,600))
  
     # SET THE SIZER OBJECT UP
-        prefSizer = wx.GridBagSizer(13, 9)
- 
+        prefSizer = wx.GridBagSizer(9, 5)
+        
     # SET BASELINE INDEX VARIABLES
         xIndex = 0
  
@@ -313,7 +319,7 @@ class PreferencesFrame(wx.Frame):
         self.label_DBPath = wx.StaticText(prefPanel, label="Default Database Path:")
         help_DBPath= "Enter this as: *.<extension>"
         self.tc_DBPath.SetToolTip(wx.ToolTip(help_DBPath))
-        self.bt_DBPath = wx.Button(self, label="Browse")
+        self.bt_DBPath = wx.Button(prefPanel, label="Browse")
         self.bt_DBPath.Bind(wx.EVT_BUTTON, self.browseDB, self.bt_DBPath)
         self.tc_DBPath.Value = guiFunctions.configMe("general", "default_database_path")           
         
@@ -328,7 +334,7 @@ class PreferencesFrame(wx.Frame):
         self.label_MusicPath = wx.StaticText(prefPanel, label="Default Music Path:")
         help_MusicPath= "Enter location where music is stored."
         self.tc_MusicPath.SetToolTip(wx.ToolTip(help_MusicPath))
-        self.bt_MusicPath = wx.Button(self, label="Browse")
+        self.bt_MusicPath = wx.Button(prefPanel, label="Browse")
         self.bt_MusicPath.Bind(wx.EVT_BUTTON, self.browseMusicPath, self.bt_MusicPath)
         self.tc_MusicPath.Value = guiFunctions.configMe("general", "default_music_path")
         
@@ -343,7 +349,7 @@ class PreferencesFrame(wx.Frame):
         self.label_VirtPath = wx.StaticText(prefPanel, label="Default Virtuals Path:")
         help_VirtPath= "Enter location where virtual playlists are stored."
         self.tc_VirtPath.SetToolTip(wx.ToolTip(help_VirtPath))
-        self.bt_VirtPath = wx.Button(self, label="Browse")
+        self.bt_VirtPath = wx.Button(prefPanel, label="Browse")
         self.bt_VirtPath.Bind(wx.EVT_BUTTON, self.browseVirtPath, self.bt_VirtPath)
         self.tc_VirtPath.Value = guiFunctions.configMe("general", "default_sp_path")
         
@@ -367,7 +373,7 @@ class PreferencesFrame(wx.Frame):
  
     # SUPPRESS WARNINGS CHECKBOX
         self.label_SuppressWarnings = wx.StaticText(prefPanel, label="Suppress Warnings?:")
-        self.ck_SuppressWarnings = wx.CheckBox(self, -1, "")
+        self.ck_SuppressWarnings = wx.CheckBox(prefPanel, -1, "")
         self.ck_SuppressWarnings.SetToolTip(wx.ToolTip("Set to TRUE if you want to ignore the SMAPI warning."))    
         self.ck_SuppressWarnings.Value = guiFunctions.configMe("general", "supresswarnings", bool=True)
  
@@ -384,15 +390,19 @@ class PreferencesFrame(wx.Frame):
         
         prefSizer.Add(self.bt_SaveDefaults, pos=(xIndex,0), flag=wx.ALL|wx.ALIGN_CENTER_VERTICAL, border=10)
         
+        xIndex += 1
+
         prefPanel.SetSizer(prefSizer)
-        #prefSizer.Fit(panel)
-        
+                
         self.CreateStatusBar(style=0)
         self.SetStatusText("")        
  
-        prefPanel.Refresh()
-        prefPanel.Update()
+        #prefPanel.Refresh()
+        #prefPanel.Update()
         prefPanel.Layout()
+        
+    def add_panel_to_layout(self):
+            pass        
     
     def OnClosePref(self, event):
         self.Destroy()
