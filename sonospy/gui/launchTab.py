@@ -61,9 +61,7 @@ class LaunchPanel(wx.Panel):
         self.initialize()
 
     def initialize(self):
-
-        global sizer
-        
+       
         panel = self
         
         # SET THE SIZER OBJECT UP
