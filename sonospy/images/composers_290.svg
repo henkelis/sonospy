@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Generator: Adobe Illustrator 17.1.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<!DOCTYPE svg
+  PUBLIC '-//W3C//DTD SVG 1.1//EN'
+  'http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd' [
+	<!ENTITY ns_extend "http://ns.adobe.com/Extensibility/1.0/">
+	<!ENTITY ns_ai "http://ns.adobe.com/AdobeIllustrator/10.0/">
+	<!ENTITY ns_graphs "http://ns.adobe.com/Graphs/1.0/">
+	<!ENTITY ns_vars "http://ns.adobe.com/Variables/1.0/">
+	<!ENTITY ns_imrep "http://ns.adobe.com/ImageReplacement/1.0/">
+	<!ENTITY ns_sfw "http://ns.adobe.com/SaveForWeb/1.0/">
+	<!ENTITY ns_custom "http://ns.adobe.com/GenericCustomNamespace/1.0/">
+	<!ENTITY ns_adobe_xpath "http://ns.adobe.com/XPath/1.0/">
+]>
+
+<svg id="Layer_1" xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 290 290" xml:space="preserve" viewBox="0 0 290 290" version="1.1" y="0px" x="0px" xmlns:xlink="http://www.w3.org/1999/xlink">
+<switch>
+	<foreignObject y="0" x="0" height="1" width="1" requiredExtensions="http://ns.adobe.com/AdobeIllustrator/10.0/">
+	</foreignObject>
+	<g>
+		<rect x="0" height="290" width="290" fill="#ABAFB0"/>
+			<polygon points="97 72.5 119.9 72.5 119.9 72 73.1 72 73.1 216.5 119.9 216.5 119.9 144.5 97 144.5" fill="#fff"/>
+			<polygon points="147 72.5 169.9 72.5 169.9 72 123.1 72 123.1 72.5 143.8 72.5 143.8 144.5 123.1 144.5 123.1 216.5 169.9 216.5 169.9 144.5 147 144.5" fill="#fff"/>
+			<polygon points="173.1 72 173.1 72.5 193.8 72.5 193.8 144.5 173.1 144.5 173.1 216.5 219.9 216.5 219.9 72" fill="#fff"/>
+			<polygon points="143.8 72.5 123.1 72.5 119.9 72.5 97 72.5 97 144.5 119.9 144.5 123.1 144.5 143.8 144.5" fill="#ABAFB0"/>
+			<polygon points="193.8 72.5 173.1 72.5 169.9 72.5 147 72.5 147 144.5 169.9 144.5 173.1 144.5 193.8 144.5" fill="#ABAFB0"/>
+	</g>
+</switch>
+</svg>

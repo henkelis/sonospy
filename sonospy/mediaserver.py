@@ -737,6 +737,8 @@ class MediaServer(object):
         pm_xml += '<Match>\n'
         pm_xml += '<browseIconSizeMap>\n'
         pm_xml += '<sizeEntry size="0" substitution="_legacy.png"/>\n'
+        pm_xml += '<sizeEntry size="40" substitution="_40.svg"/>\n'
+        pm_xml += '<sizeEntry size="290" substitution="_290.svg"/>\n'
         pm_xml += '</browseIconSizeMap>\n'
         pm_xml += '</Match>\n'
         pm_xml += '</PresentationMap>\n'
