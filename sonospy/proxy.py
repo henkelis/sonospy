@@ -461,7 +461,7 @@ class Smapi(Service):
         # check whether user indexes are enabled
         self.load_user_index_flag()
 
-        if not self.user_indexes:
+        if not self.user_indexes or self.ininame == 'defaultindex.ini':
 
             # create MediaServer with default hierarchical ID
             self.mediaServer = MediaServer(self.proxy, self.dbspec, 'SMAPI', 'HIERARCHY_DEFAULT', self.proxyaddress, self.webserverurl, self.wmpurl, self.ininame)
@@ -497,8 +497,8 @@ class Smapi(Service):
     def soap_getSessionId(self, *args, **kwargs):
         # shouldn't be used, set to anonymous
         log.debug("SMAPI_GETSESSIONID: %s", kwargs)
-        sessionid = 'sessionid'
-        res  = '<ns0:sessionId>%s</ns0:sessionId>' % (sessionid)
+        sessionid = 'Sonospy'
+        res  = '%s' % (sessionid)
         result = {'{http://www.sonos.com/Services/1.1}getSessionIdResult': '%s' % (res)}
         log.debug("GETSESSIONID ret: %s", result)
         return result
@@ -883,31 +883,42 @@ What do we do if a result is not in alpha order? - spec says it has to be
         ret = ''
         count = 0
 
+        if total <= 0:
+            noplayorenumerate = True
+        else:
+            noplayorenumerate = False
         if total == 0:
             # empty index
             items = [('NIF', self.mediaServer.noitemsfound)]
-            canenumerate = False
-            canplay = False
             total = 1
 
         elif total == -1:
             # incomplete keyword search
             items = [('EK', self.mediaServer.enterkeywords)]
-            canenumerate = False
-            canplay = False
             total = 1
 
         elif total == -2:
             # invalid keyword search
             items = [('IK', self.mediaServer.novalidkeywords)]
-            canenumerate = False
-            canplay = False
             total = 1
+
+        elif total == -3:
+            # search requested but not supported
+            items = []
+            total = 0
+
+        log.debug(items)
+        log.debug(noplayorenumerate)
 
         prevsearchtype = ''
         for item in items:
-            canenumerate = True
-            canplay = True
+            if noplayorenumerate:
+                canenumerate = False
+                canplay = False
+                canscroll = False
+            else:
+                canenumerate = True
+                canplay = True
             if type(item[0]) is tuple:
                 # item passed with flags
                 id, canenumerate, canplay = item[0]

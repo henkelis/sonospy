@@ -689,11 +689,6 @@ class MediaServer(object):
 
 
 
-        # TEMP
-        self.index_ids['R0'] = [0]
-        self.hierarchies['R0'] = [u'usersearch']
-        self.debugout('index_ids', self.index_ids)
-        self.debugout('hierarchies', self.hierarchies)
 
 
 
@@ -716,6 +711,7 @@ class MediaServer(object):
                 self.searchitems += [(searchitemid, searchname)]
                 self.pmitems += [(searchtype, '', searchitemid, searchname)]
 
+        log.debug('@@@@@@@@@@@ %s' %index_type)
         if index_type == 'DEFAULT':
             # create search entries for all root entries
             for (rootid, rootname) in self.displayrootitems:
@@ -726,6 +722,14 @@ class MediaServer(object):
                     searchitemid = '%s:%09i' % (rootid, firstindexstart)
                     self.searchitems += [(searchitemid, rootname)]
                     self.pmitems += [('root', firstindex, searchitemid, rootname)]
+
+        # TEMP
+        if self.searchitems:
+            self.index_ids['R0'] = [0]
+            self.hierarchies['R0'] = [u'usersearch']
+        self.debugout('index_ids', self.index_ids)
+        self.debugout('hierarchies', self.hierarchies)
+
 
         self.debugout('searchitems', self.searchitems)
         self.debugout('pmitems', self.pmitems)
@@ -743,19 +747,21 @@ class MediaServer(object):
         pm_xml += '</Match>\n'
         pm_xml += '</PresentationMap>\n'
 
-        pm_xml += '<PresentationMap type="Search">\n'
-        pm_xml += '<Match>\n'
-        pm_xml += '<SearchCategories>\n'
+        if self.pmitems:
+            pm_xml += '<PresentationMap type="Search">\n'
+            pm_xml += '<Match>\n'
+            pm_xml += '<SearchCategories>\n'
+    
+            for (searchtype, indexentrytable, searchitemid, searchname) in self.pmitems:
+                if searchtype == 'root' and indexentrytable in self.SMAPI_CanonicalSearchIds.keys():
+                    pm_xml += '<Category id="%s" mappedId="%s" />\n' % (self.SMAPI_CanonicalSearchIds[indexentrytable], searchitemid)
+                else:
+                    pm_xml += '<CustomCategory mappedId="%s" stringId="%s" />\n' % (searchitemid, searchname)
+    
+            pm_xml += '</SearchCategories>\n'
+            pm_xml += '</Match>\n'
+            pm_xml += '</PresentationMap>\n'
 
-        for (searchtype, indexentrytable, searchitemid, searchname) in self.pmitems:
-            if searchtype == 'root' and indexentrytable in self.SMAPI_CanonicalSearchIds.keys():
-                pm_xml += '<Category id="%s" mappedId="%s" />\n' % (self.SMAPI_CanonicalSearchIds[indexentrytable], searchitemid)
-            else:
-                pm_xml += '<CustomCategory mappedId="%s" stringId="%s" />\n' % (searchitemid, searchname)
-
-        pm_xml += '</SearchCategories>\n'
-        pm_xml += '</Match>\n'
-        pm_xml += '</PresentationMap>\n'
         pm_xml += '</Presentation>\n'
 
         pm_xml_path = os.path.join(os.getcwd(), self.proxy.presentation_map_file)
@@ -1403,6 +1409,9 @@ class MediaServer(object):
                     updateditems += [item]
                 else:
                     itemkey = item[0]
+                    # check for search item
+                    if itemkey.startswith('S'):
+                        itemkey = itemkey[1:]
                     itemkeyparts = itemkey.split(':')
                     # convert itemkey to icon lookup
                     icon_lookup2 = None
@@ -1418,8 +1427,6 @@ class MediaServer(object):
                         else:
                             icon_lookup = '%s_%s' % (itemkeyparts[0], current_index)
                         # check for path index alternative icon
-                        log.debug(itemkeyparts[-1])
-                        log.debug(self.dynamic_lookup)
                         if int(itemkeyparts[-1]) in self.dynamic_lookup.keys():
                             icon_lookup2 = '%s_%s' % (icon_lookup, self.dynamic_lookup[int(itemkeyparts[-1])])
                             log.debug(icon_lookup2)
@@ -1481,6 +1488,8 @@ class MediaServer(object):
         elif queryID == 'search':
             # TODO: process count/index (i.e. take note of how many entries are requested)
             items = self.searchitems
+            if not items:
+                items = []
             '''            
         elif len(queryID) == 32 and not ':' in queryID:
             # track id is 32 hex chars
@@ -1511,7 +1520,12 @@ class MediaServer(object):
 
             if self.source == 'SMAPI':
 
-                total = len(items)
+                if queryID == 'search' and not self.searchitems:
+                    # special case where controller has asked for search items but there aren't any (caused by customsd stating search supported)
+                    # - we want to return an empty list and not NIF
+                    total = -3
+                else:
+                    total = len(items)
 
                 return items, total, index, 'container'
 
