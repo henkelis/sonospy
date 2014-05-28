@@ -151,25 +151,30 @@ class SonospyFrame(wx.Frame):
         self.SetPosition((posx, posy))
         if maximize == True:
             self.Maximize()
-        
+
+        # Check if we still have a valid windowsPID.pid file, since
+        # that would mean (in theory) that the service is still
+        # running.
+        if os.name == 'nt':
+            os.chdir(cmd_folder)
+            os.chdir(os.pardir)
+            os.chdir(os.pardir)            
+            import codecs
+            if os.path.isfile('windowsPID.pid') == True:    
+                pub.sendMessage(('alreadyRunning'), "alreadyRunning")
+                                
     def change_statusbar(self, msg):
         self.SetStatusText(msg.data)
 
     def OnAbout(self, event):
-        global AboutShown
         frame = AboutFrame()
-        if AboutShown == False:
-            frame.Show(True)
-            AboutShown = True
+        frame.MakeModal(True)
+        frame.Show(True)
         
     def OnPref(self, event):
-        # Hacking this in for now.
-        
-        global PrefShown
         frame = PreferencesFrame()
-        if PrefShown == False:
-            frame.Show(True)
-            PrefShown = True
+        frame.MakeModal(True)
+        frame.Show(True)
 
     def OnClose(self, event):
         # tell the window to kill itself and kill the running sonospy process
@@ -403,10 +408,8 @@ class PreferencesFrame(wx.Frame):
             pass        
     
     def OnClosePref(self, event):
+        self.MakeModal(False)
         self.Destroy()
-        global PrefShown
-        PrefShown = False
-        
     
     def browseDB(self, event):
         # Set directory to where launchTab.py lives for reference.
@@ -535,10 +538,9 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         aboutPanel.SetSizer(aboutSizer)
 
     def OnCloseAbout(self, event):
+        self.MakeModal(False)
         self.Destroy() 
-        global AboutShown
-        AboutShown = False
-        
+       
 
 if __name__ == "__main__":
     app = wx.App()
