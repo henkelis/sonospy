@@ -878,6 +878,7 @@ Music/Rating                101     object.container
         query = param.split('=')
         entry = query[1]
         udn = self.devicedatakeys[entry]
+        log.debug(self.known_media_servers)
         device = self.known_media_servers[udn]
         del self.rootdata[:]
         self.rootdatakeys.clear()
@@ -1709,9 +1710,18 @@ Music/Rating                101     object.container
 
     def subscribe_to_device(self, service):
         try:
+            if not service:
+                import traceback
+                tb = traceback.format_exc()
+                log.debug(tb)
+                
             service.event_subscribe(self.control_point.event_host, self._event_subscribe_callback, None, True, self._event_renewal_callback)
             self.subscriptions.append(service)
         except:
+
+            e = sys.exc_info()[0]
+            log.debug(e)
+            
             raise Exception("Error occured during subscribe to device")
 
     def subscribe_for_variable(self, device, service, variable):
@@ -1753,6 +1763,7 @@ Music/Rating                101     object.container
             proxy.stop()
 
     def get_zone_details(self, device):
+        log.debug(self.control_point)
         return self.control_point.get_zone_attributes(device)
 
     def radiotime_getlastupdate(self):
@@ -2638,12 +2649,14 @@ Music/Rating                101     object.container
         This special case browse is only called on selecting a media server for the first time
         '''
     
-        log.debug("#### browse_media_server_root: %s", id)
+        log.debug("#### browse_media_server_root: %s", self.control_point.get_current_server().friendly_name)
 
         server_search, server_root, server_search_string, server_search_title, server_search_type, server_search_id = searchvars
         
         id_param = 0
         mscount = 200
+
+        log.debug(self.known_media_servers)
 
         search_caps = self.control_point.get_search_capabilities()
         # {'SearchCaps': 'dc:title,dc:creator,upnp:artist,upnp:genre,upnp:album,dc:date,upnp:originalTrackNumber,upnp:class,@id,@refID,@protocolInfo'}
@@ -5485,77 +5498,75 @@ Music/Rating                101     object.container
 #        log.debug('new device services: %s' % str(device_object.services))
 
         # TODO: need to check whether we need to cater for multiple child levels
-        device_list = []
-        if device_object.devices:
-            log.debug('devices: %s' % str(device_object.devices))
-            root_device = device_object
-            device_list.append(root_device)
-            device_list.extend(device_object.devices.values())
-        else:
-            device_list.append(device_object)
+#        device_list = []
+#        if device_object.devices:
+#            log.debug('devices: %s' % str(device_object.devices))
+#            root_device = device_object
+#            device_list.append(root_device)
+#            device_list.extend(device_object.devices.values())
+#        else:
+#            device_list.append(device_object)
 
-        log.debug('device_list: %s' % [(d.udn, d.device_type) for d in device_list])
-        for device_item in device_list:
+ #       for device_item in device_list:
 
-            log.debug('new device: %s' % str(device_item))
-            log.debug('new device type: %s' % str(device_item.device_type))
-            log.debug('new device udn: %s' % str(device_item.udn))                                    
-            log.debug('new device services: %s' % str(device_item.services))
-            
-            # assumes root device is processed first so that zone name is known
-            newmediaserver = False
-            newmediarenderer = False
-            t = device_item.device_type
-            if 'ZonePlayer' in t:
-                # only process for Zoneplayers, not Dock etc
-                # - assume player if it has embedded devices
-                if device_object.devices:
-                    self.on_new_zone_player(device_item)
-                else:
-                    pass
-#                newmediaserver = self.on_new_media_server(device_item)
-#                newmediarenderer = self.on_new_media_renderer(device_item)
-            elif 'MediaServer' in t:
-                newmediaserver = self.on_new_media_server(device_item)
-            elif 'MediaRenderer' in t:
-                newmediarenderer = self.on_new_media_renderer(device_item)
+        log.debug('new device: %s' % str(device_object))
+        log.debug('new device type: %s' % str(device_object.device_type))
+        log.debug('new device udn: %s' % str(device_object.udn))                                    
+        log.debug('new device services: %s' % str(device_object.services))
 
-            # remove any colons as we use that as a delimiter in the GUI
-            device_item.friendly_name = device_item.friendly_name.replace(':','')
-            
-            log.debug('new device fn: %s' % str(device_item.friendly_name))                                    
+        # assumes root device is processed first so that zone name is known
+        newmediaserver = False
+        newmediarenderer = False
+        t = device_object.device_type
+        if 'ZonePlayer' in t:
+            # only process for Zoneplayers, not Dock etc
+            # - assume player if it has embedded devices
+            if device_object.devices:
+                log.debug('device_list: %s' % [(d.udn, d.device_type) for d in device_object.devices.values()])
+                self.on_new_zone_player(device_object)
+                newmediaserver = self.on_new_media_server(device_object)
+                newmediarenderer = self.on_new_media_renderer(device_object)
+            else:
+                pass
+        elif 'MediaServer' in t:
+            newmediaserver = self.on_new_media_server(device_item)
+        elif 'MediaRenderer' in t:
+            newmediarenderer = self.on_new_media_renderer(device_item)
+    
+        # remove any colons as we use that as a delimiter in the GUI
+        device_object.friendly_name = device_object.friendly_name.replace(':','')
+        log.debug('new device fn: %s' % str(device_object.friendly_name))                                    
 
-            if newmediaserver == True and not device_item.friendly_name.startswith('Proxy'):
-                if not self.wmpfound:
-                    for wmpstring in self.wmpproxy:
-                        wmpsplit = wmpstring.split('=')
-                        if len(wmpsplit) == 1:
-                            wmp = wmpsplit[0]
-                            wmptrans = ''
+        if newmediaserver == True and not device_object.friendly_name.startswith('Proxy'):
+            if not self.wmpfound:
+                for wmpstring in self.wmpproxy:
+                    wmpsplit = wmpstring.split('=')
+                    if len(wmpsplit) == 1:
+                        wmp = wmpsplit[0]
+                        wmptrans = ''
+                    else:
+                        wmp = wmpsplit[0]
+                        wmptrans = wmpsplit[1]
+
+                    processwmp = False
+                    if re.search(wmp, device_object.friendly_name) != None:
+                        friendly = re.sub(r'[^a-zA-Z0-9_\- ]','', device_object.friendly_name)
+                        name = 'Proxy WMP ' + friendly
+                        proxyuuid = 'uuid:' + str(uuid.uuid4())
+                        try:
+                            proxy = Proxy(name, 'WMP', wmptrans, proxyuuid, self.config, self.wmp_proxy_port,
+                                          mediaserver=device_object, controlpoint=self.control_point, createwebserver=True)
+                        except ValueError, e:
+                            print "Proxy. Name: %s error - %s" % (name, e.args[0])
                         else:
-                            wmp = wmpsplit[0]
-                            wmptrans = wmpsplit[1]
+                            proxy.start()
+                            self.proxies.append(proxy)
+                            self.wmpfound = True
 
-                        processwmp = False
-                        if re.search(wmp, device_item.friendly_name) != None:
-                            friendly = re.sub(r'[^a-zA-Z0-9_\- ]','', device_item.friendly_name)
-                            name = 'Proxy WMP ' + friendly
-                            proxyuuid = 'uuid:' + str(uuid.uuid4())
-                            try:
-                                proxy = Proxy(name, 'WMP', wmptrans, proxyuuid, self.config, self.wmp_proxy_port,
-                                              mediaserver=device_item, controlpoint=self.control_point, createwebserver=True)
-                            except ValueError, e:
-                                print "Proxy. Name: %s error - %s" % (name, e.args[0])
-                            else:
-                                proxy.start()
-                                self.proxies.append(proxy)
-                                self.wmpfound = True
-
-                                # save udn of original server against proxied name
-                                self.rootids[name] = device_item.udn
+                            # save udn of original server against proxied name
+                            self.rootids[name] = device_object.udn
                         
     def on_new_zone_player(self, device_object):
-
         self.known_zone_players[device_object.udn] = device_object
 #        self.control_point.set_current_zoneplayer(device_object)
         self.zoneattributes[device_object.udn] = self.get_zone_details(device_object)
@@ -5585,7 +5596,8 @@ Music/Rating                101     object.container
         if device_object.udn in self.known_media_renderers.keys():
             return False
         # find platform of root device
-        renderer_server = self.get_server_platform(self.control_point._ssdp_server.known_device[device_object.udn[:-3] + '::upnp:rootdevice']['SERVER'])
+#        renderer_server = self.get_server_platform(self.control_point._ssdp_server.known_device[device_object.udn[:-3] + '::upnp:rootdevice']['SERVER'])
+        renderer_server = self.get_server_platform(self.control_point._ssdp_server.known_device[device_object.udn + '::upnp:rootdevice']['SERVER'])
         self.known_media_renderers[device_object.udn] = device_object
         self.known_media_renderers_extras[device_object.udn] = {'PLATFORM' : renderer_server}
         device_name = self.make_device_name(device_object)
