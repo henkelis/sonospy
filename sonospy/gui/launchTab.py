@@ -794,16 +794,10 @@ class LaunchPanel(wx.Panel):
         guiFunctions.statusText(self, "Defaults saved...")
 
     ########################################################################################################################
-    # bt_AutoPopulateClick: Called as an event to simply run the function below
+    # bt_AutoPopulateClick: Scours the sonospy/ director for valid database files (as specified in the GUIpref.ini).  
+    #                       Then populates the various fields with databases.
     ########################################################################################################################
     def bt_AutoPopulateClick(self, event):
-        self.populateMe()
-        
-    ########################################################################################################################
-    # populateMe: Scours the sonospy/ director for valid database files (as specified in the GUIpref.ini).  Then populates
-    #             the various fields with databases.
-    ########################################################################################################################
-    def populateMe(self):
         filters = guiFunctions.configMe("general", "database_extensions").split()
 
         # Set working directory to where launchTab.py lives
@@ -938,13 +932,15 @@ class LaunchPanel(wx.Panel):
                 sonospyKill = True
             else:
                 import codecs
-                with codecs.open('windowsPID.pid', encoding='utf-16') as f:
-                    f.readline()
-                    windowsPid = f.readline()
-                    windowsPid = windowsPid.splitlines()
-                    launchME = "TASKKILL /F /PID " + windowsPid[0] + " > nul"
-                    sonospyKill = True
-                    self.tc_Scratchpad.Value = "Sonospy currently running with Windows Process ID: " + windowsPid[0] + "\n\nPress STOP below when finished."
+                print os.getcwd()
+                if os.path.isfile('windowsPID.pid') == True: 
+                    with codecs.open('windowsPID.pid', encoding='utf-16') as f:
+                        f.readline()
+                        windowsPid = f.readline()
+                        windowsPid = windowsPid.splitlines()
+                        launchME = "TASKKILL /F /PID " + windowsPid[0] + " > nul"
+                        sonospyKill = True
+                        self.tc_Scratchpad.Value = "Sonospy currently running with Windows Process ID: " + windowsPid[0] + "\n\nPress STOP below when finished."
         else:
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:
