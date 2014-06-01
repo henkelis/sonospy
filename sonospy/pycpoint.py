@@ -5477,7 +5477,7 @@ Music/Rating                101     object.container
 #        log.debug('loc: %s' % str(device_object.location))
 #        log.debug('add: %s' % str(device_object.address))
 #        log.debug('udn: %s' % str(device_object.udn))
-        
+
         if device_object.udn in self.known_devices.keys():
             return False
         self.known_devices[device_object.udn] = device_object
@@ -5529,9 +5529,9 @@ Music/Rating                101     object.container
             else:
                 pass
         elif 'MediaServer' in t:
-            newmediaserver = self.on_new_media_server(device_item)
+            newmediaserver = self.on_new_media_server(device_object)
         elif 'MediaRenderer' in t:
-            newmediarenderer = self.on_new_media_renderer(device_item)
+            newmediarenderer = self.on_new_media_renderer(device_object)
     
         # remove any colons as we use that as a delimiter in the GUI
         device_object.friendly_name = device_object.friendly_name.replace(':','')
