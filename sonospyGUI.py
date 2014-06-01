@@ -160,7 +160,16 @@ class SonospyFrame(wx.Frame):
             os.chdir(os.pardir)
             os.chdir(os.pardir)            
             import codecs
-            if os.path.isfile('windowsPID.pid') == True:    
+            if os.path.isfile('windowsPID.pid') == True: 
+                with codecs.open('windowsPID.pid', encoding='utf-16') as f:
+                    windowsPid = []
+                    f.readline()
+                    windowsPid = f.readline()
+                    windowsPid = windowsPid.splitlines()
+                    if windowsPid == []:
+                        # The file is corrupt or empty.
+                        f.close()
+                        os.remove('windowsPID.pid')              
                 pub.sendMessage(('alreadyRunning'), "alreadyRunning")
                                 
     def change_statusbar(self, msg):
