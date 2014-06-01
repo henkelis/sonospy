@@ -932,7 +932,7 @@ class LaunchPanel(wx.Panel):
                 sonospyKill = True
             else:
                 import codecs
-                print os.getcwd()
+
                 if os.path.isfile('windowsPID.pid') == True: 
                     with codecs.open('windowsPID.pid', encoding='utf-16') as f:
                         f.readline()

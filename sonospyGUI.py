@@ -170,8 +170,9 @@ class SonospyFrame(wx.Frame):
                         # The file is corrupt or empty.
                         f.close()
                         os.remove('windowsPID.pid')              
-                pub.sendMessage(('alreadyRunning'), "alreadyRunning")
-                                
+                    else:
+                        pub.sendMessage(('alreadyRunning'), "alreadyRunning")
+                                        
     def change_statusbar(self, msg):
         self.SetStatusText(msg.data)
 
