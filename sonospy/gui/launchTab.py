@@ -586,9 +586,6 @@ class LaunchPanel(wx.Panel):
         pub.subscribe(self.startStopSonospy, 'startStopSonospy')
         pub.subscribe(self.alreadyRunning, 'alreadyRunning')
 
-        panel.Refresh()
-        panel.Update()
-
         sizer.AddGrowableCol(2)
         panel.SetSizer(sizer)
 
@@ -608,39 +605,21 @@ class LaunchPanel(wx.Panel):
     # browseDB: Used to open a sonospy database file (.sdb, .db)
     ########################################################################################################################
     def browseDB(self, event):
+        dbPath = guiFunctions.configMe("general", "default_database_path")
+        extensions = guiFunctions.configMe("general", "database_extensions") 
         
-        filters = guiFunctions.configMe("general", "database_extensions")
-        wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-        dbFolder = guiFunctions.configMe("general", "default_database_path")
-        
-        # Set directory to where launchTab.py lives for reference.
-        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        selected = guiFunctions.fileBrowse("Select database...", dbPath, "Sonospy Database (" + extensions + ")|" + \
+                                extensions.replace(" ", ";") + "|All files (*.*)|*.*")
 
-        if dbFolder == "":
-            os.chdir(cmd_folder)
-            os.chdir(os.pardir)
-            dbFolder = os.getcwd()
-        else:
-            dbFolder = guiFunctions.configMe("general", "default_database_path")
-        
-        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
-        
-        # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wx.ID_OK:
-            selected = dialog.GetFilenames()
-            for selection in selected:
-                basename, extension = os.path.splitext(selection)
-                event.GetEventObject().tc.Value = basename
-                event.GetEventObject().ck.Label = selection
-                event.GetEventObject().ck.Enable()
-                event.GetEventObject().ck.Value = True
-                guiFunctions.statusText(self, "Database: " + selection + " selected...")
-        dialog.Destroy()
-        self.Update()
+        for selection in selected:
+            basename, extension = os.path.splitext(selection)
+            event.GetEventObject().tc.Value = basename
+            event.GetEventObject().ck.Label = selection
+            event.GetEventObject().ck.Enable()
+            event.GetEventObject().ck.Value = True
+            guiFunctions.statusText(self, "Database: " + selection + " selected...")
 
-        # set back to original working directory
-        os.chdir(cmd_folder)
-        self.buildLaunch()
+        self.buildLaunch()        
     
     ########################################################################################################################
     # OnCheck: Used anytime a checkbox is clicked, to make sure we are updating
@@ -681,6 +660,9 @@ class LaunchPanel(wx.Panel):
     def enableSMAPI(self, event):
         self.buildLaunch()
 
+    ########################################################################################################################
+    # alreadyRunning: Pubsub function to determine from other tabs (based on PID), if we're already running.
+    ########################################################################################################################
     def alreadyRunning(self, msg):
         if msg.data == "alreadyRunning":
             self.bt_Launch.Label = "Stop"

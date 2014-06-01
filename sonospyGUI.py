@@ -300,7 +300,7 @@ class PreferencesFrame(wx.Frame):
     def __init__(self):
         """Constructor"""
         
-        wx.Frame.__init__(self, None, title="Sonospy Options", size=(520, 390))
+        wx.Frame.__init__(self, None, title="Sonospy Options", size=(520, 400))
             
         prefPanel = wx.Panel(self)
         prefPanel.SetSize((600,600))
@@ -370,6 +370,21 @@ class PreferencesFrame(wx.Frame):
         prefSizer.Add(self.bt_VirtPath, pos=(xIndex, 6), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.RIGHT, border=10)
         
         xIndex += 1
+
+    # DEFAULT LOGGING PATH
+        self.tc_logPath = wx.TextCtrl(prefPanel, -1, "", (0,0), (60,21))
+        self.label_logPath = wx.StaticText(prefPanel, label="Default Logging Path:")
+        help_logPath= "Enter location where logs will be saved to."
+        self.tc_logPath.SetToolTip(wx.ToolTip(help_logPath))
+        self.bt_LogPath = wx.Button(prefPanel, label="Browse")
+        self.bt_LogPath.Bind(wx.EVT_BUTTON, self.browseVirtPath, self.bt_LogPath)
+        self.tc_logPath.Value = guiFunctions.configMe("general", "default_log_path")
+        
+        prefSizer.Add(self.label_logPath, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        prefSizer.Add(self.tc_logPath, pos=(xIndex, 1), span=(1,5), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((200,22))
+        prefSizer.Add(self.bt_LogPath, pos=(xIndex, 6), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP|wx.RIGHT, border=10)
+        
+        xIndex += 1        
  
     # WHICH INI FILES TO IGNORE FOR USERINDEX.INI COMBO ON LAUNCHPANEL
         self.tc_ignoreINI = wx.TextCtrl(prefPanel, -1, "", (0,0), (150,21))
@@ -421,73 +436,16 @@ class PreferencesFrame(wx.Frame):
         self.Destroy()
     
     def browseDB(self, event):
-        # Set directory to where launchTab.py lives for reference.
-        cmd_folder = os.path.dirname(os.path.abspath(__file__))
-        dbFolder = guiFunctions.configMe("general", "default_database_path")
-        
-        if self.tc_DBPath.Value != "":
-            dbFolder = self.tc_DBPath.Value
-        elif dbFolder == "":
-            dbFolder = cmd_folder
-        
-        dialog = wx.DirDialog(self, "Choose where your Sonospy Database files are stored...", defaultPath=dbFolder, style=wx.DD_DEFAULT_STYLE)
-
-        if dialog.ShowModal() == wx.ID_OK:
-            path = str(dialog.GetPath())
-            self.tc_DBPath.Value = path
-
-        self.SetStatusText("Default database folder set to: " + self.tc_DBPath.Value)
-        dialog.Destroy()
-        self.Update()
-
-        # set back to original working directory
-        os.chdir(cmd_folder)
+        guiFunctions.dirBrowse(self.tc_DBPath, "Choose where your Virtual Playlists are stored...", guiFunctions.configMe("general", "default_database_path"))
+        self.SetStatusText("Default database folder set to: " + self.tc_DBPath.Value)        
     
     def browseMusicPath(self, event):
-        # Set directory to where launchTab.py lives for reference.
-        cmd_folder = os.path.dirname(os.path.abspath(__file__))
-        musicFolder = guiFunctions.configMe("general", "default_music_path")
-        
-        if self.tc_MusicPath.Value != "":
-            musicFolder = self.tc_MusicPath.Value
-        elif musicFolder == "":
-            musicFolder = cmd_folder
-
-        dialog = wx.DirDialog(self, "Choose where your Music files for scanning are stored...", defaultPath=musicFolder, style=wx.DD_DEFAULT_STYLE)
-
-        if dialog.ShowModal() == wx.ID_OK:
-            path = str(dialog.GetPath())
-            self.tc_MusicPath.Value = path
-
+        guiFunctions.dirBrowse(self.tc_MusicPath, "Choose where your Music files for scanning are stored...", guiFunctions.configMe("general", "default_music_path"))
         self.SetStatusText("Default music folder set to: " + self.tc_MusicPath.Value)
-        dialog.Destroy()
-        self.Update()
-
-        # set back to original working directory
-        os.chdir(cmd_folder)
     
     def browseVirtPath(self, event):
-        # Set directory to where launchTab.py lives for reference.
-        cmd_folder = os.path.dirname(os.path.abspath(__file__))
-        virtFolder = guiFunctions.configMe("general", "default_sp_path")
-        
-        if self.tc_VirtPath.Value != "":
-            virtFolder = self.tc_VirtPath.Value
-        elif virtFolder == "":
-            virtFolder = cmd_folder
-            
-        dialog = wx.DirDialog(self, "Choose where your Virtual Playlists are stored...", defaultPath=virtFolder, style=wx.DD_DEFAULT_STYLE)
-
-        if dialog.ShowModal() == wx.ID_OK:
-            path = str(dialog.GetPath())
-            self.tc_VirtPath.Value = path
-        
-        self.SetStatusText("Default database folder set to: " + self.tc_VirtPath.Value)
-        dialog.Destroy()
-        self.Update()
-
-        # set back to original working directory
-        os.chdir(cmd_folder)
+        guiFunctions.dirBrowse(self.tc_VirtPath, "Choose where your Virtual Playlists are stored...", guiFunctions.configMe("general", "default_sp_path"))
+        self.SetStatusText("Default virtuals folder set to: " + self.tc_VirtPath.Value)
     
     def suppressWarningsClicked(self, event):
         pass

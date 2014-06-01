@@ -142,3 +142,123 @@ def statusText(object, line):
 ########################################################################################################################
 def errorMsg(type, msg):
     wx.MessageBox(msg, type, wx.OK | wx.ICON_INFORMATION)
+
+########################################################################################################################
+# dirBrowse: Default directory browser function.
+########################################################################################################################
+def dirBrowse(control, dialogMsg, defaultPathToLook):
+    # Set directory to where launchTab.py lives for reference.
+    cmd_folder = os.path.dirname(os.path.abspath(__file__))
+
+    if control.Value != "":
+        defaultPathToLook = control.Value
+    elif defaultPathToLook == "":
+        defaultPathToLook = cmd_folder
+
+    dialog = wx.DirDialog(None,dialogMsg, defaultPath=defaultPathToLook, style=wx.DD_DEFAULT_STYLE)
+
+    if dialog.ShowModal() == wx.ID_OK:
+        path = str(dialog.GetPath())
+        control.Value = path
+
+    dialog.Destroy()
+
+    # set back to original working directory
+    os.chdir(cmd_folder)
+
+########################################################################################################################
+# dirBrowseMulti: Use this when we need to repeatedly append to a text control (like on scan tab's music folders)
+########################################################################################################################
+def dirBrowseMulti(control, dialogMsg, defaultPathToLook):
+    cmd_folder = os.path.dirname(os.path.abspath(__file__))    
+
+    dialog = wx.DirDialog(None, "Add a Directory...", defaultPath=defaultPathToLook, style=wx.DD_DEFAULT_STYLE)
+
+    if dialog.ShowModal() == wx.ID_OK:
+        if control.Value == "":
+            control.AppendText("%s" % dialog.GetPath())
+        else:
+            control.AppendText("\n%s" % dialog.GetPath())
+    
+        dialog.Destroy()
+        os.chdir(cmd_folder)        
+        return dialog.GetPath()
+
+    dialog.Destroy()
+    os.chdir(cmd_folder)
+
+########################################################################################################################
+# fileBrowse: Default file browser function.
+########################################################################################################################
+def fileBrowse(dialogMsg, defaultPathToLook, defaultWildcards=False, multiple=False):
+    # Set directory to where launchTab.py lives for reference.
+    cmd_folder = os.path.dirname(os.path.abspath(__file__))
+
+    if defaultPathToLook == "":
+        os.chdir(cmd_folder)
+        os.chdir(os.pardir)
+        defaultPathToLook = os.getcwd()
+    
+    if multiple == True:
+        flagsForStyle = wx.FD_OPEN|wx.FD_MULTIPLE
+    else:
+        flagsForStyle = wx.FD_OPEN
+        
+    dialog = wx.FileDialog (None, message = dialogMsg, defaultDir=defaultPathToLook, wildcard = defaultWildcards, style = flagsForStyle)
+    
+    # Open Dialog Box and get Selection
+    if dialog.ShowModal() == wx.ID_OK:
+        selected = dialog.GetFilenames()
+        os.chdir(cmd_folder)
+        dialog.Destroy()
+        return selected
+            
+    dialog.Destroy()
+
+    # set back to original working directory
+
+########################################################################################################################
+# saveLog: Use this when we need to repeatedly append to a text control (like on scan tab's music folders)
+########################################################################################################################
+def saveLog(control, defaultFileName):
+    cmd_folder = os.path.dirname(os.path.abspath(__file__))
+    
+    dialog = wx.FileDialog(None, message='Enter a file name or choose a file to save...', \
+                           defaultDir = configMe("general", "default_log_path"), \
+                           defaultFile = defaultFileName, wildcard = "Sonospy Logs (*.log)|*.log|All files (*.*)|*.*",\
+                           style=wx.SAVE|wx.OVERWRITE_PROMPT)
+    
+    if dialog.ShowModal() == wx.ID_OK:
+        savefile=dialog.GetFilename()
+        dirname=dialog.GetDirectory()
+        filehandle=open(os.path.join(dirname, savefile),'w')
+        filehandle.write(control.Value)
+        filehandle.close()
+        dialog.Destroy()
+               
+        return savefile
+    
+    dialog.Destroy()
+    os.chdir(cmd_folder)
+
+########################################################################################################################
+# savePlaylist: Use this when we are going to write out .SP files
+########################################################################################################################
+def savePlaylist(dataToSave):
+    cmd_folder = os.path.dirname(os.path.abspath(__file__))
+    dialog = wx.FileDialog(None, message='Choose a file', defaultDir=configMe("general", "default_sp_path"), \
+                           wildcard="Playlist Files (*.sp)|*.sp", style=wx.SAVE|wx.OVERWRITE_PROMPT)
+
+    if dialog.ShowModal() == wx.ID_OK:
+        savefile = dialog.GetFilename()
+        basename, extension = os.path.splitext(savefile)
+        if extension == "":
+            extension = ".sp"
+        savefile = basename + extension
+        savedir = dialog.GetDirectory()
+        saveMe=open(os.path.join(savedir, savefile),'w')
+        saveMe.write(dataToSave)
+        saveMe.close()
+        os.chdir(cmd_folder) 
+        dialog.Destroy()
+        return savefile

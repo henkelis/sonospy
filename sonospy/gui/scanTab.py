@@ -246,6 +246,10 @@ class ScanPanel(wx.Panel):
         else:
             self.Enable()
 
+########################################################################################################################
+# updateLog: This is for the pubsub to receive a call to update the log window.  Used in the multithreading
+#            functions at the top of the file.
+########################################################################################################################
     def updateLog(self, msg):
         if msg.data != "":
             self.LogWindow.AppendText(msg.data)
@@ -274,8 +278,6 @@ class ScanPanel(wx.Panel):
 
         # In either event, the worker is done
         self.worker = None
-
-#        guiFunctions.statusText(self, "")
 
 ########################################################################################################################
 # bt_ScanRepairClick: Function for REPAIR button
@@ -321,51 +323,23 @@ class ScanPanel(wx.Panel):
 # bt_MainDatabaseClick: Button for loading the database to scan or repair
 ########################################################################################################################
     def bt_MainDatabaseClick(self, event):
-        filters = guiFunctions.configMe("general", "database_extensions")
-        wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-        dbFolder = guiFunctions.configMe("general", "default_database_path")
-
-        # back up to the folder below our current one.  save cwd in variable
-        cmd_folder = os.path.dirname(os.path.abspath(__file__))
-        os.chdir(os.pardir)
-        if dbFolder == "":
-            cmd_folder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(cmd_folder)
-            os.chdir(os.pardir)
-            dbFolder = os.getcwd()
+        dbPath = guiFunctions.configMe("general", "default_database_path")
+        extensions = guiFunctions.configMe("general", "database_extensions") 
         
-        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
-        
-        # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wx.ID_OK:
-            selected = dialog.GetFilenames()
-            for selection in selected:
-                self.tc_MainDatabase.Value = selection
-                guiFunctions.statusText(self, "Database: " + selection + " selected...")
-        dialog.Destroy()
+        selected = guiFunctions.fileBrowse("Select database...", dbPath, "Sonospy Database (" + extensions + ")|" + \
+                                extensions.replace(" ", ";") + "|All files (*.*)|*.*")
 
-        # set back to original working directory
-        os.chdir(os.path.dirname(os.path.abspath(__file__)))
-
+        for selection in selected:
+            self.tc_MainDatabase.Value = selection
+            guiFunctions.statusText(self, "Database: " + selection + " selected...")
 
 ########################################################################################################################
 # bt_FoldersToScanAddClick: Button for adding folders for scanning to the folders-to-scan frame
 ########################################################################################################################
     def bt_FoldersToScanAddClick(self, event):
-        cmd_folder = os.path.dirname(os.path.abspath(__file__))
-        musicFolder = guiFunctions.configMe("general", "default_music_path")
-
-        dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=musicFolder, style=wx.DD_DEFAULT_STYLE)
-
-        if dialog.ShowModal() == wx.ID_OK:
-            if self.multiText.Value == "":
-                self.multiText.AppendText("%s" % dialog.GetPath())
-            else:
-                self.multiText.AppendText("\n%s" % dialog.GetPath())
-
-        dialog.Destroy()
-        guiFunctions.statusText(self, "Folder: " + "%s" % dialog.GetPath() + " added.")
-        os.chdir(cmd_folder)
+        folderToAdd = guiFunctions.dirBrowseMulti(self.multiText, "Add a Directory...", \
+                                                  guiFunctions.configMe("general", "default_music_path"))
+        guiFunctions.statusText(self, "Folder: " + "%s" % folderToAdd + " added.")
 
 ########################################################################################################################
 # bt_FoldersToScanClearClick: A simple function to clear out the folders-to-scan frame.
@@ -378,13 +352,8 @@ class ScanPanel(wx.Panel):
 # bt_SaveLogClick: Write out the Log Window to a file.
 ########################################################################################################################
     def bt_SaveLogClick(self, event):
-        dialog = wx.FileDialog(self, message='Choose a file', style=wx.SAVE|wx.OVERWRITE_PROMPT)
-        if dialog.ShowModal() == wx.ID_OK:
-            self.savefile=dialog.GetFilename()
-            self.dirname=dialog.GetDirectory()
-            filehandle=open(os.path.join(self.dirname, self.savefile),'w')
-            filehandle.write(self.LogWindow.Value)
-            filehandle.close()
+        savefile = guiFunctions.saveLog(self.LogWindow, "GUIScanLog.log")
+        if savefile != None:
             guiFunctions.statusText(self, savefile + " saved...")
         
 ########################################################################################################################
