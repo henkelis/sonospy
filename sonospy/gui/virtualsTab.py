@@ -255,16 +255,9 @@ class VirtualsPanel(wx.Panel):
 # bt_FoldersToScanAddClick: Button for adding folders for scanning to the tc_FilesFolders element
 ########################################################################################################################
     def bt_FoldersToScanAddClick(self, event):
-        musicFolder = guiFunctions.configMe("general", "default_music_path")
-        dialog = wx.DirDialog(self, "Add a Directory...", defaultPath=musicFolder, style=wx.DD_DEFAULT_STYLE)
-        if dialog.ShowModal() == wx.ID_OK:
-            if self.tc_FilesFolders.Value == "":
-                self.tc_FilesFolders.AppendText("%s" % dialog.GetPath())
-            else:
-                self.tc_FilesFolders.AppendText("\n%s" % dialog.GetPath())
-
-        dialog.Destroy()
-        guiFunctions.statusText(self, "Folder: " + "%s" % dialog.GetPath() + " added.")
+        folderToAdd = guiFunctions.dirBrowseMulti(self.tc_FilesFolders, "Add a Directory...", \
+                                                  guiFunctions.configMe("general", "default_music_path"))
+        guiFunctions.statusText(self, "Folder: " + "%s" % folderToAdd + " added.")
 
 ########################################################################################################################
 # bt_FoldersToScanClearClick: A simple function to clear out the tc_FilesFolders element
@@ -278,15 +271,14 @@ class VirtualsPanel(wx.Panel):
 ########################################################################################################################
     def bt_FilesToScanAddClick(self, event):
         musicFolder = guiFunctions.configMe("general", "default_music_path")
-        dialog = wx.FileDialog(self, "Add Track(s)...", defaultDir=musicFolder, style=wx.DD_DEFAULT_STYLE|wx.FD_MULTIPLE)
-        if dialog.ShowModal() == wxID_OK:
-            selected = dialog.GetFilenames()
-            for selection in selected:
-                if self.tc_FilesFolders.Value == "":
-                    self.tc_FilesFolders.AppendText(selection)
-                else:
-                    self.tc_FilesFolders.AppendText("\n" + selection)
-        dialog.Destroy()
+        
+        selected = guiFunctions.fileBrowse("Select database...", musicFolder, "All Files (*.*)|*.*", True)
+        for selection in selected:
+            if self.tc_FilesFolders.Value == "":
+                self.tc_FilesFolders.AppendText(selection)
+            else:
+                self.tc_FilesFolders.AppendText("\n" + selection)
+
         guiFunctions.statusText(self, "Tracks added.")
 
 ########################################################################################################################
@@ -308,100 +300,80 @@ class VirtualsPanel(wx.Panel):
         dataToSave += "\n\n"
         dataToSave += self.tc_FilesFolders.Value
         
-        virtPath = guiFunctions.configMe("general", "default_sp_path")
-
-        dialog = wx.FileDialog(self, message='Choose a file', defaultDir=virtPath, wildcard="Playlist Files (*.sp)|*.sp", style=wx.SAVE|wx.OVERWRITE_PROMPT)
-        if dialog.ShowModal() == wx.ID_OK:
-            savefile = dialog.GetFilename()
-            basename, extension = os.path.splitext(savefile)
-            if extension == "":
-                extension = ".sp"
-            savefile = basename + extension
-            savedir = dialog.GetDirectory()
-            saveMe=open(os.path.join(savedir, savefile),'w')
-            print os.path.join(savedir, savefile)
-            saveMe.write(dataToSave)
-            saveMe.close()
-            guiFunctions.statusText(self, "SP: " + savefile + " saved...")
+        savefile = guiFunctions.savePlaylist(dataToSave)
+        guiFunctions.statusText(self, "SP: " + savefile + " saved...")
 
 ########################################################################################################################
 # bt_LoadVirtualClick: Load Virtuals files.
 ########################################################################################################################
     def bt_LoadVirtualClick(self, event):
         filters = guiFunctions.configMe("general", "playlist_extensions")
-        defDir = guiFunctions.configMe("general", "default_sp_path")
         wildcards = "Virtual/Work Playlists (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-
-        # back up to the folder below our current one.  save cwd in variable
-        owd = os.getcwd()
-        os.chdir(os.pardir)
-
-        dialog = wx.FileDialog ( None, message = 'Select Virtual/Works Playlist File...', defaultDir=defDir, wildcard = wildcards, style = wx.OPEN)
-
+        defDir = guiFunctions.configMe("general", "default_sp_path")
         
-        # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wx.ID_OK:
-            selected = dialog.GetPaths()
-            for selection in selected:
-                # All the hard work goes here...
-                file = open(selection, 'r')
-                lines = file.readlines()
-                guiFunctions.statusText(self, "Playlist: " + selection + " selected...")
-                tracksStart = False
-                
-            for line in lines:
-                if tracksStart == True:
-                    if line != "\n":
-                        if line[0] != "#":
-                            self.tc_FilesFolders.AppendText(line)
-                if "type=" in line:
-                    if "virtual" in line.lower():
-                        self.combo_typeOptions.Select(1)
-                    else:
-                        self.combo_typeOptions.Select(0)
-                if "title=" in line:
-                    newLine = line.replace("title=","")
-                    newLine = newLine.replace("\n","")
-                    self.tc_Title.Value = newLine
-                if "artist=" in line:
-                    newLine = line.replace("artist=","")
-                    newLine = newLine.replace("\n","")
-                    self.tc_Artist.Value = newLine
-                if "albumartist=" in line:
-                    newLine = line.replace("albumartist=","")
-                    newLine = newLine.replace("\n","")
-                    self.tc_AlbumArtist.Value = newLine
-                if "composer=" in line:
-                    newLine = line.replace("composer=","")
-                    newLine = newLine.replace("\n","")
-                    self.tc_Composer.Value = newLine
-                if "year=" in line:
-                    newLine = line.replace("year=","")
-                    newLine = newLine.replace("\n","")
-                    self.tc_Year.Value = newLine
-                if "genre=" in line:
-                    newLine = line.replace("genre=","")
-                    newLine = newLine.replace("\n","")
-                    self.tc_Genre.Value = newLine
-                if "cover=" in line:
-                    newLine = line.replace("cover=","")
-                    newLine = newLine.replace("\n","")
-                    self.tc_Cover.Value = newLine
-                if "discnumber=" in line:
-                    newLine = line.replace("discnumber=","")
-                    newLine = newLine.replace("\n","")
-                    self.tc_DiscNumber.Value = newLine
-                if "inserted=" in line:
-                    pass
-                if "created=" in line:
-                    pass
-                if "lastmodified" in line:
-                    tracksStart = True
-                    pass
-        dialog.Destroy()
+        selected = guiFunctions.fileBrowse("Select Virtual/Works Playlist File...", defDir, wildcards)
+        
+        for selection in selected:
+            # Below line is a bit of a cludge to get us back to where we are PREDICTING (i.e. sloppy)
+            # where the SP file will be.
+            cmd_folder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(defDir)
+            file = open(selection, 'r')
+            lines = file.readlines()
+            guiFunctions.statusText(self, "Playlist: " + selection + " selected...")
+            tracksStart = False
+            
+        for line in lines:
+            if tracksStart == True:
+                if line != "\n":
+                    if line[0] != "#":
+                        self.tc_FilesFolders.AppendText(line)
+            if "type=" in line:
+                if "virtual" in line.lower():
+                    self.combo_typeOptions.Select(1)
+                else:
+                    self.combo_typeOptions.Select(0)
+            if "title=" in line:
+                newLine = line.replace("title=","")
+                newLine = newLine.replace("\n","")
+                self.tc_Title.Value = newLine
+            if "artist=" in line:
+                newLine = line.replace("artist=","")
+                newLine = newLine.replace("\n","")
+                self.tc_Artist.Value = newLine
+            if "albumartist=" in line:
+                newLine = line.replace("albumartist=","")
+                newLine = newLine.replace("\n","")
+                self.tc_AlbumArtist.Value = newLine
+            if "composer=" in line:
+                newLine = line.replace("composer=","")
+                newLine = newLine.replace("\n","")
+                self.tc_Composer.Value = newLine
+            if "year=" in line:
+                newLine = line.replace("year=","")
+                newLine = newLine.replace("\n","")
+                self.tc_Year.Value = newLine
+            if "genre=" in line:
+                newLine = line.replace("genre=","")
+                newLine = newLine.replace("\n","")
+                self.tc_Genre.Value = newLine
+            if "cover=" in line:
+                newLine = line.replace("cover=","")
+                newLine = newLine.replace("\n","")
+                self.tc_Cover.Value = newLine
+            if "discnumber=" in line:
+                newLine = line.replace("discnumber=","")
+                newLine = newLine.replace("\n","")
+                self.tc_DiscNumber.Value = newLine
+            if "inserted=" in line:
+                pass
+            if "created=" in line:
+                pass
+            if "lastmodified" in line:
+                tracksStart = True
+                pass
 
-        # set back to original working directory
-        os.chdir(owd)
+        os.chdir(cmd_folder)
 
 ########################################################################################################################
 # bt_SaveDefaultsClick: A simple function to write out the defaults for the panel to GUIpref.ini

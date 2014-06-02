@@ -470,70 +470,42 @@ class ExtractPanel(wx.Panel):
 # bt_MainDatabaseClick: Button for loading the database to extract FROM.
 ########################################################################################################################
     def bt_MainDatabaseClick(self, event):
-        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        dbPath = guiFunctions.configMe("general", "default_database_path")
+        extensions = guiFunctions.configMe("general", "database_extensions") 
         
-        filters = guiFunctions.configMe("general", "database_extensions")
-        wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-        dbFolder = guiFunctions.configMe("general", "default_database_path")
-        
-        if dbFolder == "":
-            cmd_folder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(cmd_folder)
-            os.chdir(os.pardir)
-            dbFolder = os.getcwd()
-        
-        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
-        
-        # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wx.ID_OK:
-            selected = dialog.GetFilenames()
-            for selection in selected:
-                self.tc_MainDatabase.Value = selection
-                guiFunctions.statusText(self, "Main Database: " + selection + " selected...")
+        selected = guiFunctions.fileBrowse("Select database...", dbPath, "Sonospy Database (" + extensions + ")|" + \
+                                extensions.replace(" ", ";") + "|All files (*.*)|*.*")
 
-                # This is for extracting the valid genres from the database you just opened.
-                # We may use this to replace the wxTextCtrl that we're currently using.
-                db = sqlite3.connect(selection)
-                cur = db.cursor()
-                cur.execute('SELECT DISTINCT genre FROM tags')
-                a = []
-                self.cmb_Genre.Clear()
-                for row in cur:
-                    self.cmb_Genre.AppendItems(row)
-        dialog.Destroy()
+        for selection in selected:
+            self.tc_MainDatabase.Value = selection
+            guiFunctions.statusText(self, "Main Database: " + selection + " selected...")
 
-        # set back to original working directory
-        os.chdir(cmd_folder)
+            # This is for extracting the valid genres from the database you just opened.
+            os.chdir(dbPath)
+            db = sqlite3.connect(selection)
+            cur = db.cursor()
+            cur.execute('SELECT DISTINCT genre FROM tags')
+            a = []
+            self.cmb_Genre.Clear()
+            for row in cur:
+                self.cmb_Genre.AppendItems(row)
+        
+        os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 ########################################################################################################################
 # bt_TargetDatabaseClick: Button for loading the database to extract TO.
 ########################################################################################################################
     def bt_TargetDatabaseClick(self, event):
-        cmd_folder = os.path.dirname(os.path.abspath(__file__))
+        dbPath = guiFunctions.configMe("general", "default_database_path")
+        extensions = guiFunctions.configMe("general", "database_extensions") 
         
-        filters = guiFunctions.configMe("general", "database_extensions")
-        wildcards = "Sonospy Database (" + filters + ")|" + filters.replace(" ", ";") + "|All files (*.*)|*.*"
-        
-        dbFolder = guiFunctions.configMe("general", "default_database_path") 
-        
-        if dbFolder == "":
-            dbFolder = os.path.dirname(os.path.abspath(__file__))
-            os.chdir(cmd_folder)
-            os.chdir(os.pardir)
-            dbFolder = os.getcwd()
-        
-        dialog = wx.FileDialog (self, message = 'Select database...', defaultDir=dbFolder, wildcard = wildcards, style = wx.FD_OPEN)
-        
-        # Open Dialog Box and get Selection
-        if dialog.ShowModal() == wx.ID_OK:
-            selected = dialog.GetFilenames()
+        selected = guiFunctions.fileBrowse("Select database...", dbPath, "Sonospy Database (" + extensions + ")|" + \
+                                extensions.replace(" ", ";") + "|All files (*.*)|*.*")
+
+        for selection in selected:
             for selection in selected:
                 self.tc_TargetDatabase.Value = selection
                 guiFunctions.statusText(self, "Target Database: " + selection + " selected...")
-        dialog.Destroy()
-
-        # set back to original working directory
-        os.chdir(cmd_folder)
 
 ########################################################################################################################
 # setButtons: A simple function to enable/disable the panel's buttons when needed.
@@ -751,14 +723,8 @@ class ExtractPanel(wx.Panel):
 # bt_SaveLogClick: Write out the Log Window to a file.
 ########################################################################################################################
     def bt_SaveLogClick(self, event):
-        dialog = wx.FileDialog(self, message='Choose a file', style=wx.SAVE|wx.OVERWRITE_PROMPT)
-
-        if dialog.ShowModal() == wx.ID_OK:
-            self.savefile=dialog.GetFilename()
-            self.dirname=dialog.GetDirectory()
-            filehandle=open(os.path.join(self.dirname, self.savefile),'w')
-            filehandle.write(self.LogWindow.Value)
-            filehandle.close()
+        savefile = guiFunctions.saveLog(self.LogWindow, "GUIExtract.log")
+        if savefile != None:
             guiFunctions.statusText(self, savefile + " saved...")
 
 ########################################################################################################################
