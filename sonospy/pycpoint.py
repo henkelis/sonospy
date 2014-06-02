@@ -5576,6 +5576,7 @@ Music/Rating                101     object.container
         self.known_zone_names[device_object.udn] = self.zoneattributes[device_object.udn]['CurrentZoneName']
 
     def on_new_media_server(self, device_object):
+        log.debug('@@@@@@@@@@ %s - %s' % (device_object.udn, device_object.friendly_name))
         if device_object.udn in self.known_media_servers.keys():
             return False
         self.known_media_servers[device_object.udn] = device_object
