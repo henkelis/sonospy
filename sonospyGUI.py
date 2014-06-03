@@ -152,25 +152,50 @@ class SonospyFrame(wx.Frame):
         if maximize == True:
             self.Maximize()
 
-        # Check if we still have a valid windowsPID.pid file, since
-        # that would mean (in theory) that the service is still
-        # running.
+
+        # Bart's idea to check if Sonospy is running already in Windows: Use the WMIC 
+        # tool like in launchTab.py and create a new windowsPID.pid file. 
+        # In this manner, it does not matter if the user started Sonospy through the GUI or not.
+        
         if os.name == 'nt':
             os.chdir(cmd_folder)
             os.chdir(os.pardir)
-            os.chdir(os.pardir)            
+            os.chdir(os.pardir)
+            temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
             import codecs
-            if os.path.isfile('windowsPID.pid') == True: 
-                with codecs.open('windowsPID.pid', encoding='utf-16') as f:
-                    windowsPid = []
-                    f.readline()
-                    windowsPid = f.readline()
-                    windowsPid = windowsPid.splitlines()
-                    if windowsPid == []:
-                        # The file is corrupt or empty.
-                        f.close()
-                        os.remove('windowsPID.pid')              
-                pub.sendMessage(('alreadyRunning'), "alreadyRunning")
+            with codecs.open('windowsPID.pid', encoding='utf-16') as f:
+                windowsPid = []
+                f.readline()
+                windowsPid = f.readline()
+                windowsPid = windowsPid.splitlines()
+                if windowsPid == []:
+                    # The file is empty, so Sonospy is not running already.
+                    f.close()
+                    os.remove('windowsPID.pid')
+                else:
+                    pub.sendMessage(('alreadyRunning'), "alreadyRunning")
+            os.chdir(cmd_folder)
+
+        # Check if we still have a valid windowsPID.pid file, since
+        # that would mean (in theory) that the service is still
+        # running.
+
+#        if os.name == 'nt':
+#            os.chdir(cmd_folder)
+#            os.chdir(os.pardir)
+#            os.chdir(os.pardir)            
+#            import codecs
+#            if os.path.isfile('windowsPID.pid') == True: 
+#                with codecs.open('windowsPID.pid', encoding='utf-16') as f:
+#                    windowsPid = []
+#                    f.readline()
+#                    windowsPid = f.readline()
+#                    windowsPid = windowsPid.splitlines()
+#                    if windowsPid == []:
+#                        # The file is corrupt or empty.
+#                        f.close()
+#                        os.remove('windowsPID.pid')              
+#                pub.sendMessage(('alreadyRunning'), "alreadyRunning")
                                 
     def change_statusbar(self, msg):
         self.SetStatusText(msg.data)
