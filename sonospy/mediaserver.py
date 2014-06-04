@@ -5347,8 +5347,8 @@ class MediaServer(object):
 
                         if cover == '':
                             coverres = ''
-                        elif cover.startswith('EMBEDDED_'):
-                            coverres = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+#                        elif cover.startswith('EMBEDDED_'):
+#                            coverres = self.proxyaddress + '/wmp/' + dummycoverfile
 
                         metadatatype = 'track'
         #                    metadata = (aristId, artist, composerId, composer, \
@@ -5738,7 +5738,7 @@ class MediaServer(object):
                 if cover == '':
                     coverres = ''
                 elif cover.startswith('EMBEDDED_'):
-                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummyfile
+                    coverres = self.proxyaddress + '/WMPNSSv3/' + dummycoverfile
 
                 # fix WMP urls if necessary
                 res = res.replace(self.webserverurl, self.wmpurl)
