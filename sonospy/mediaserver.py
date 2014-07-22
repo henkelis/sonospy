@@ -668,22 +668,23 @@ class MediaServer(object):
                 # get key for path entry
                 pathkey = '%s_%s' % (entry, self.hierarchies[entry][0])
                 # get entries for this user defined index
-                keydict = self.path_index_entries[pathkey]
-                # get child index
-                childindex = self.hierarchies[entry][1]
-                # check range field for each entry in list
-                for indexkey, title in keydict:
-                    # get key for path index entry
-                    pathindexkey = '%s_%s_%s' % (entry, indexkey, childindex)
-                    # check whether this path is just a separator (won't be in list)
-                    if pathindexkey in self.index_settings.keys():
-                        # get range field for child
-                        indexfield = self.index_settings[pathindexkey]['range_field']
-                        # check if the range field of the child is the same as the child
-                        if indexfield != '' and indexfield != childindex:
-                            rangecheck = False
-                if rangecheck:
-                    self.index_types[entry] = ['RANGE'] + entrydict[1:]
+                if pathkey in self.path_index_entries.keys():
+                    keydict = self.path_index_entries[pathkey]
+                    # get child index
+                    childindex = self.hierarchies[entry][1]
+                    # check range field for each entry in list
+                    for indexkey, title in keydict:
+                        # get key for path index entry
+                        pathindexkey = '%s_%s_%s' % (entry, indexkey, childindex)
+                        # check whether this path is just a separator (won't be in list)
+                        if pathindexkey in self.index_settings.keys():
+                            # get range field for child
+                            indexfield = self.index_settings[pathindexkey]['range_field']
+                            # check if the range field of the child is the same as the child
+                            if indexfield != '' and indexfield != childindex:
+                                rangecheck = False
+                    if rangecheck:
+                        self.index_types[entry] = ['RANGE'] + entrydict[1:]
 
         self.debugout('index_types', self.index_types)
 
