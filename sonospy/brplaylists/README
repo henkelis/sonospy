@@ -1,0 +1,78 @@
+
+###############################################################################
+DISCLAIMER: Restoring invalid playlists to your Sonos system can stop playlists
+            working at all - use at your own risk!
+###############################################################################
+
+###############################################################################
+DISCLAIMER 2: There is very little error checking in these programs - use them
+              at your own risk!
+###############################################################################
+
+
+===================
+extractplaylists.py
+===================
+extractplaylists.py is used to backup playlists from your Sonos system. It will
+store a compressed (binary) playlist file in the filename you specify, and also
+decompress the playlist file and store a text version in .txt and a
+human-readable text version in .split.txt. You need to specify the IP address
+of a Zoneplayer. For example:
+
+    python extractplaylists.py -z 192.168.1.85 -p playlists.bin
+
+will query the ZP at 192.168.1.85, extract its playlists into playlists.bin,
+and create text versions in playlists.bin.txt and playlists.bin.split.txt.
+
+===================
+restoreplaylists.py
+===================
+restoreplaylists.py is used to restore a backed up BINARY playlist file that has
+previously been extracted from your Sonos system. To perform the restore, the
+backup file must be served from a webserver, as you tell your Sonos system to
+import it. IMPORTANT - running this program will overwrite whatever playlists
+are currently on your Sonos system, on all Zoneplayers (the playlists will be
+replicated across your Sonos system). Only do this if you know what you are
+doing and are certain that the playlist file you are restoring is valid. 
+
+With Python 2.x, you can serve the playlists file from the command line. 
+Change to the folder that contains the binary playlists file and run:
+    
+    python -m SimpleHTTPServer <PORT>
+    
+where port is the port you want to serve the file on - note that this port must
+be open in your firewall so that Sonos can access it. If you have a text file
+in the same folder, you can check that it is being served correctly 
+(SimpleHTTPServer will serve all files in the folder it is run from) by pointing
+your browser to it, for example:
+    
+    http://<PC_IP>:<PORT>/playlists.bin.txt
+    
+Once you have the playlists file served correctly, run the restore program. For
+example:
+
+    python restoreplaylists.py -z 192.168.1.85 -u http://192.168.1.90:50101/playlists.bin
+    
+will tell the Zoneplayer at 192.168.1.85 to upload the binary playlist file 
+playlists.bin being served on the PC at 192.168.1.90 on port 50101 (which must
+be open in that PC's firewall).
+
+The program output shows the result of the call to the ZP - if you get:
+
+    SOAP request failed with error code: 500 Internal Server Error
+    
+then you did something wrong and should probably stop there while your Sonos
+system is still working.
+
+If you get an ImportSettingResponse then you were successful:
+
+    <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/"><s:Body><u:ImportSettingResponse xmlns:u="urn:schemas-upnp-org:service:DeviceProperties:1"></u:ImportSettingResponse></s:Body></s:Envelope>
+
+=============================================
+decompressplaylist.py and compressplaylist.py
+=============================================
+These two programs allow you to manually decompress a binary playlist file, and
+recompress it afterwards. Note that it's not wise to add entries to playlist
+files unless you know what you are doing. It's also wise to check that any file
+you compress is valid by decompressing it and checking the text versions. Be
+especially careful of line endings.
