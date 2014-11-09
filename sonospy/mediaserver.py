@@ -393,7 +393,7 @@ class MediaServer(object):
         # get work display settings
         self.display_works_by_default = True
         try:
-            ini_display_works_by_default = self.proxy.config.get('virtuals', 'display_works_by_default')
+            ini_display_works_by_default = self.proxy.config.get('works', 'display_works_by_default')
             if ini_display_works_by_default[:1].lower() == 'n':
                 self.display_works_by_default = False
         except ConfigParser.NoSectionError:
