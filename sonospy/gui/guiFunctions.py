@@ -26,16 +26,16 @@ from wx.lib.pubsub import setuparg1
 from wx.lib.pubsub import pub
 
 ########################################################################################################################
-# configMe: Reads GUIpref.ini for settings in the various tab files. 
+# configMe: Reads GUIpref.ini for settings in the various tab files.
 ########################################################################################################################
 import ConfigParser
 
 def configMe(heading, term, integer=False, bool=False, parse=False, file=False):
     owd = os.getcwd()
     cmd_folder = os.path.dirname(os.path.abspath(__file__))
-    os.chdir(cmd_folder)    
+    os.chdir(cmd_folder)
     config = ConfigParser.ConfigParser()
-    
+
     if file == False:
         config.read("GUIpref.ini")
     else:
@@ -72,9 +72,9 @@ def configMe(heading, term, integer=False, bool=False, parse=False, file=False):
     #    for option in config.options(section):
     #        print " ", option, "=", config.get(section, option)
     # ------------------------------------------------------------------------------
-    
+
 ########################################################################################################################
-# configWrite: Writes GUIpref.ini for settings in the various tab files. 
+# configWrite: Writes GUIpref.ini for settings in the various tab files.
 ########################################################################################################################
 def configWrite(heading, term, value):
     owd = os.getcwd()
@@ -119,7 +119,7 @@ def scrubINI(path, ext=False):
 
     ignoreMe = configMe("general", "ignoreini")
     ignoreMe = ignoreMe.replace(".ini", "")
-    
+
     filters = ext
 
     for file in os.listdir(path):
@@ -128,7 +128,7 @@ def scrubINI(path, ext=False):
         if len(extension) > 0:
             extension = "*" + extension
             if extension in filters and basename not in ignoreMe:
-                     inifiles.append(file)
+                inifiles.append(file)
     return inifiles
 
 ########################################################################################################################
@@ -170,7 +170,7 @@ def dirBrowse(control, dialogMsg, defaultPathToLook):
 # dirBrowseMulti: Use this when we need to repeatedly append to a text control (like on scan tab's music folders)
 ########################################################################################################################
 def dirBrowseMulti(control, dialogMsg, defaultPathToLook):
-    cmd_folder = os.path.dirname(os.path.abspath(__file__))    
+    cmd_folder = os.path.dirname(os.path.abspath(__file__))
 
     dialog = wx.DirDialog(None, "Add a Directory...", defaultPath=defaultPathToLook, style=wx.DD_DEFAULT_STYLE)
 
@@ -179,9 +179,9 @@ def dirBrowseMulti(control, dialogMsg, defaultPathToLook):
             control.AppendText("%s" % dialog.GetPath())
         else:
             control.AppendText("\n%s" % dialog.GetPath())
-    
+
         dialog.Destroy()
-        os.chdir(cmd_folder)        
+        os.chdir(cmd_folder)
         return dialog.GetPath()
 
     dialog.Destroy()
@@ -198,21 +198,21 @@ def fileBrowse(dialogMsg, defaultPathToLook, defaultWildcards=False, multiple=Fa
         os.chdir(cmd_folder)
         os.chdir(os.pardir)
         defaultPathToLook = os.getcwd()
-    
+
     if multiple == True:
         flagsForStyle = wx.FD_OPEN|wx.FD_MULTIPLE
     else:
         flagsForStyle = wx.FD_OPEN
-        
+
     dialog = wx.FileDialog (None, message = dialogMsg, defaultDir=defaultPathToLook, wildcard = defaultWildcards, style = flagsForStyle)
-    
+
     # Open Dialog Box and get Selection
     if dialog.ShowModal() == wx.ID_OK:
         selected = dialog.GetFilenames()
         os.chdir(cmd_folder)
         dialog.Destroy()
         return selected
-            
+
     dialog.Destroy()
 
     # set back to original working directory
@@ -222,12 +222,12 @@ def fileBrowse(dialogMsg, defaultPathToLook, defaultWildcards=False, multiple=Fa
 ########################################################################################################################
 def saveLog(control, defaultFileName):
     cmd_folder = os.path.dirname(os.path.abspath(__file__))
-    
+
     dialog = wx.FileDialog(None, message='Enter a file name or choose a file to save...', \
                            defaultDir = configMe("general", "default_log_path"), \
                            defaultFile = defaultFileName, wildcard = "Sonospy Logs (*.log)|*.log|All files (*.*)|*.*",\
                            style=wx.SAVE|wx.OVERWRITE_PROMPT)
-    
+
     if dialog.ShowModal() == wx.ID_OK:
         savefile=dialog.GetFilename()
         dirname=dialog.GetDirectory()
@@ -235,9 +235,9 @@ def saveLog(control, defaultFileName):
         filehandle.write(control.Value)
         filehandle.close()
         dialog.Destroy()
-               
+
         return savefile
-    
+
     dialog.Destroy()
     os.chdir(cmd_folder)
 
@@ -259,6 +259,6 @@ def savePlaylist(dataToSave):
         saveMe=open(os.path.join(savedir, savefile),'w')
         saveMe.write(dataToSave)
         saveMe.close()
-        os.chdir(cmd_folder) 
+        os.chdir(cmd_folder)
         dialog.Destroy()
         return savefile

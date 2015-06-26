@@ -48,13 +48,13 @@ TO DO
 [GENERAL]
  - Look at the PIP installer.  Py2Exe?
  - Find out how to store comments in the GUIpref.ini
- - Detect if windowsPID is running already and setup the GUI to reflect
-   the current state of Sonospy
- - Add ABOUT tab.
- - Fix the multiple options windows opening if you use File -> Preferences.
-
+ - Add icons to pref and about popups.
+ 
 [LAUNCH]
-
+ - Add a logging window that reads playcount.log and reports back to a TextCtrl
+   to keep track of what has been played.
+ - Activate logging via a logging window below scratchpad on launch.
+ 
 [SCAN]
 
 [USERINDEX]
@@ -67,38 +67,7 @@ TO DO
 -----------------------------------------------------------------------------------------------------------------------
 CHANGELIST
 -----------------------------------------------------------------------------------------------------------------------
-May-25-2014: Default extension if none is given for database entries
-             
-May-24-2014: Added Advanced field to Extract Tab to allow for custom SQL queries.
-             Added menu items for exiting and stopping Sonospy to the system tray
-             icon.  Not sure how to do this for starting the service, since you
-             could, in thoery, launch it without any arguments from the launchTab.
-             Added a wx.Yield() command to the WorkerThread in scan and extract to
-             hopefully eliminate the assert issues.
-May-21-2014: Updated for wxPython 3.0 -- please email any weirdness in the 
-             application to chowanec@gmail.com
-             Added systray icon for minimizing the app.  Restores the app
-             on a double click.
-May-19-2014: Added application icons for the GUI.  Welcome to 2014.
-May-17-2014: Saving the windows position, size, location and maximize()
-             on close of the application.  Saves settings in GUIpref.ini
-             for use on reloading the app.
-             Added a STOP command for Windows after much, much, much
-             research.
-May-16-2014: Added -z Support and field to allow for binding to a service
-             for SMAPI support
-             Scanned sonospy/ for *.ini to create a dropdown for user based
-             ini files.  Ignores pycpoint.ini and scan.ini
-             Fixed a longstanding bug with the scan field that Bart found. :)
-May-15-2014: Fixed bug with extractTab where it was not combining AND
-             statements properly.
-             Added popup to warn user if they have more than one database
-             in their launchCMD, that they have to have the requisite number
-             of ports open.
-May-10-2014: Added SMAPI Support
-             Added fields to launchTab for user index ini files.
-             Added checkbox to enable/disable SMAPI support
-Feb-12-2012: Added support for -s flag
+Stored on github.com at: https://github.com/henkelis/sonospy/commits/msrefactor5
 
 
 
