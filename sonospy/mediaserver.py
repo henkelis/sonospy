@@ -4565,7 +4565,10 @@ class MediaServer(object):
                     # add keys to where clause
                     if where == '': whereword = 'where'
                     else: whereword = 'and'
-                    where = "%s%s %s='%s' " % (where, whereword, field, title)
+                    if title is None:
+                        where = "%s%s %s is null " % (where, whereword, field)
+                    else:
+                        where = "%s%s %s='%s' " % (where, whereword, field, title)
 
                 # save id's used
                 itemidprefix = ':'.join(filter(None,(itemidprefix, str(idval))))
