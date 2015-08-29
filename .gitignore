@@ -1,12 +1,2 @@
 *.pyc
 *~
-*.project
-*.pydevproject
-*.log
-*.sdb
-*.txt
-*.wpr
-*.wpu
-sonospy/5e0fc086-1c37-4648-805c-ec2aba2b0a27.xml
-*.sdb-journal
-*.komodoproject

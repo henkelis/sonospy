@@ -1,65 +1,39 @@
-GNU nano 2.2.6                                                                  File: volume.sh
-
 #!/bin/bash
 # CronTab this for max effect * * * * <pathtoscript>
 
-# Check if sonospy is running.
-pycPOINT=$(echo $(ps -o pid= -p `cat < ~/Applications/sonospy/pycpoint.pid`))
+#CHANGE ME FOR MAX VOLUME FOR THE ZONES
+maxVOLUME=50
+maxVOLUME2=50
 
-# Check the current time.  If it is after 11pm set the max volume to 20%
-# If it is after midnight and before 7am, set it to 0.
+stripME="VOLUME::"
+stripME2="VOLUME::"
 
-curTIME=`date +%k%M`
+# Do the deck zone -- never >  $maxVOLUME
+curl http://192.168.1.110:50101/data/rendererData?data=R::Deck%20%28ZP%29
+INFO=$(curl -s $(echo "http://192.168.1.110:50101/data/rendererAction?data=class" | sed 's/ //g'))
+INFO=${INFO#*$stripME}
+OUTPUT=$(echo $INFO|cut -d \_ -f1)
 
-if [ "$curTIME" -gt  2300 ]
+if [ "$OUTPUT" -gt "$maxVOLUME" ]
 then
-      maxVOLUME=20
+#	echo -e "\n-----------------------\nDeck is over max volume\n--------------------"
+        curl http://192.168.1.110:50101/data/rendererAction?data=VOLUME::$maxVOLUME
 else
-      maxVOLUME=50
+        curl http://192.168.1.110:50101/data/rendererAction?data=VOLUME::$OUTPUT
 fi
 
-if [ "$curTIME" -gt 0 -a  "$curTIME" -lt 700 ]
+# Do the spa zone -- never >  $maxVOLUME
+curl http://192.168.1.110:50101/data/rendererData?data=R::Spa%20%28ZP%29
+INFO2=$(curl -s $(echo "http://192.168.1.110:50101/data/rendererAction?data=track" | sed 's/ //g'))
+INFO2=${INFO2#*$stripME2}
+OUTPUT2=$(echo $INFO2|cut -d \_ -f1)
+
+if [ "$OUTPUT2" -gt "$maxVOLUME2" ]
 then
-      # Effetively mute it.
-      maxVOLUME=0
+#	echo -e "\n-----------------------\nSpa is over max volume\n--------------------"
+        curl http://192.168.1.110:50101/data/rendererAction?data=VOLUME::$maxVOLUME2
 else
-      maxVOLUME=50
+        curl http://192.168.1.110:50101/data/rendererAction?data=VOLUME::$OUTPUT2
 fi
 
-if [ "$#" -ne 1 ]
-then
-      echo "Enter a zone name, please."
-      exit
-else
-      # Check if sonospy is running.
-      if [ "$pycPOINT" -gt 0 ]
-      then
-              stripME="VOLUME::"
 
-              # If we've made it this far, we are checking now to see if the
-              # current volume is > maxVOLUME as defined above.  If it is,
-              # reset the volume.
-
-              # Set the zone to the input from $1
-              curl http://192.168.1.110:50101/data/rendererData?data=R::"$1"%20%28ZP%29
-
-              # Send it one command to refresh it -- not sure i need this.
-              INFO=$(curl -s $(echo "http://192.168.1.110:50101/data/rendererAction?data=class" | sed 's/ //g'))
-              # Strip it just down to the volume number, no other information.
-              INFO=${INFO#*$stripME}
-              OUTPUT=$(echo $INFO|cut -d \_ -f1)
-
-              # Check our logic here to compare. Set volume accordingly.
-              if [ "$OUTPUT" -gt "$maxVOLUME" ]
-              then
-                      echo -e "\n-----------------------\nZone: $1 is over max volume\n-----------------------"
-                      curl http://192.168.1.110:50101/data/rendererAction?data=VOLUME::$maxVOLUME
-              else
-                      curl http://192.168.1.110:50101/data/rendererAction?data=VOLUME::$OUTPUT
-              fi
-      else
-              echo "Sonospy not running..."
-              cd ~/Applications/sonospy
-              ./sonospy_web -sSonospy=00_EntireCollection,00_EntireCollection.sdb,userindex.ini
-              cd -
-      fi
