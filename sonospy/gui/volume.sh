@@ -6,9 +6,12 @@
 # sensitive. Enter desired max default volume after the colon.
 # <zone name>:<max volume>
 
-sonosZONE=( Deck:40 Spa:50 )
+sonosZONE=( Deck:40 Spa:50 Kitchen:60 )
 
-while :
+# Check if Sonospy is running, if it fails this test, skip past the loop
+# and kill the daemon.
+
+while [ "`pgrep -f pycpoint`" != "" ]
 do
 	# Anything lower than 10 seems to create weird logic problems when
 	# polling the current volume of a zone.  Not sure if it is related
@@ -38,18 +41,19 @@ do
 	        # Check the current time.  If it is after 11pm set the max volume to 20%
         	# If it is after midnight and before 7am, set it to 0.
 	        curTIME=`date +%k%M`
+		if [ "$zoneNAME" != "Kitchen" ]
+		then
+	        	if [ "$curTIME" -gt  2300 -a "$curTIME" -lt 2359 ]
+	        	then
+        	        	maxVOLUME=25
+	        	fi
 
-	        if [ "$curTIME" -gt  2300 -a "$curTIME" -lt 2359 ]
-        	then
-                	maxVOLUME=20
-	        fi
-
-        	if [ "$curTIME" -gt 0 -a  "$curTIME" -lt 700 ]
-	        then
-        	        # Effectively mute it.
-                	maxVOLUME=0
-	        fi
-
+	        	if [ "$curTIME" -gt 0 -a  "$curTIME" -lt 700 ]
+		        then
+        		        # Effectively mute it.
+                		maxVOLUME=0
+		        fi
+		fi
 		# If we've made it this far, we are checking now to see if the current volume is > maxVOLUME
 		# as defined above.  If it is, reset the volume.
 
@@ -68,6 +72,20 @@ do
 		# echo -e "INFO STRIPPED:\t$INFO\"
 		# echo -e "ZONE: \t\t$i\tCURRENTVOLUME:\t$OUTPUT\tMAXVOLUME:\t$maxVOLUME"
 
+
+		# In the off chance that sonospy dies while the daemon is running, this is here to 
+		# prevent errors from being printed to the shell.  The loop will fail once, then
+		# will stop the daemon below.
+		if [ "$OUTPUT" == "" ]
+		then
+			OUTPUT=0
+		fi
+
+		if [ "$maxVOLUME" == "" ]
+		then
+			maxVOLUME=0
+		fi
+
 		# Check our logic here to compare. Set volume accordingly.  Compare it
 		# against maxVOLUME (as defined above) and then if it is violating that rule, lower the
 		# volume.
@@ -81,3 +99,9 @@ do
 		fi
 	done
 done
+
+# If the loop fails, Sonospy isn't running, at which point kill the daemon
+echo -e "\nSonospy has stopped running..."
+sh /home/chow/Applications/sonospy/sonospy/gui/volumed.sh stop
+echo -ne $FAKE_PROMPT
+exit 0
