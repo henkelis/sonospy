@@ -1,59 +1,59 @@
------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------
 SONOSPY GUI READ ME
------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------
 
------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------
 INSTALLATION
------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------
 You will need to get wxPython 3.0 in order to run the GUI (http://www.wxpython.org/download.php)
 
------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------
 USAGE
------------------------------------------------------------------------------------------------------------------------
-In general, everything has a tool tip associated with it for some attempts 
+-------------------------------------------------------------------------------------------------
+In general, everything has a tool tip associated with it for some attempts
 at clarity.
 
-Preferences are stored in gui/GUIpref.ini and can be manually edited or 
-can be saved within the app on each specific tab using the SAVE DEFAULTS 
+Preferences are stored in gui/GUIpref.ini and can be manually edited or
+can be saved within the app on each specific tab using the SAVE DEFAULTS
 button.
 
-You can run this by ./sonospyGUI.py (Linux) or python sonospyGUI.py 
-(Linux/Windows).  Databases created here are still stored where scan, etc. 
+You can run this by ./sonospyGUI.py (Linux) or python sonospyGUI.py
+(Linux/Windows).  Databases created here are still stored where scan, etc.
 uses them.  If you have Windows setup right, you can double clicke on the
 sonospyGUI.py file in your root sonospy folder.
 
 [LAUNCH TAB]
  - Will launch and stop Sonospy.
- - AUTO POPULATE will search for databases (extensions can be set in 
+ - AUTO POPULATE will search for databases (extensions can be set in
    GUIpref.ini) and will autopopulate the databases and proxy names for you.
 
 [SCAN TAB]
- - SCAN and REPAIR both log to the log window, but it comes through 
+ - SCAN and REPAIR both log to the log window, but it comes through
    chunk at a time.  Not quite in realtime, but close enough.
 
 [EXTRACT TAB]
- - Last <X> Albums is experimental, it gets the job done, but it's not 
+ - Last <X> Albums is experimental, it gets the job done, but it's not
    perfect.
 
------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------
 KNOWN ISSUES
------------------------------------------------------------------------------------------------------------------------
- - Loading virtuals only works with one "set".  If you store more than one 
-   virtual/work in an .SP file, it won't work.  Best to use the SP files 
+-------------------------------------------------------------------------------------------------
+ - Loading virtuals only works with one "set".  If you store more than one
+   virtual/work in an .SP file, it won't work.  Best to use the SP files
    created with the GUI until I find a solution here in terms of GUI layout.
 
------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------
 TO DO
------------------------------------------------------------------------------------------------------------------------
+-------------------------------------------------------------------------------------------------
 [GENERAL]
  - Look at the PIP installer.  Py2Exe?
  - Find out how to store comments in the GUIpref.ini
- - Detect if windowsPID is running already and setup the GUI to reflect
-   the current state of Sonospy
- - Add ABOUT tab.
- - Fix the multiple options windows opening if you use File -> Preferences.
+ - Add icons to pref and about popups.
 
 [LAUNCH]
+ - Add a logging window that reads playcount.log and reports back to a TextCtrl
+   to keep track of what has been played.
+ - Activate logging via a logging window below scratchpad on launch.
 
 [SCAN]
 
@@ -63,44 +63,8 @@ TO DO
 [VIRTUALS]
  - How to handle multiple SPs in one file? Do I bother?
  - Implement an ignoreChar list to manage lines to ignore based on line[0]
- 
------------------------------------------------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------------------------
 CHANGELIST
------------------------------------------------------------------------------------------------------------------------
-May-25-2014: Default extension if none is given for database entries
-             
-May-24-2014: Added Advanced field to Extract Tab to allow for custom SQL queries.
-             Added menu items for exiting and stopping Sonospy to the system tray
-             icon.  Not sure how to do this for starting the service, since you
-             could, in thoery, launch it without any arguments from the launchTab.
-             Added a wx.Yield() command to the WorkerThread in scan and extract to
-             hopefully eliminate the assert issues.
-May-21-2014: Updated for wxPython 3.0 -- please email any weirdness in the 
-             application to chowanec@gmail.com
-             Added systray icon for minimizing the app.  Restores the app
-             on a double click.
-May-19-2014: Added application icons for the GUI.  Welcome to 2014.
-May-17-2014: Saving the windows position, size, location and maximize()
-             on close of the application.  Saves settings in GUIpref.ini
-             for use on reloading the app.
-             Added a STOP command for Windows after much, much, much
-             research.
-May-16-2014: Added -z Support and field to allow for binding to a service
-             for SMAPI support
-             Scanned sonospy/ for *.ini to create a dropdown for user based
-             ini files.  Ignores pycpoint.ini and scan.ini
-             Fixed a longstanding bug with the scan field that Bart found. :)
-May-15-2014: Fixed bug with extractTab where it was not combining AND
-             statements properly.
-             Added popup to warn user if they have more than one database
-             in their launchCMD, that they have to have the requisite number
-             of ports open.
-May-10-2014: Added SMAPI Support
-             Added fields to launchTab for user index ini files.
-             Added checkbox to enable/disable SMAPI support
-Feb-12-2012: Added support for -s flag
-
-
-
-
-
+-------------------------------------------------------------------------------------------------
+Stored on github.com at: https://github.com/henkelis/sonospy/commits/msrefactor5
