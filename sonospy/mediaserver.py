@@ -3760,8 +3760,8 @@ class MediaServer(object):
                 if browsetype == '!ALPHAtrack':
                     return self.processAlphaQuery(c, orderby, alphastatement)
 
-#                c.execute(orderstatement, (startingIndex, requestedCount))
-                c.execute(orderstatement, (startingIndex, startingIndex + requestedCount))
+                c.execute(orderstatement, (startingIndex, requestedCount))
+#                c.execute(orderstatement, (startingIndex, startingIndex + requestedCount))
 
                 xml, items, count = self.processQueryTrack(c, artisttype, prefix, suffix, idkeys, queryIDprefix, browsetype)
 
