@@ -2506,7 +2506,7 @@ class MediaServer(object):
         artisttype = 'artist'
         if queryalbumtype == 10:
             countstatement = "select count(*) from GenreArtistAlbumTrack where genre=? and artist=? and album=?"
-            orderstatement = "select * from tracks where rowid in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? and album=? and duplicate = %s) order by discnumber, tracknumber, title limit %d, %d" % (duplicate_number, startingIndex, requestedCount)
+            orderstatement = "select * from tracks where rowid in (select track_id from GenreArtistAlbumTrack where genre=? and artist=? and album=?) order by discnumber, tracknumber, title limit ?, ?"
         else:
             countstatement = "select count(*) from (select track_id from tracknumbers where genre=? and artist=? and dummyalbum=? and albumtype=? group by tracknumber)"
             orderstatement = '''
@@ -4364,7 +4364,7 @@ class MediaServer(object):
                 paramtuple += (startingIndex, requestedCount)
                 c.execute(orderstatement, paramtuple)
 
-                xml, items, count = self.processQueryTrack(c, artisttype, prefix, suffix, idkeys, queryIDprefix, browsetype, passed_artist=artist, passed_album=album, albumalbumtype=albumtype)
+                xml, items, count = self.processQueryTrack(c, artisttype, prefix, suffix, idkeys, queryIDprefix, browsetype, passed_artist=artist, passed_album=album, albumtype=albumtype)
 
         c.close()
         if not self.proxy.db_persist_connection:
