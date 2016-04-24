@@ -2,11 +2,35 @@
 # Daemonized loop below for use with volumed.sh
 #----------------------------------------------------------------------------
 
-# Add zones here, separate zone names with a space.  They are case
-# sensitive. Enter desired max default volume after the colon.
-# <zone name>:<max volume>
+# Set to 1 to enable debugging. Set to 0 or nothing to turn it off.
+debug=0
 
-sonosZONE=( Deck:40 Spa:50 Kitchen:60 )
+# ---------------------------------------------------------------------------
+# TROUBLE SHOOTING?
+# ---------------------------------------------------------------------------
+# Having problems?  It is probably your port number in the below.
+
+# ---------------------------------------------------------------------------
+# CONFIGURATION
+# ---------------------------------------------------------------------------
+# sonosZONE = <zone name>:<max volume>
+# ipADDR = ip address of machine running Sonospy
+# portNUM = Sonospy's pycpoint.ini file setting
+# timeOUT = how often do you want to run the loop
+# safetyTimeSTART = Time to start stepping volume down (in 24hr notation)
+# safetyTimeSTOP = Time to move to muteTimeStart (1 min before muteTimeSTART)
+# muteTimeSTART = Time to force the zones to have 0 volume
+# muteTimeSTOP = Time to let the sonosZONE volumes to kick back in
+
+sonosZONE=( BBQ:60 Spa:75 Firepit:60 Kitchen:70 )
+ipADDR="192.168.1.110"
+portNUM="50108"
+timeOUT=1
+safetyTimeSTART=2300
+safetyTimeSTOP=2359
+safetyTimeVOL=25
+muteTimeSTART=0
+muteTimeSTOP=700
 
 # Check if Sonospy is running, if it fails this test, skip past the loop
 # and kill the daemon.
@@ -16,7 +40,7 @@ do
 	# Anything lower than 10 seems to create weird logic problems when
 	# polling the current volume of a zone.  Not sure if it is related
 	# to what I'm doing here or what Mark is doing within Sonospy.
-	sleep 10
+	sleep "$timeOUT"
 
 	# Loop through the zones and check their volume.  Reset accordingly.
 	for i in "${sonosZONE[@]}"
@@ -29,26 +53,28 @@ do
 		maxVOLUME="$( cut -d ':' -f 2- <<< "$i" )"
 
                 # Set the zone to the input from $sonosZONE
-                curl -s http://192.168.1.110:50101/data/rendererData?data=R::"$zoneNAME"%20%28ZP%29 &>/dev/null
+                curl -s http://"$ipADDR":"$portNUM"/data/rendererData?data=R::"$zoneNAME"%20%28ZP%29 &>/dev/null
                 # Grab the relevant information about the zone so we can check the volume.
-                INFO=$(curl -s $(echo "http://192.168.1.110:50101/data/rendererAction?data=class" | sed 's/ //g'))
+                INFO=$(curl -s $(echo "http://$ipADDR:$portNUM/data/rendererAction?data=class" | sed 's/ //g'))
 
                 #--------------------------------------------------------------------------------------
-                # UNCOMMENT TO DEBUG
+                # DEBUG
                 #--------------------------------------------------------------------------------------
-		# echo -e "ZONEARRAY:\t$i\tPARSEDNAME:\t$zoneNAME\tPARSEDVOL:\t$maxVOLUME"
-
+		if (( "$debug" )); then
+			echo -e "INFO:\t$INFO"
+			echo -e "ZONEARRAY:\t$i\tPARSEDNAME:\t$zoneNAME\tPARSEDVOL:\t$maxVOLUME"
+		fi
 	        # Check the current time.  If it is after 11pm set the max volume to 20%
-        	# If it is after midnight and before 7am, set it to 0.
+        	# If it is after midnight and before 7am, set it to 0. Exclude inside the house.
 	        curTIME=`date +%k%M`
 		if [ "$zoneNAME" != "Kitchen" ]
 		then
-	        	if [ "$curTIME" -gt  2300 -a "$curTIME" -lt 2359 ]
+	        	if [ "$curTIME" -gt  "$safetyTimeSTART" -a "$curTIME" -lt "$safetyTimeSTOP" ]
 	        	then
-        	        	maxVOLUME=25
+        	        	maxVOLUME="$safetyVOL"
 	        	fi
 
-	        	if [ "$curTIME" -gt 0 -a  "$curTIME" -lt 700 ]
+	        	if [ "$curTIME" -gt "$muteTimeSTART" -a  "$curTIME" -lt "$muteTimeSTOP" ]
 		        then
         		        # Effectively mute it.
                 		maxVOLUME=0
@@ -58,25 +84,32 @@ do
 		# as defined above.  If it is, reset the volume.
 
                 #--------------------------------------------------------------------------------------
-                # UNCOMMENT TO DEBUG
+                # DEBUG
                 #--------------------------------------------------------------------------------------
-		# echo -e "CURL INFO:\t\t$INFO\"
-
+		if (( "$debug" )); then
+			echo -e "CURL INFO:\t\t$INFO"
+		fi
 		# Strip it just down to the volume number, no other information.
 		INFO=${INFO#*"VOLUME::"}
 		OUTPUT=$(echo $INFO|cut -d \_ -f1)
 
 		#--------------------------------------------------------------------------------------
-		# UNCOMMENT TO DEBUG
+		# DEBUG
 		#--------------------------------------------------------------------------------------
-		# echo -e "INFO STRIPPED:\t$INFO\"
-		# echo -e "ZONE: \t\t$i\tCURRENTVOLUME:\t$OUTPUT\tMAXVOLUME:\t$maxVOLUME"
-
+		if (( "$debug" )); then
+			echo -e "INFO STRIPPED:\t$INFO"
+			echo -e "ZONE: \t\t$i\tCURRENTVOLUME:\t$OUTPUT\tMAXVOLUME:\t$maxVOLUME"
+		fi
 
 		# In the off chance that sonospy dies while the daemon is running, this is here to 
 		# prevent errors from being printed to the shell.  The loop will fail once, then
 		# will stop the daemon below.
 		if [ "$OUTPUT" == "" ]
+		then
+			OUTPUT=0
+		fi
+
+		if [ "$OUTPUT" == "NOCHANGE::0_|_" ]
 		then
 			OUTPUT=0
 		fi
@@ -92,10 +125,12 @@ do
 		if [ "$OUTPUT" -gt "$maxVOLUME" ]
 		then
 	                #--------------------------------------------------------------------------------------
-        	        # UNCOMMENT TO DEBUG
+        	        # DEBUG
                 	#--------------------------------------------------------------------------------------
-			# echo -e "\t\t\t\tSetting zone:\t$zoneNAME\tCurrent Volume\t$OUTPUT\tto limit\t$maxVOLUME"
-	        	curl -s http://192.168.1.110:50101/data/rendererAction?data=VOLUME::$maxVOLUME &>/dev/null
+			if (( "$debug" )); then
+				echo -e "\t\t\t\tSetting zone:\t$zoneNAME\tCurrent Volume\t$OUTPUT\tto limit\t$maxVOLUME"
+			fi
+	        	curl -s http://"$ipADDR":"$portNUM"/data/rendererAction?data=VOLUME::"$maxVOLUME" &>/dev/null
 		fi
 	done
 done
