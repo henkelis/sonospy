@@ -663,7 +663,6 @@ class VolumePanel(wx.Panel):
     
         # Guts of the loop... trying to figoure out how to thread this.     
         if zonesToMonitor != []: 
-            j = 0
             for i in zonesToMonitor:
                 # Reset all variables in the loop for safety.
                 maxVOL = 0
@@ -716,8 +715,8 @@ class VolumePanel(wx.Panel):
                 # 10 Strip INFO to just the Volume number to test against, assign to curVOL
                 curVOL = re.findall('(?<=_\|_VOLUME::).*?(?=_\|_)', INFO)
  
-                if curVOL == '':
-                    curVOL = 0
+                if bool(curVOL) == False:
+                    curVOL.append('0')
     
                 # Convert from a list to an int for comparisons below.
                 curVOL = map(int, curVOL)             
@@ -731,7 +730,7 @@ class VolumePanel(wx.Panel):
                         guiFunctions.debug("Adjusting ZONE: " + i + " from current volume: " + str(curVOL) + " to max volume: " + str(maxVOL))
                     
                     urllib.urlopen(url).read()
-                j += 1
+
     
     
 
