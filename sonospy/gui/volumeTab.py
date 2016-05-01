@@ -71,7 +71,8 @@ def get_active_ifaces():
 
 active_ifaces = get_active_ifaces()
 if guiFunctions.configMe("volume", "serverIP") == '':
-    ip_address = get_ip_address(active_ifaces[0])
+    #ip_address = get_ip_address(active_ifaces[0])
+    ip_address = '192.168.1.110'
 else:
     ip_address = guiFunctions.configMe("volume", "serverIP")
     
@@ -81,7 +82,7 @@ zonesToMonitor = []                                                             
 maxVolPerZone = []                                                                          # Global to store max vol per zone checked.                                                                 
 portNum = guiFunctions.configMe("INI", "controlpoint_port", file="../pycpoint.ini")         # Setting static port num -- can get this from pycpoint.ini
 zoneNAME=urllib.urlopen('http://' + ip_address + ':' + portNum +'/data/deviceData').read()  # Getting active zones from Sonospy
-debugMe=True                                                                               # Set to TRUE to turn on debug logging.
+debugMe=False                                                                               # Set to TRUE to turn on debug logging.
 # -------------------------------------------------------------------------------------------------------------------------------
 
 # Positive look behind, positive look forward 
