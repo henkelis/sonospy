@@ -21,6 +21,10 @@
 # guiFunctions.py Author: John Chowanec <chowanec@gmail.com>
 ###############################################################################
 import wx
+import socket
+import sys
+import re
+import urllib
 #from wxPython.wx import *
 from wx.lib.pubsub import setuparg1
 from wx.lib.pubsub import pub
@@ -268,3 +272,100 @@ def savePlaylist(dataToSave):
 ########################################################################################################################
 def debug(msg):
     print "DEBUG -> " + msg
+
+def getLocalIP():
+    socket.setdefaulttimeout(15)
+    def get_ip_address(ifname):
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            ip = socket.inet_ntoa(fcntl.ioctl(s.fileno(), 0x8915, pack('256s', str(ifname[:15])))[20:24])
+            return ip
+        except:
+            return socket.gethostbyname(socket.gethostname())
+    
+    def get_active_ifaces():
+        if os.name == 'nt':
+            return [socket.gethostbyname(socket.gethostname())]
+        else:
+            try:
+                rd = open('/proc/net/route').readlines()
+            except (IOError, OSError):
+                return [socket.gethostbyname(socket.gethostname())]
+            net = [line.split('\t')[0:2] for line in rd]
+            return [v[0] for v in net if v[1] == '00000000']    
+    
+    active_ifaces = get_active_ifaces()
+    ip_address = get_ip_address(active_ifaces[0])
+    return ip_address
+
+def getZones(ip_address, portNum):
+    zoneNAME = []
+    cmd_folder = os.path.dirname(os.path.abspath(__file__))
+    
+    if cmd_folder not in sys.path:
+        sys.path.insert(0, cmd_folder)    
+
+    if os.name == 'nt':
+        os.chdir(cmd_folder)
+        os.chdir(os.pardir)
+        os.chdir(os.pardir)
+
+        temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
+        import codecs
+        with codecs.open('windowsPID.pid', encoding='utf-16') as f:
+            windowsPid = []
+            f.readline()
+            windowsPid = f.readline()
+            windowsPid = windowsPid.splitlines()
+            if windowsPid == []:
+                # The file is empty, so Sonospy is not running already.
+                f.close()
+                os.remove('windowsPID.pid')   
+                # Set sonospyRunning = False for the rest of the panel
+                sonospyRunning = False
+            else:
+                pub.sendMessage(('alreadyRunning'), "alreadyRunning")
+                sonospyRunning = True
+        os.chdir(cmd_folder)                
+
+
+    # We may be pointing to a valid server on another machine.  Check for the port being
+    # open or not.  If it is open, then we have a valid instance of Sonospy at which point
+    # rebuild the discoverable zones.
+
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    result = sock.connect_ex((ip_address,int(portNum)))
+    
+    if sonospyRunning:
+        if result == 0:        
+            zoneNAME=urllib.urlopen('http://' + ip_address + ':' + portNum +'/data/deviceData').read()
+            # Positive look behind, positive look forward 
+            # http://stackoverflow.com/questions/36827128/stripping-multiple-types-of-strings-from-a-master-string/   
+            zoneNAME = re.findall('(?<=R::).*?(?=_\|_)', zoneNAME)
+            # Strip it down to ONLY zones with (ZP)
+            regex = [re.compile('^.*\(ZP\)')]
+            zoneNAME = [s for s in zoneNAME if any(re.match(s) for re in regex)]
+        else:
+            # This prevents the socket from timing out.
+            errorMsg("Error!", "IP is valid, but ports don't seem to be open?  Check your Sonospy setup. (AND I AM NOT SURE WHY THIS WOULD TRIGGER!)")
+            zoneNAME = []
+            for i in range(0, 8):
+                zoneNAME.append("<no zone found>")    
+                
+        if len(zoneNAME) < 1:
+            errorMsg("Error!", "You don't have any discoverable zones!")
+    else:
+        if result == 0:
+            zoneNAME=urllib.urlopen('http://' + ip_address + ':' + portNum +'/data/deviceData').read()
+            zoneNAME = re.findall('(?<=R::).*?(?=_\|_)', zoneNAME)
+            # Strip it down to ONLY zones with (ZP)
+            regex = [re.compile('^.*\(ZP\)')]
+            zoneNAME = [s for s in zoneNAME if any(re.match(s) for re in regex)]
+        else:
+            # We have an IP in this case, but no instance of Sonospy on it.  Fill the
+            # list with dummy data to allow the form to fill.
+            zoneNAME = []
+            for i in range(0, 8):
+                zoneNAME.append("<no zone found>")    
+
+    return(zoneNAME)

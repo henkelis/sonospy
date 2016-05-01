@@ -22,8 +22,6 @@
 # virtualsTab.py Author: John Chowanec <chowanec@gmail.com>
 ########################################################################################################################
 # TO DO:
-# - FIX INSTANCES OF **BROKEN** BELOW
-# - Add autopopulate zones
 # - Remove zones with fixed volume = true
 ########################################################################################################################
 # IMPORTS FOR PYTHON
@@ -47,53 +45,18 @@ cmd_folder = os.path.dirname(os.path.abspath(__file__))
 
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
-
-socket.setdefaulttimeout(15)
-
-def get_ip_address(ifname):
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        ip = socket.inet_ntoa(fcntl.ioctl(s.fileno(), 0x8915, pack('256s', str(ifname[:15])))[20:24])
-        return ip
-    except:
-        return socket.gethostbyname(socket.gethostname())
-
-def get_active_ifaces():
-    if os.name == 'nt':
-        return [socket.gethostbyname(socket.gethostname())]
-    else:
-        try:
-            rd = open('/proc/net/route').readlines()
-        except (IOError, OSError):
-            return [socket.gethostbyname(socket.gethostname())]
-        net = [line.split('\t')[0:2] for line in rd]
-        return [v[0] for v in net if v[1] == '00000000']    
-
-active_ifaces = get_active_ifaces()
-if guiFunctions.configMe("volume", "serverIP") == '':
-    #ip_address = get_ip_address(active_ifaces[0])
-    ip_address = '192.168.1.110'
-else:
-    ip_address = guiFunctions.configMe("volume", "serverIP")
     
 # Global Vars -------------------------------------------------------------------------------------------------------------------
 list_checkboxIDNames = []                                                                   # Used later to store check box ids for retrieval
 zonesToMonitor = []                                                                         # Global for storing zones to monitor.
 maxVolPerZone = []                                                                          # Global to store max vol per zone checked.                                                                 
 portNum = guiFunctions.configMe("INI", "controlpoint_port", file="../pycpoint.ini")         # Setting static port num -- can get this from pycpoint.ini
-zoneNAME=urllib.urlopen('http://' + ip_address + ':' + portNum +'/data/deviceData').read()  # Getting active zones from Sonospy
+ip_address = guiFunctions.configMe("volume", "serverIP")                                    # get IP address of target server.
+zoneNAME = []                                                                               # Getting active zones from Sonospy
 debugMe=False                                                                               # Set to TRUE to turn on debug logging.
 # -------------------------------------------------------------------------------------------------------------------------------
 
-# Positive look behind, positive look forward 
-# http://stackoverflow.com/questions/36827128/stripping-multiple-types-of-strings-from-a-master-string/
-zoneNAME = re.findall('(?<=R::).*?(?=_\|_)', zoneNAME)
-# Strip it down to ONLY zones with (ZP)
-regex = [re.compile('^.*\(ZP\)')]
-zoneNAME = [s for s in zoneNAME if any(re.match(s) for re in regex)]
 
-if len(zoneNAME) < 1:
-    guiFunctions.errorMsg("Error!", "You don't have any discoverable zones!")
 
 def EVT_RESULT(win, func):
     """Define Result Event."""
@@ -159,27 +122,41 @@ class VolumePanel(wx.Panel):
     
         self.tc_serverIP = wx.TextCtrl(panel)
         self.tc_serverIP.SetToolTip(wx.ToolTip(help_serverIP))
-        self.tc_serverIP.Value = ip_address
+        self.tc_serverIP.Value = guiFunctions.configMe('volume', 'serveriP')
         sizer.Add(self.tc_serverIP, pos=(xIndex, 1), flag=wx.LEFT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
 
         self.tc_serverPort = wx.TextCtrl(panel)
         self.tc_serverPort.SetToolTip(wx.ToolTip(help_serverIP))
         self.tc_serverPort.Value = portNum
         sizer.Add(self.tc_serverPort, pos=(xIndex, 2), flag=wx.LEFT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((30,22))
+        
+        self.bt_serverIP = wx.Button(panel, label="Get IP Address")
+        help_bt_serverIP = "Click here to get the local machine's IP address.  This service can work by pointing to a different machine's IP on the LAN."
+        self.bt_serverIP.SetToolTip(wx.ToolTip(help_bt_serverIP))
+        self.bt_serverIP.Bind(wx.EVT_BUTTON, self.serverIPClick, self.bt_serverIP)
+        sizer.Add(self.bt_serverIP, pos=(xIndex, 3), span=(1,2), flag=wx.LEFT|wx.RIGHT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
 
-        xIndex +=0
+        if self.tc_serverIP.Value == '':
+            guiFunctions.errorMsg('ERROR!', 'Open GUIpref.ini and enter a valid IP address. Setting local machine IP instead.')
+
+            ip_address = guiFunctions.getLocalIP()
+            self.tc_serverIP.Value = ip_address
+
+        zoneNAME = guiFunctions.getZones(self.tc_serverIP.Value, portNum)
+             
+        xIndex +=1
     # -------------------------------------------------------------------------
     # [2] - Sleep Interval
     
         label_CheckInterval = wx.StaticText(panel, label="Vol Check Frequency (sec):")
         help_CheckInterval = "How frequently do you want to check for volume levels?"
         label_CheckInterval.SetToolTip(wx.ToolTip(help_CheckInterval))
-        sizer.Add(label_CheckInterval, pos=(xIndex, 3), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10)
+        sizer.Add(label_CheckInterval, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
         
         self.tc_CheckInterval = wx.TextCtrl(panel)
         self.tc_CheckInterval.SetToolTip(wx.ToolTip(help_CheckInterval))
         self.tc_CheckInterval.Value = guiFunctions.configMe("volume", "timeout")
-        sizer.Add(self.tc_CheckInterval, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((30,22))  
+        sizer.Add(self.tc_CheckInterval, pos=(xIndex, 1), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))  
 
         xIndex +=1
 
@@ -295,6 +272,8 @@ class VolumePanel(wx.Panel):
         if self.ck_ZONE1.Value == False:
             self.tc_ZONEVOL1.Disable()
             self.sliderZone1.Disable()
+            if self.ck_ZONE1.Label == '<no zone found>':
+                self.ck_ZONE1.Disable()
         
         curZoneNum += 1
         xIndex += 1
@@ -322,7 +301,9 @@ class VolumePanel(wx.Panel):
             if self.ck_ZONE2.Value == False:
                 self.tc_ZONEVOL2.Disable()
                 self.sliderZone2.Disable()
-
+                if self.ck_ZONE2.Label == '<no zone found>':
+                    self.ck_ZONE2.Disable()
+                    
         curZoneNum += 1  
         xIndex +=1
 
@@ -351,7 +332,9 @@ class VolumePanel(wx.Panel):
             if self.ck_ZONE3.Value == False:
                 self.tc_ZONEVOL3.Disable()
                 self.sliderZone3.Disable()            
-
+                if self.ck_ZONE3.Label == '<no zone found>':
+                    self.ck_ZONE3.Disable()
+                    
         curZoneNum +=1
         xIndex +=1
     
@@ -378,7 +361,9 @@ class VolumePanel(wx.Panel):
             if self.ck_ZONE4.Value == False:
                 self.tc_ZONEVOL4.Disable()
                 self.sliderZone4.Disable()
-
+                if self.ck_ZONE4.Label == '<no zone found>':
+                    self.ck_ZONE4.Disable()
+                    
         curZoneNum += 1     
         xIndex +=1
 
@@ -405,7 +390,9 @@ class VolumePanel(wx.Panel):
             if self.ck_ZONE5.Value == False:
                 self.tc_ZONEVOL5.Disable()
                 self.sliderZone5.Disable()
-
+                if self.ck_ZONE5.Label == '<no zone found>':
+                    self.ck_ZONE5.Disable()
+                    
         curZoneNum += 1                    
         xIndex +=1
 
@@ -432,7 +419,9 @@ class VolumePanel(wx.Panel):
             if self.ck_ZONE6.Value == False:
                 self.tc_ZONEVOL6.Disable()
                 self.sliderZone6.Disable()        
-
+                if self.ck_ZONE6.Label == '<no zone found>':
+                    self.ck_ZONE6.Disable()
+                    
         curZoneNum += 1                    
         xIndex +=1
     # -------------------------------------------------------------------------
@@ -458,7 +447,9 @@ class VolumePanel(wx.Panel):
             if self.ck_ZONE7.Value == False:
                 self.tc_ZONEVOL7.Disable()
                 self.sliderZone7.Disable()            
-
+                if self.ck_ZONE7.Label == '<no zone found>':
+                    self.ck_ZONE7.Disable()
+                    
         curZoneNum += 1                    
         xIndex +=1
 
@@ -485,7 +476,9 @@ class VolumePanel(wx.Panel):
             if self.ck_ZONE8.Value == False:
                 self.tc_ZONEVOL8.Disable()
                 self.sliderZone8.Disable()                
-
+                if self.ck_ZONE8.Label == '<no zone found>':
+                    self.ck_ZONE8.Disable()
+                    
         curZoneNum += 1                    
         xIndex +=1
 
@@ -513,7 +506,9 @@ class VolumePanel(wx.Panel):
             if self.ck_ZONE9.Value == False:
                 self.tc_ZONEVOL9.Disable()
                 self.sliderZone9.Disable()                    
-
+                if self.ck_ZONE9.Label == '<no zone found>':
+                    self.ck_ZONE9.Disable()
+                    
             xIndex +=4
 
     # -------------------------------------------------------------------------
@@ -525,7 +520,10 @@ class VolumePanel(wx.Panel):
         self.bt_Launch.SetToolTip(wx.ToolTip(help_bt_Launch))
         self.bt_Launch.Bind(wx.EVT_BUTTON, self.launchVolClick, self.bt_Launch)    
     
-        # **BROKEN** Add autopopulate button here
+        self.bt_AutoPopulate = wx.Button(panel, label="Autopopulate Sonos Zones")
+        bt_AutoPopulate = "Click here to scan for available zones."
+        self.bt_AutoPopulate.SetToolTip(wx.ToolTip(help_bt_Launch))
+        self.bt_AutoPopulate.Bind(wx.EVT_BUTTON, self.autoPopulateClick, self.bt_AutoPopulate)   
         
         # SAVE AS DEFAULTS
         self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
@@ -534,7 +532,8 @@ class VolumePanel(wx.Panel):
         self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
     
         sizer.Add(self.bt_Launch, pos=(xIndex,0), span=(1,2), flag=wx.EXPAND|wx.LEFT|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        sizer.Add(self.bt_SaveDefaults, pos=(xIndex,2), span=(1,3), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.bt_AutoPopulate, pos=(xIndex,2), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        sizer.Add(self.bt_SaveDefaults, pos=(xIndex,3), span=(1,3), flag=wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10)
 
     # -------------------------------------------------------------------------
     # Finalize the sizer
@@ -583,6 +582,19 @@ class VolumePanel(wx.Panel):
             self.tc_MuteHr.Enable()
             self.tc_MuteHrStop.Enable()     
 
+    def serverIPClick(self, event):
+        self.tc_serverIP.Value = guiFunctions.getLocalIP()
+
+    def autoPopulateClick(self, event):
+        ip_address = self.tc_serverIP.Value
+        zoneNAME = guiFunctions.getZones(ip_address, portNum)
+        for item in range(len(zoneNAME)-1):
+            wx.FindWindowByName(str(item + 1)).Label = zoneNAME[item]
+            if wx.FindWindowByName(str(item + 1)).Label == '<no zone found>':
+                wx.FindWindowByName(str(item + 1)).Disable()
+            else:
+                wx.FindWindowByName(str(item + 1)).Enable()
+
     def launchVolClick(self, event):
         if self.bt_Launch.Label == "Enable Volume Monitor":
             global zonesToMonitor
@@ -591,9 +603,11 @@ class VolumePanel(wx.Panel):
             for item in range(len(list_checkboxIDNames)):
                 if wx.FindWindowById(list_checkboxIDNames[item]).Value == True:        
                     zonesToMonitor.append(wx.FindWindowById(list_checkboxIDNames[item]).Label)
-        
-            self.worker = WorkerThread(self, self.startStop, int(self.tc_CheckInterval.Value))
-            self.bt_Launch.Label = "Disable Volume Monitor"
+            if len(zonesToMonitor) == 0:
+                guiFunctions.errorMsg("ERROR!", "You have no selected zones to monitor!")
+            else:
+                self.worker = WorkerThread(self, self.startStop, int(self.tc_CheckInterval.Value))
+                self.bt_Launch.Label = "Disable Volume Monitor"
         else:
             self.worker.ToKill = True
             self.bt_Launch.Label = "Enable Volume Monitor"
@@ -645,7 +659,6 @@ class VolumePanel(wx.Panel):
             os.chdir(os.pardir)
             os.chdir(os.pardir)
     
-            # **BROKEN** - Check to ensure Sonospy is running. THIS IS BROKEN
             temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
             import codecs
             with codecs.open('windowsPID.pid', encoding='utf-16') as f:
