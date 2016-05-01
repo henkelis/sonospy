@@ -720,17 +720,19 @@ class LaunchPanel(wx.Panel):
                     sonospyRunning = False
                     self.buildLaunch()
                     pub.sendMessage(('CreateMenu'), "Stop Sonospy")
-            else:
+            else: # We're running Windows down here...
                 proc = subprocess.Popen(launchCMD, shell=True)
                 # Trap the windows processID into a windowsPID.txt file so we can read it later to kill the process on stop.
-                temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
+                
+                # DEBUG
+                #temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
                 if self.bt_Launch.Label == "Stop":
                     self.bt_Launch.Label = "Launch"
                     self.bt_Launch.SetToolTip(wx.ToolTip("Click here to launch the Sonospy service."))
                     guiFunctions.statusText(self, "Sonospy Service Stopped...")
-                    if launchCMD.count("TASKKILL") > 0:
-                        if os.path.isfile('windowsPID.pid') == True:
-                            os.remove('windowsPID.pid')                
+                    #if launchCMD.count("TASKKILL") > 0:
+                        #if os.path.isfile('windowsPID.pid') == True:
+                            #os.remove('windowsPID.pid')                
                     self.setButtons(True)
                     sonospyRunning = True
                     self.buildLaunch()
@@ -930,17 +932,17 @@ class LaunchPanel(wx.Panel):
             if os.name != 'nt':
                 launchME = cmdroot + "sonospy_stop"
                 sonospyKill = True
-            else:
-                import codecs
+            #else:
+                #import codecs
 
-                if os.path.isfile('windowsPID.pid') == True: 
-                    with codecs.open('windowsPID.pid', encoding='utf-16') as f:
-                        f.readline()
-                        windowsPid = f.readline()
-                        windowsPid = windowsPid.splitlines()
-                        launchME = "TASKKILL /F /PID " + windowsPid[0] + " > nul"
-                        sonospyKill = True
-                        self.tc_Scratchpad.Value = "Sonospy currently running with Windows Process ID: " + windowsPid[0] + "\n\nPress STOP below when finished."
+                #if os.path.isfile('windowsPID.pid') == True: 
+                    #with codecs.open('windowsPID.pid', encoding='utf-16') as f:
+                        #f.readline()
+                        #windowsPid = f.readline()
+                        #windowsPid = windowsPid.splitlines()
+                        #launchME = "TASKKILL /F /PID " + windowsPid[0] + " > nul"
+                        #sonospyKill = True
+                        #self.tc_Scratchpad.Value = "Sonospy currently running with Windows Process ID: " + windowsPid[0] + "\n\nPress STOP below when finished."
         else:
             for item in range(len(list_checkboxID)):
                 if wx.FindWindowById(list_checkboxID[item]).Value == True:

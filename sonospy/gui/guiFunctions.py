@@ -262,3 +262,9 @@ def savePlaylist(dataToSave):
         os.chdir(cmd_folder)
         dialog.Destroy()
         return savefile
+
+########################################################################################################################
+# debug: global function to print debugging strings
+########################################################################################################################
+def debug(msg):
+    print "DEBUG -> " + msg

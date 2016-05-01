@@ -22,8 +22,9 @@
 # virtualsTab.py Author: John Chowanec <chowanec@gmail.com>
 ########################################################################################################################
 # TO DO:
-# - Build the actual loop.
-
+# - FIX INSTANCES OF **BROKEN** BELOW
+# - Add autopopulate zones
+# - Remove zones with fixed volume = true
 ########################################################################################################################
 # IMPORTS FOR PYTHON
 ########################################################################################################################
@@ -37,6 +38,15 @@ from wx.lib.pubsub import setuparg1
 from wx.lib.pubsub import pub
 import urllib
 import socket
+import sys
+import time
+import threading
+import datetime
+
+cmd_folder = os.path.dirname(os.path.abspath(__file__))
+
+if cmd_folder not in sys.path:
+    sys.path.insert(0, cmd_folder)
 
 socket.setdefaulttimeout(15)
 
@@ -60,19 +70,64 @@ def get_active_ifaces():
         return [v[0] for v in net if v[1] == '00000000']    
 
 active_ifaces = get_active_ifaces()
-ip_address = get_ip_address(active_ifaces[0])
+if guiFunctions.configMe("volume", "serverIP") == '':
+    ip_address = get_ip_address(active_ifaces[0])
+else:
+    ip_address = guiFunctions.configMe("volume", "serverIP")
+    
+# Global Vars -------------------------------------------------------------------------------------------------------------------
+list_checkboxIDNames = []                                                                   # Used later to store check box ids for retrieval
+zonesToMonitor = []                                                                         # Global for storing zones to monitor.
+maxVolPerZone = []                                                                          # Global to store max vol per zone checked.                                                                 
+portNum = guiFunctions.configMe("INI", "controlpoint_port", file="../pycpoint.ini")         # Setting static port num -- can get this from pycpoint.ini
+zoneNAME=urllib.urlopen('http://' + ip_address + ':' + portNum +'/data/deviceData').read()  # Getting active zones from Sonospy
+debugMe=True                                                                               # Set to TRUE to turn on debug logging.
+# -------------------------------------------------------------------------------------------------------------------------------
 
-# Comment this out, only doing this to test on a remote machine.
-ip_address = '192.168.1.110'
-portNum = '50108'
-
-# Get raw zone names from Sonospy
-zoneNAME=urllib.urlopen('http://' + ip_address + ':50108/data/deviceData').read()
 # Positive look behind, positive look forward 
 # http://stackoverflow.com/questions/36827128/stripping-multiple-types-of-strings-from-a-master-string/
 zoneNAME = re.findall('(?<=R::).*?(?=_\|_)', zoneNAME)
+# Strip it down to ONLY zones with (ZP)
+regex = [re.compile('^.*\(ZP\)')]
+zoneNAME = [s for s in zoneNAME if any(re.match(s) for re in regex)]
+
 if len(zoneNAME) < 1:
     guiFunctions.errorMsg("Error!", "You don't have any discoverable zones!")
+
+def EVT_RESULT(win, func):
+    """Define Result Event."""
+    win.Connect(-1, -1, EVT_RESULT_ID, func)
+            
+class ResultEvent(wx.PyEvent):
+    """Simple event to carry arbitrary result data."""
+    def __init__(self, data):
+        """Init Result Event."""
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_RESULT_ID)
+        self.data = data      
+
+class WorkerThread(Thread):
+    """Worker Thread Class."""
+    def __init__(self, notify_window, func, delay):
+        """Init Worker Thread Class."""
+        Thread.__init__(self)
+        self._notify_window = notify_window
+        self.ToKill = False
+        self._want_abort = 0
+        global function
+        global timeout
+        function = func
+        timeout = delay
+        self.start()
+
+    def run(self):
+        """Run Worker Thread."""
+        while self.ToKill==False:
+            function()
+            time.sleep(timeout)
+
+
+
 
 ########################################################################################################################
 # VolumePanel: The layout and binding section for the frame.
@@ -122,7 +177,7 @@ class VolumePanel(wx.Panel):
         
         self.tc_CheckInterval = wx.TextCtrl(panel)
         self.tc_CheckInterval.SetToolTip(wx.ToolTip(help_CheckInterval))
-        self.tc_CheckInterval.Value = '1'
+        self.tc_CheckInterval.Value = guiFunctions.configMe("volume", "timeout")
         sizer.Add(self.tc_CheckInterval, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL|wx.TOP, border=10).SetMinSize((30,22))  
 
         xIndex +=1
@@ -132,39 +187,46 @@ class VolumePanel(wx.Panel):
         
         self.ck_QuietHours = wx.CheckBox(self, -1, 'Quiet Hours')
         self.ck_QuietHours.SetToolTip(wx.ToolTip("Click here to turn on Quiet Hours"))
-        help_QuietHours = "Set time HHMM in 24 hour notation to drop volume. 2300 for example."
+        help_QuietHours = "Set time HH:MM in 24 hour notation to drop volume. 23:00 for example."
         self.ck_QuietHours.Bind(wx.EVT_CHECKBOX, self.quietCkClick)
+        self.ck_QuietHours.Value = guiFunctions.configMe("volume", "quietCk", bool=True)
         sizer.Add(self.ck_QuietHours, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
             
         self.tc_quietHr = wx.TextCtrl(panel)
         self.tc_quietHr.SetToolTip(wx.ToolTip(help_QuietHours))
-        self.tc_quietHr.Value = '2300'
+        self.tc_quietHr.Value = guiFunctions.configMe("volume", "quietHr")
         sizer.Add(self.tc_quietHr, pos=(xIndex, 1), flag=wx.LEFT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
 
+        self.tc_quietHrStop = wx.TextCtrl(panel)
+        self.tc_quietHrStop.SetToolTip(wx.ToolTip("Set the time HHMM in 24 hour notation to stop quiet hours. 23:59 for example."))
+        self.tc_quietHrStop.Value = guiFunctions.configMe("volume", "quietHrStop")
+        sizer.Add(self.tc_quietHrStop, pos=(xIndex, 2), flag=wx.LEFT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
+        
         xIndex +=1
         
-        label_QuietVol = wx.StaticText(panel, label="Quiet Volume:")
+        self.label_QuietVol = wx.StaticText(panel, label="Quiet Volume:")
         help_QuietVol = "Set desired Quiet Hour max volume."
-        label_QuietVol.SetToolTip(wx.ToolTip(help_QuietVol))
-        sizer.Add(label_QuietVol, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        self.label_QuietVol.SetToolTip(wx.ToolTip(help_QuietVol))
+        sizer.Add(self.label_QuietVol, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
+        self.quietSlider = wx.Slider(self, -1, guiFunctions.configMe("volume", "quietSlider", integer=True), 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
         
-        self.quietSlider = wx.Slider(self, -1, 50, 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
-        self.quietSlider.Bind(wx.EVT_SLIDER, self.quietSliderUpdate)
-        sizer.Add(self.quietSlider, pos=(xIndex,1), span=(2, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-        
-        self.tc_QuietVol = wx.TextCtrl(panel, -1, "", (0,0), (30,21))
+        self.tc_QuietVol = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", "quietSlider"), (0,0), (30,21))
         self.tc_QuietVol.SetToolTip(wx.ToolTip(help_QuietVol))
+        
+        self.quietSlider.Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, self.quietSlider, self.tc_QuietVol,), self.quietSlider)
+        self.tc_QuietVol.Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, self.quietSlider, self.tc_QuietVol,), self.tc_QuietVol)
+        
+        sizer.Add(self.quietSlider, pos=(xIndex,1), span=(1, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
         sizer.Add(self.tc_QuietVol, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))        
         
-        if self.tc_QuietVol.Value == "":
-            self.tc_QuietVol.SetValue(str(self.quietSlider.GetValue()))
-    
-        self.tc_quietHr.Disable()
-        label_QuietVol.Disable()
-        self.quietSlider.Disable()
-        self.tc_QuietVol.Disable()
+        if self.ck_QuietHours.Value == False:
+            self.tc_quietHr.Disable()
+            self.tc_quietHrStop.Disable()
+            self.label_QuietVol.Disable()
+            self.quietSlider.Disable()
+            self.tc_QuietVol.Disable()
 
-        xIndex +=2
+        xIndex +=1
 
     # -------------------------------------------------------------------------
     # [4] - Mute Hours
@@ -172,20 +234,22 @@ class VolumePanel(wx.Panel):
         self.ck_MuteHours = wx.CheckBox(self, -1, 'Mute Hours')
         self.ck_MuteHours.SetToolTip(wx.ToolTip("Click here to turn on Mute Hours"))
         self.ck_MuteHours.Bind(wx.EVT_CHECKBOX, self.muteHoursClick)
+        self.ck_MuteHours.Value = guiFunctions.configMe("volume", "muteCk", bool=True)
         sizer.Add(self.ck_MuteHours, pos=(xIndex, 0), flag=wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
                 
         self.tc_MuteHr = wx.TextCtrl(panel)
-        self.tc_MuteHr.SetToolTip(wx.ToolTip("Time to start muting zones. 0000 = midnight, for instance"))
-        self.tc_MuteHr.Value = '0'
+        self.tc_MuteHr.SetToolTip(wx.ToolTip("Time to start muting zones. 00:00 = midnight, for instance"))
+        self.tc_MuteHr.Value = guiFunctions.configMe("volume", "muteHr")
         sizer.Add(self.tc_MuteHr, pos=(xIndex, 1), flag=wx.LEFT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
     
         self.tc_MuteHrStop = wx.TextCtrl(panel)
-        self.tc_MuteHrStop.SetToolTip(wx.ToolTip("Time to end muting zones. 700 = 7am, for instance."))
-        self.tc_MuteHrStop.Value = '700'
+        self.tc_MuteHrStop.SetToolTip(wx.ToolTip("Time to end muting zones. 07:00 = 7am, for instance."))
+        self.tc_MuteHrStop.Value = guiFunctions.configMe("volume", "mutehrStop")
         sizer.Add(self.tc_MuteHrStop, pos=(xIndex, 2), flag=wx.LEFT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL, border=10)
-        
-        self.tc_MuteHr.Disable()
-        self.tc_MuteHrStop.Disable()
+
+        if self.ck_MuteHours.Value == False:
+            self.tc_MuteHr.Disable()
+            self.tc_MuteHrStop.Disable()
         
         xIndex +=1
 
@@ -209,228 +273,250 @@ class VolumePanel(wx.Panel):
     # Zones, sliders and max volume
     # -------------------------------------------------------------------------
     # [7,8] - Zone 1
-        self.ck_ZONE1 = wx.CheckBox(self, -1, zoneNAME[curZoneNum])
+    # **BROKEN** - Fix zoneNAME[] if it does not exist in savetodefaults - then populate to the rest.
+        self.ck_ZONE1 = wx.CheckBox(self, -1, zoneNAME[curZoneNum], name="1")
         self.ck_ZONE1.SetToolTip(wx.ToolTip("Click here to monitor volume for this zone."))
-        self.ck_ZONE1.Bind(wx.EVT_CHECKBOX, self.zone1CkClick)
+        list_checkboxIDNames.append(self.ck_ZONE1.GetId())
         sizer.Add(self.ck_ZONE1, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
     
-        self.tc_ZONEVOL1 = wx.TextCtrl(panel, -1, "", (0,0), (30,21))
+        self.tc_ZONEVOL1 = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", "slider1"), (0,0), (30,21))
         self.tc_ZONEVOL1.SetToolTip(wx.ToolTip("Set max volume for the zone (0-100)"))
         sizer.Add(self.tc_ZONEVOL1, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))
 
-        self.sliderZone1 = wx.Slider(self, -1, 50, 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
-        self.sliderZone1.Bind(wx.EVT_SLIDER, self.slider1Update)
-        sizer.Add(self.sliderZone1, pos=(xIndex,1), span=(2, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
+        self.sliderZone1 = wx.Slider(self, -1, guiFunctions.configMe("volume", "slider1", integer=True), 0, 100, size=(400,10), name="sliderZone1", style=wx.SL_HORIZONTAL)
 
-        if self.tc_ZONEVOL1.Value == "":
-            self.tc_ZONEVOL1.SetValue(str(self.sliderZone1.GetValue()))
+        self.sliderZone1.Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, self.sliderZone1, self.tc_ZONEVOL1,), self.sliderZone1)
+        self.tc_ZONEVOL1.Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, self.sliderZone1, self.tc_ZONEVOL1,), self.tc_ZONEVOL1)
+        self.ck_ZONE1.Bind(wx.EVT_CHECKBOX, lambda event: self.zoneCkClick(event, self.ck_ZONE1, self.sliderZone1, self.tc_ZONEVOL1,), self.ck_ZONE1)
+        
+        sizer.Add(self.sliderZone1, pos=(xIndex,1), span=(1, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
 
-        self.tc_ZONEVOL1.Disable()
-        self.sliderZone1.Disable()
+        if self.ck_ZONE1.Value == False:
+            self.tc_ZONEVOL1.Disable()
+            self.sliderZone1.Disable()
         
         curZoneNum += 1
-        xIndex += 2
+        xIndex += 1
     # -------------------------------------------------------------------------
     # [9,10] - Zone2
+
         if curZoneNum < len(zoneNAME):
-            self.ck_ZONE2 = wx.CheckBox(self, -1, zoneNAME[curZoneNum])
+            self.ck_ZONE2 = wx.CheckBox(self, -1, zoneNAME[curZoneNum], name='2')
             self.ck_ZONE2.SetToolTip(wx.ToolTip("Click here to monitor volume for this zone."))
-            self.ck_ZONE2.Bind(wx.EVT_CHECKBOX, self.zone2CkClick)
+            list_checkboxIDNames.append(self.ck_ZONE2.GetId())
             sizer.Add(self.ck_ZONE2, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
         
-            self.tc_ZONEVOL2 = wx.TextCtrl(panel, -1, "", (0,0), (30,21))
+            self.tc_ZONEVOL2 = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", "slider2"), (0,0), (30,21))
             self.tc_ZONEVOL2.SetToolTip(wx.ToolTip("Set max volume for the zone (0-100)"))
             sizer.Add(self.tc_ZONEVOL2, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))
         
-            self.sliderZone2 = wx.Slider(self, -1, 50, 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
-            self.sliderZone2.Bind(wx.EVT_SLIDER, self.slider2Update)
-            sizer.Add(self.sliderZone2, pos=(xIndex,1), span=(2, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
-            
-            if self.tc_ZONEVOL2.Value == "":
-                self.tc_ZONEVOL2.SetValue(str(self.sliderZone1.GetValue()))
+            self.sliderZone2 = wx.Slider(self, -1, guiFunctions.configMe("volume", "slider2", integer=True), 0, 100, size=(400,10), name="sliderZone2", style=wx.SL_HORIZONTAL)
 
-            self.tc_ZONEVOL2.Disable()
-            self.sliderZone2.Disable()
+            self.sliderZone2.Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, self.sliderZone2, self.tc_ZONEVOL2,), self.sliderZone2)
+            self.tc_ZONEVOL2.Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, self.sliderZone2, self.tc_ZONEVOL2,), self.tc_ZONEVOL2)
+            self.ck_ZONE2.Bind(wx.EVT_CHECKBOX, lambda event: self.zoneCkClick(event, self.ck_ZONE2, self.sliderZone2, self.tc_ZONEVOL2,), self.ck_ZONE2)
+            
+            sizer.Add(self.sliderZone2, pos=(xIndex,1), span=(1, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
+
+            if self.ck_ZONE2.Value == False:
+                self.tc_ZONEVOL2.Disable()
+                self.sliderZone2.Disable()
 
         curZoneNum += 1  
-        xIndex +=2
+        xIndex +=1
 
     # -------------------------------------------------------------------------
     # [10,11] - Zone3
+    # **BROKEN** - Fix zoneNAME[] if it does not exist in savetodefaults
         if curZoneNum < len(zoneNAME):
-            self.ck_ZONE3 = wx.CheckBox(self, -1, zoneNAME[curZoneNum])
+            self.ck_ZONE3 = wx.CheckBox(self, -1, zoneNAME[curZoneNum], name='3')
             self.ck_ZONE3.SetToolTip(wx.ToolTip("Click here to monitor volume for this zone."))
-            self.ck_ZONE3.Bind(wx.EVT_CHECKBOX, self.zone3CkClick)            
+            list_checkboxIDNames.append(self.ck_ZONE3.GetId())
             sizer.Add(self.ck_ZONE3, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
             
             
-            self.tc_ZONEVOL3 = wx.TextCtrl(panel, -1, "", (0,0), (30,21))
+            self.tc_ZONEVOL3 = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", "slider3"), (0,0), (30,21))
             self.tc_ZONEVOL3.SetToolTip(wx.ToolTip("Set max volume for the zone (0-100)"))
             sizer.Add(self.tc_ZONEVOL3, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))
             
-            self.sliderZone3 = wx.Slider(self, -1, 50, 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
-            self.sliderZone3.Bind(wx.EVT_SLIDER, self.slider3Update)
-            sizer.Add(self.sliderZone3, pos=(xIndex,1), span=(2, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
-                
-            if self.tc_ZONEVOL3.Value == "":
-                self.tc_ZONEVOL3.SetValue(str(self.sliderZone1.GetValue()))
+            self.sliderZone3 = wx.Slider(self, -1, guiFunctions.configMe("volume", "slider3", integer=True), 0, 100, size=(400,10), name="sliderZone3", style=wx.SL_HORIZONTAL)
 
-            self.tc_ZONEVOL3.Disable()
-            self.sliderZone3.Disable()            
+            self.sliderZone3.Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, self.sliderZone3, self.tc_ZONEVOL3,), self.sliderZone3)
+            self.tc_ZONEVOL3.Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, self.sliderZone3, self.tc_ZONEVOL3,), self.tc_ZONEVOL3)
+            self.ck_ZONE3.Bind(wx.EVT_CHECKBOX, lambda event: self.zoneCkClick(event, self.ck_ZONE3, self.sliderZone3, self.tc_ZONEVOL3,), self.ck_ZONE3)
+            
+            sizer.Add(self.sliderZone3, pos=(xIndex,1), span=(1, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
+
+            if self.ck_ZONE3.Value == False:
+                self.tc_ZONEVOL3.Disable()
+                self.sliderZone3.Disable()            
 
         curZoneNum +=1
-        xIndex +=2
+        xIndex +=1
     
     # -------------------------------------------------------------------------
     # [12,13] - Zone4
         if curZoneNum < len(zoneNAME):
-            self.ck_ZONE4 = wx.CheckBox(self, -1, zoneNAME[curZoneNum])
+            self.ck_ZONE4 = wx.CheckBox(self, -1, zoneNAME[curZoneNum], name='4')
             self.ck_ZONE4.SetToolTip(wx.ToolTip("Click here to monitor volume for this zone."))
-            self.ck_ZONE4.Bind(wx.EVT_CHECKBOX, self.zone4CkClick)
+            list_checkboxIDNames.append(self.ck_ZONE4.GetId())
             sizer.Add(self.ck_ZONE4, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
             
-            self.tc_ZONEVOL4 = wx.TextCtrl(panel, -1, "", (0,0), (30,21))
+            self.tc_ZONEVOL4 = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", "slider4"), (0,0), (30,21))
             self.tc_ZONEVOL4.SetToolTip(wx.ToolTip("Set max volume for the zone (0-100)"))
             sizer.Add(self.tc_ZONEVOL4, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))
                 
-            self.sliderZone4 = wx.Slider(self, -1, 50, 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
-            self.sliderZone4.Bind(wx.EVT_SLIDER, self.slider4Update)
-            sizer.Add(self.sliderZone4, pos=(xIndex,1), span=(2, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
-    
-            if self.tc_ZONEVOL4.Value == "":
-                self.tc_ZONEVOL4.SetValue(str(self.sliderZone1.GetValue()))
+            self.sliderZone4 = wx.Slider(self, -1, guiFunctions.configMe("volume", "slider4", integer=True), 0, 100, size=(400,10), name="sliderZone4", style=wx.SL_HORIZONTAL)
 
-            self.tc_ZONEVOL4.Disable()
-            self.sliderZone4.Disable()
+            self.sliderZone4.Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, self.sliderZone4, self.tc_ZONEVOL4,), self.sliderZone4)
+            self.tc_ZONEVOL4.Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, self.sliderZone4, self.tc_ZONEVOL4,), self.tc_ZONEVOL4)
+            self.ck_ZONE4.Bind(wx.EVT_CHECKBOX, lambda event: self.zoneCkClick(event, self.ck_ZONE4, self.sliderZone4, self.tc_ZONEVOL4,), self.ck_ZONE4)
+            
+            sizer.Add(self.sliderZone4, pos=(xIndex,1), span=(1, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
+
+            if self.ck_ZONE4.Value == False:
+                self.tc_ZONEVOL4.Disable()
+                self.sliderZone4.Disable()
 
         curZoneNum += 1     
-        xIndex +=2
+        xIndex +=1
 
     # -------------------------------------------------------------------------
     # [14,15] - Zone5
         if curZoneNum < len(zoneNAME):        
-            self.ck_ZONE5 = wx.CheckBox(self, -1, zoneNAME[curZoneNum])
+            self.ck_ZONE5 = wx.CheckBox(self, -1, zoneNAME[curZoneNum], name='5')
             self.ck_ZONE5.SetToolTip(wx.ToolTip("Click here to monitor volume for this zone."))
+            list_checkboxIDNames.append(self.ck_ZONE5.GetId())
             sizer.Add(self.ck_ZONE5, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
-            self.ck_ZONE5.Bind(wx.EVT_CHECKBOX, self.zone5CkClick)
                     
-            self.tc_ZONEVOL5 = wx.TextCtrl(panel, -1, "", (0,0), (30,21))
+            self.tc_ZONEVOL5 = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", "slider5"), (0,0), (30,21))
             self.tc_ZONEVOL5.SetToolTip(wx.ToolTip("Set max volume for the zone (0-100)"))
             sizer.Add(self.tc_ZONEVOL5, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))
                     
-            self.sliderZone5 = wx.Slider(self, -1, 50, 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
-            self.sliderZone5.Bind(wx.EVT_SLIDER, self.slider5Update)
-            sizer.Add(self.sliderZone5, pos=(xIndex,1), span=(2, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
+            self.sliderZone5 = wx.Slider(self, -1, guiFunctions.configMe("volume", "slider5", integer=True), 0, 100, size=(400,10), name="sliderZone5", style=wx.SL_HORIZONTAL)
 
-            if self.tc_ZONEVOL5.Value == "":
-                self.tc_ZONEVOL5.SetValue(str(self.sliderZone1.GetValue()))
+            self.sliderZone5.Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, self.sliderZone5, self.tc_ZONEVOL5,), self.sliderZone5)
+            self.tc_ZONEVOL5.Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, self.sliderZone5, self.tc_ZONEVOL5,), self.tc_ZONEVOL5)
+            self.ck_ZONE5.Bind(wx.EVT_CHECKBOX, lambda event: self.zoneCkClick(event, self.ck_ZONE5, self.sliderZone5, self.tc_ZONEVOL5,), self.ck_ZONE5)
+            
+            sizer.Add(self.sliderZone5, pos=(xIndex,1), span=(1, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
 
-            self.tc_ZONEVOL5.Disable()
-            self.sliderZone5.Disable()
+            if self.ck_ZONE5.Value == False:
+                self.tc_ZONEVOL5.Disable()
+                self.sliderZone5.Disable()
 
         curZoneNum += 1                    
-        xIndex +=2
+        xIndex +=1
 
     # -------------------------------------------------------------------------
     # [16,17] - Zone6
         if curZoneNum < len(zoneNAME):        
-            self.ck_ZONE6 = wx.CheckBox(self, -1, zoneNAME[curZoneNum])
+            self.ck_ZONE6 = wx.CheckBox(self, -1, zoneNAME[curZoneNum], name='6')
             self.ck_ZONE6.SetToolTip(wx.ToolTip("Click here to monitor volume for this zone."))
-            self.ck_ZONE6.Bind(wx.EVT_CHECKBOX, self.zone6CkClick)
+            list_checkboxIDNames.append(self.ck_ZONE6.GetId())
             sizer.Add(self.ck_ZONE6, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
                     
-            self.tc_ZONEVOL6 = wx.TextCtrl(panel, -1, "", (0,0), (30,21))
+            self.tc_ZONEVOL6 = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", "slider6"), (0,0), (30,21))
             self.tc_ZONEVOL6.SetToolTip(wx.ToolTip("Set max volume for the zone (0-100)"))
             sizer.Add(self.tc_ZONEVOL6, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))
                     
-            self.sliderZone6 = wx.Slider(self, -1, 50, 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
-            self.sliderZone6.Bind(wx.EVT_SLIDER, self.slider6Update)
-            sizer.Add(self.sliderZone6, pos=(xIndex,1), span=(2, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
-                
-            if self.tc_ZONEVOL6.Value == "":
-                self.tc_ZONEVOL6.SetValue(str(self.sliderZone1.GetValue()))
+            self.sliderZone6 = wx.Slider(self, -1, guiFunctions.configMe("volume", "slider6", integer=True), 0, 100, size=(400,10), name="sliderZone6", style=wx.SL_HORIZONTAL)
 
-            self.tc_ZONEVOL6.Disable()
-            self.sliderZone6.Disable()        
+            self.sliderZone6.Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, self.sliderZone6, self.tc_ZONEVOL6,), self.sliderZone6)
+            self.tc_ZONEVOL6.Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, self.sliderZone6, self.tc_ZONEVOL6,), self.tc_ZONEVOL6)
+            self.ck_ZONE6.Bind(wx.EVT_CHECKBOX, lambda event: self.zoneCkClick(event, self.ck_ZONE6, self.sliderZone6, self.tc_ZONEVOL6,), self.ck_ZONE6)
+
+            sizer.Add(self.sliderZone6, pos=(xIndex,1), span=(1, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
+
+            if self.ck_ZONE6.Value == False:
+                self.tc_ZONEVOL6.Disable()
+                self.sliderZone6.Disable()        
 
         curZoneNum += 1                    
-        xIndex +=2
+        xIndex +=1
     # -------------------------------------------------------------------------
     # [18,19] - Zone7
         if curZoneNum < len(zoneNAME):        
-            self.ck_ZONE7 = wx.CheckBox(self, -1, zoneNAME[curZoneNum])
+            self.ck_ZONE7 = wx.CheckBox(self, -1, zoneNAME[curZoneNum], name='7')
             self.ck_ZONE7.SetToolTip(wx.ToolTip("Click here to monitor volume for this zone."))
-            self.ck_ZONE7.Bind(wx.EVT_CHECKBOX, self.zone7CkClick)
+            list_checkboxIDNames.append(self.ck_ZONE7.GetId())
             sizer.Add(self.ck_ZONE7, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
                     
-            self.tc_ZONEVOL7 = wx.TextCtrl(panel, -1, "", (0,0), (30,21))
+            self.tc_ZONEVOL7 = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", "slider7"), (0,0), (30,21))
             self.tc_ZONEVOL7.SetToolTip(wx.ToolTip("Set max volume for the zone (0-100)"))
             sizer.Add(self.tc_ZONEVOL7, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))
                     
-            self.sliderZone7 = wx.Slider(self, -1, 50, 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
-            self.sliderZone7.Bind(wx.EVT_SLIDER, self.slider7Update)
-            sizer.Add(self.sliderZone7, pos=(xIndex,1), span=(2, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
-                
-            if self.tc_ZONEVOL7.Value == "":
-                self.tc_ZONEVOL7.SetValue(str(self.sliderZone1.GetValue()))
+            self.sliderZone7 = wx.Slider(self, -1, guiFunctions.configMe("volume", "slider7", integer=True), 0, 100, size=(400,10), name="sliderZone7", style=wx.SL_HORIZONTAL)
 
-            self.tc_ZONEVOL7.Disable()
-            self.sliderZone7.Disable()            
+            self.sliderZone7.Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, self.sliderZone7, self.tc_ZONEVOL7,), self.sliderZone7)
+            self.tc_ZONEVOL7.Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, self.sliderZone7, self.tc_ZONEVOL7,), self.tc_ZONEVOL7)
+            self.ck_ZONE7.Bind(wx.EVT_CHECKBOX, lambda event: self.zoneCkClick(event, self.ck_ZONE7, self.sliderZone7, self.tc_ZONEVOL7,), self.ck_ZONE7)
+            
+            sizer.Add(self.sliderZone7, pos=(xIndex,1), span=(1, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
+
+            if self.ck_ZONE7.Value == False:
+                self.tc_ZONEVOL7.Disable()
+                self.sliderZone7.Disable()            
 
         curZoneNum += 1                    
-        xIndex +=2
+        xIndex +=1
 
     # -------------------------------------------------------------------------
     # [20,21] - Zone8
         if curZoneNum < len(zoneNAME):        
-            self.ck_ZONE8 = wx.CheckBox(self, -1, zoneNAME[curZoneNum])
+            self.ck_ZONE8 = wx.CheckBox(self, -1, zoneNAME[curZoneNum], name='8')
             self.ck_ZONE8.SetToolTip(wx.ToolTip("Click here to monitor volume for this zone."))
-            self.ck_ZONE8.Bind(wx.EVT_CHECKBOX, self.zone8CkClick)
+            list_checkboxIDNames.append(self.ck_ZONE8.GetId())
             sizer.Add(self.ck_ZONE8, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
                     
-            self.tc_ZONEVOL8 = wx.TextCtrl(panel, -1, "", (0,0), (30,21))
+            self.tc_ZONEVOL8 = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", "slider8"), (0,0), (30,21))
             self.tc_ZONEVOL8.SetToolTip(wx.ToolTip("Set max volume for the zone (0-100)"))
             sizer.Add(self.tc_ZONEVOL8, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))
                     
-            self.sliderZone8 = wx.Slider(self, -1, 50, 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
-            self.sliderZone8.Bind(wx.EVT_SLIDER, self.slider8Update)
-            sizer.Add(self.sliderZone8, pos=(xIndex,1), span=(2, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
-                
-            if self.tc_ZONEVOL8.Value == "":
-                self.tc_ZONEVOL8.SetValue(str(self.sliderZone1.GetValue()))
+            self.sliderZone8 = wx.Slider(self, -1, guiFunctions.configMe("volume", "slider8", integer=True), 0, 100, size=(400,10), name="sliderZone8", style=wx.SL_HORIZONTAL)
 
-            self.tc_ZONEVOL8.Disable()
-            self.sliderZone8.Disable()                
+            self.sliderZone8.Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, self.sliderZone8, self.tc_ZONEVOL8,), self.sliderZone8)
+            self.tc_ZONEVOL8.Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, self.sliderZone8, self.tc_ZONEVOL8,), self.tc_ZONEVOL8)
+            self.ck_ZONE8.Bind(wx.EVT_CHECKBOX, lambda event: self.zoneCkClick(event, self.ck_ZONE8, self.sliderZone8, self.tc_ZONEVOL8,), self.ck_ZONE8)
+                        
+            sizer.Add(self.sliderZone8, pos=(xIndex,1), span=(1, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
+
+            if self.ck_ZONE8.Value == False:
+                self.tc_ZONEVOL8.Disable()
+                self.sliderZone8.Disable()                
 
         curZoneNum += 1                    
-        xIndex +=2
+        xIndex +=1
 
     # -------------------------------------------------------------------------
     # [22,23] - Zone9
         if curZoneNum < len(zoneNAME):        
-            self.ck_ZONE9 = wx.CheckBox(self, -1, zoneNAME[curZoneNum])
+            self.ck_ZONE9 = wx.CheckBox(self, -1, zoneNAME[curZoneNum], name='9')
             self.ck_ZONE9.SetToolTip(wx.ToolTip("Click here to monitor volume for this zone."))
-            self.ck_ZONE9.Bind(wx.EVT_CHECKBOX, self.zone9CkClick)
+            list_checkboxIDNames.append(self.ck_ZONE9.GetId())
+
             sizer.Add(self.ck_ZONE9, pos=(xIndex,0), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)
                     
-            self.tc_ZONEVOL9 = wx.TextCtrl(panel, -1, "", (0,0), (30,21))
+            self.tc_ZONEVOL9 = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", "slider9"), (0,0), (30,21))
             self.tc_ZONEVOL9.SetToolTip(wx.ToolTip("Set max volume for the zone (0-100)"))
             sizer.Add(self.tc_ZONEVOL9, pos=(xIndex,4), flag=wx.RIGHT|wx.ALIGN_CENTER_VERTICAL, border=10).SetMinSize((30,22))
                     
-            self.sliderZone9 = wx.Slider(self, -1, 50, 0, 100, size=(400,10), style=wx.SL_HORIZONTAL)
-            self.sliderZone9.Bind(wx.EVT_SLIDER, self.slider9Update)
-            sizer.Add(self.sliderZone9, pos=(xIndex,1), span=(2, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
-                
-            if self.tc_ZONEVOL9.Value == "":
-                self.tc_ZONEVOL9.SetValue(str(self.sliderZone1.GetValue()))
+            self.sliderZone9 = wx.Slider(self, -1, guiFunctions.configMe("volume", "slider9", integer=True), 0, 100, size=(400,10), name="sliderZone9", style=wx.SL_HORIZONTAL)
 
-            self.tc_ZONEVOL9.Disable()
-            self.sliderZone9.Disable()                    
+            self.sliderZone9.Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, self.sliderZone9, self.tc_ZONEVOL9,), self.sliderZone9)
+            self.tc_ZONEVOL9.Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, self.sliderZone9, self.tc_ZONEVOL9,), self.tc_ZONEVOL9)
+            self.ck_ZONE9.Bind(wx.EVT_CHECKBOX, lambda event: self.zoneCkClick(event, self.ck_ZONE9, self.sliderZone9, self.tc_ZONEVOL9,), self.ck_ZONE9)
+                
+            sizer.Add(self.sliderZone9, pos=(xIndex,1), span=(1, 3), flag=wx.EXPAND|wx.LEFT|wx.ALIGN_CENTER_VERTICAL, border=10)        
+
+            if self.ck_ZONE9.Value == False:
+                self.tc_ZONEVOL9.Disable()
+                self.sliderZone9.Disable()                    
 
             xIndex +=4
 
     # -------------------------------------------------------------------------
-    # [22,23] - Zone9
+    # [22,23] - LAUNCH / DEFAULTS / AUTOPOP BUTTONS
 
         # - LAUNCH BUTTON
         self.bt_Launch = wx.Button(panel, label="Enable Volume Monitor")
@@ -438,6 +524,8 @@ class VolumePanel(wx.Panel):
         self.bt_Launch.SetToolTip(wx.ToolTip(help_bt_Launch))
         self.bt_Launch.Bind(wx.EVT_BUTTON, self.launchVolClick, self.bt_Launch)    
     
+        # **BROKEN** Add autopopulate button here
+        
         # SAVE AS DEFAULTS
         self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
         help_SaveDefaults = "Save current settings as default."
@@ -449,122 +537,42 @@ class VolumePanel(wx.Panel):
 
     # -------------------------------------------------------------------------
     # Finalize the sizer
+        self.worker = None
         pub.subscribe(self.setVolumePanel, 'setVolumePanel')
         sizer.AddGrowableCol(1)
         panel.SetSizer(sizer)
 
+########################################################################################################################
+# BIND Events per the panel above
+########################################################################################################################
 
-    def slider1Update(self, event):
-        self.tc_ZONEVOL1.SetValue(str(self.sliderZone1.GetValue()))
+    def sliderUpdate(self, event, slider, textctrl):
+        textctrl.SetValue(str(slider.GetValue()))
 
-    def slider2Update(self, event):
-        self.tc_ZONEVOL2.SetValue(str(self.sliderZone2.GetValue()))
-
-    def slider3Update(self, event):
-        self.tc_ZONEVOL3.SetValue(str(self.sliderZone3.GetValue()))
-
-    def slider4Update(self, event):
-        self.tc_ZONEVOL4.SetValue(str(self.sliderZone4.GetValue()))
+    def tcVolUpdate(self, event, slider, textctrl):
+        slider.SetValue(int(textctrl.GetValue()))
         
-    def slider5Update(self, event):
-        self.tc_ZONEVOL5.SetValue(str(self.sliderZone5.GetValue()))
-        
-    def slider6Update(self, event):
-        self.tc_ZONEVOL6.SetValue(str(self.sliderZone6.GetValue()))
-
-    def slider7Update(self, event):
-        self.tc_ZONEVOL7.SetValue(str(self.sliderZone7.GetValue()))
-
-    def slider8Update(self, event):
-        self.tc_ZONEVOL8.SetValue(str(self.sliderZone8.GetValue()))
-        
-    def slider9Update(self, event):
-        self.tc_ZONEVOL9.SetValue(str(self.sliderZone9.GetValue()))
-        
-    def quietSliderUpdate(self, event):
-        self.tc_QuietVol.SetValue(str(self.quietSlider.GetValue()))    
-
-    def zone1CkClick(self, event):
-        if self.ck_ZONE1.Value == False:
-            self.sliderZone1.Disable()
-            self.tc_ZONEVOL1.Disable()
+    def zoneCkClick(self, event, ck, slider, textctrl):
+        if ck.Value == False:
+            slider.Disable()
+            textctrl.Disable()
         else:
-            self.sliderZone1.Enable()
-            self.tc_ZONEVOL1.Enable()
-
-    def zone2CkClick(self, event):
-        if self.ck_ZONE2.Value == False:
-            self.sliderZone2.Disable()
-            self.tc_ZONEVOL2.Disable()
-        else:
-            self.sliderZone2.Enable()
-            self.tc_ZONEVOL2.Enable()
-
-    def zone3CkClick(self, event):
-        if self.ck_ZONE3.Value == False:
-            self.sliderZone3.Disable()
-            self.tc_ZONEVOL3.Disable()
-        else:
-            self.sliderZone3.Enable()
-            self.tc_ZONEVOL3.Enable()
-
-    def zone4CkClick(self, event):
-        if self.ck_ZONE4.Value == False:
-            self.sliderZone4.Disable()
-            self.tc_ZONEVOL4.Disable()
-        else:
-            self.sliderZone4.Enable()
-            self.tc_ZONEVOL4.Enable()
-    
-    def zone5CkClick(self, event):
-        if self.ck_ZONE5.Value == False:
-            self.sliderZone5.Disable()
-            self.tc_ZONEVOL5.Disable()
-        else:
-            self.sliderZone5.Enable()
-            self.tc_ZONEVOL5.Enable()
-
-    def zone6CkClick(self, event):
-        if self.ck_ZONE6.Value == False:
-            self.sliderZone6.Disable()
-            self.tc_ZONEVOL6.Disable()
-        else:
-            self.sliderZone6.Enable()
-            self.tc_ZONEVOL6.Enable()
-
-    def zone7CkClick(self, event):
-        if self.ck_ZONE7.Value == False:
-            self.sliderZone7.Disable()
-            self.tc_ZONEVOL7.Disable()
-        else:
-            self.sliderZone7.Enable()
-            self.tc_ZONEVOL7.Enable()
-            
-    def zone8CkClick(self, event):
-        if self.ck_ZONE8.Value == False:
-            self.sliderZone8.Disable()
-            self.tc_ZONEVOL8.Disable()
-        else:
-            self.sliderZone8.Enable()
-            self.tc_ZONEVOL8.Enable()
-
-    def zone9CkClick(self, event):
-        if self.ck_ZONE9.Value == False:
-            self.sliderZone9.Disable()
-            self.tc_ZONEVOL9.Disable()
-        else:
-            self.sliderZone9.Enable()
-            self.tc_ZONEVOL9.Enable()
+            slider.Enable()
+            textctrl.Enable()
 
     def quietCkClick(self, event):
         if self.ck_QuietHours.Value == False:
             self.quietSlider.Disable()
             self.tc_QuietVol.Disable()
             self.tc_quietHr.Disable()
+            self.tc_quietHrStop.Disable()
+            self.label_QuietVol.Disable()
         else:
             self.quietSlider.Enable()
             self.tc_QuietVol.Enable()
             self.tc_quietHr.Enable()
+            self.tc_quietHrStop.Enable()
+            self.label_QuietVol.Enable()
 
     def muteHoursClick(self, event):
         if self.ck_MuteHours.Value == False:
@@ -576,10 +584,17 @@ class VolumePanel(wx.Panel):
 
     def launchVolClick(self, event):
         if self.bt_Launch.Label == "Enable Volume Monitor":
-            self.volMonitor()
+            global zonesToMonitor
+            zonesToMonitor = []
+            # Build array of checkboxes set to True
+            for item in range(len(list_checkboxIDNames)):
+                if wx.FindWindowById(list_checkboxIDNames[item]).Value == True:        
+                    zonesToMonitor.append(wx.FindWindowById(list_checkboxIDNames[item]).Label)
+        
+            self.worker = WorkerThread(self, self.startStop, int(self.tc_CheckInterval.Value))
             self.bt_Launch.Label = "Disable Volume Monitor"
         else:
-            print "Disable Loop Here"
+            self.worker.ToKill = True
             self.bt_Launch.Label = "Enable Volume Monitor"
             
 ########################################################################################################################
@@ -595,53 +610,140 @@ class VolumePanel(wx.Panel):
 # bt_SaveDefaultsClick: A simple function to write out the defaults for the panel to GUIpref.ini
 ########################################################################################################################
     def bt_SaveDefaultsClick(self, event):
-        section = "virtuals"
-        guiFunctions.configWrite(section, "type", self.combo_typeOptions.GetCurrentSelection())
-        guiFunctions.configWrite(section, "title", self.tc_Title.Value)
-
-        guiFunctions.configWrite(section, "artist", self.tc_Artist.Value)
-        guiFunctions.configWrite(section, "albumartist", self.tc_AlbumArtist.Value)
-        guiFunctions.configWrite(section, "composer", self.tc_Composer.Value)
-        guiFunctions.configWrite(section, "year", self.tc_Year.Value)
-        guiFunctions.configWrite(section, "genre", self.tc_Genre.Value)
-        guiFunctions.configWrite(section, "cover", self.tc_Cover.Value)
-        guiFunctions.configWrite(section, "discnumber", self.tc_DiscNumber.Value)
-
-        folders = ""
-        numLines = 0
-        maxLines=(int(self.tc_FilesFolders.GetNumberOfLines()))
-        while (numLines < maxLines):
-            folders += str(self.tc_FilesFolders.GetLineText(numLines))
-            numLines += 1
-            if numLines != maxLines:
-                folders += "|"
-        guiFunctions.configWrite(section, "tracks", folders)
-
+        section = "volume"
+        guiFunctions.configWrite(section, "serverip", self.tc_serverIP.Value)
+        guiFunctions.configWrite(section, "timeout", self.tc_CheckInterval.Value)
+        guiFunctions.configWrite(section, "quietck", self.ck_QuietHours.Value)
+        guiFunctions.configWrite(section, "quiethr", self.tc_quietHr.Value)
+        guiFunctions.configWrite(section, "quiethrstop", self.tc_quietHrStop.Value)
+        guiFunctions.configWrite(section, "quietslider", self.quietSlider.GetValue())
+        guiFunctions.configWrite(section, "mutehr", self.tc_MuteHr.Value)
+        guiFunctions.configWrite(section, "mutehrstop", self.tc_MuteHrStop.Value)
+        guiFunctions.configWrite(section, "muteck", self.ck_MuteHours.Value)
+        curZoneNum = 0
+        while curZoneNum < len(zoneNAME):
+            guiFunctions.configWrite(section, 'slider' + str((curZoneNum + 1)), wx.FindWindowByName('sliderZone' + str((curZoneNum + 1))).GetValue())
+            curZoneNum += 1
 
         guiFunctions.statusText(self, "Defaults saved...")
 
 ########################################################################################################################
-# volMonitor: Enable or disable the volume monitor loop
+# startStop: Enable or disable the volume monitor loop
 ########################################################################################################################
-    def volMonitor(self):
-        print "Made it into volMonitor"
-        # Steps:
-        #
-        # ---- Find a python equivalent to curl (urlib.open?)
-        #
-        # - Check to ensure Sonospy is running.
-        # - Setup while loop during #1 = True.
-        # - Grab timeout value from ck_Interval
-        # - Grab zones set for monitoring from ck_ZONEVOL*
-        # - Loop through #4
-        # - setup zoneNAME and maxVOLUME
-        # - Set the input zone: curl -s http://"$ipADDR":"$portNUM"/data/rendererData?data=R::"$zoneNAME"%20%28ZP%29 &>/dev/null
-        # - Grab relevant info about the active zone: INFO=$(curl -s $(echo "http://$ipADDR:$portNUM/data/rendererAction?data=class" | sed 's/ //g'))
-        # - Check for current time to get curTIME
-        # - Setup loop for curTIME vs. Quiet Hours vs. Mute Hours
-        # - Strip INFO to just the Volume number to test against, assign to OUTPUT
-        # - If sonospy died, check for OUTPUT != "" or "NOCHANGE::0_|_"
-        # - If maxVOLME is not set, set it to 0
-        # - Check OUTPUT > maxVOLUME, if true: curl -s http://"$ipADDR":"$portNUM"/data/rendererAction?data=VOLUME::"$maxVOLUME" &>/dev/null
+
+    def startStop(self):
+        global zonesToMonitor
+        
+        quietStart = self.tc_quietHr.Value
+        quietStop = self.tc_quietHrStop.Value
+        muteStart = self.tc_MuteHr.Value
+        muteStop = self.tc_MuteHrStop.Value
+    
+        if os.name == 'nt':
+            os.chdir(cmd_folder)
+            os.chdir(os.pardir)
+            os.chdir(os.pardir)
+    
+            # **BROKEN** - Check to ensure Sonospy is running. THIS IS BROKEN
+            temp = os.system('wmic process where ^(CommandLine like "pythonw%pycpoint%")get ProcessID > windowsPID.pid 2> nul')
+            import codecs
+            with codecs.open('windowsPID.pid', encoding='utf-16') as f:
+                windowsPid = []
+                f.readline()
+                windowsPid = f.readline()
+                windowsPid = windowsPid.splitlines()
+                if windowsPid == []:
+                    # The file is empty, so Sonospy is not running already.
+                    f.close()
+                    os.remove('windowsPID.pid')              
+                else:
+                    pub.sendMessage(('alreadyRunning'), "alreadyRunning")
+            os.chdir(cmd_folder)
+    
+        # Guts of the loop... trying to figoure out how to thread this.     
+        if zonesToMonitor != []: 
+            j = 0
+            for i in zonesToMonitor:
+                # Reset all variables in the loop for safety.
+                maxVOL = 0
+                INFO = ''
+                curVOL = []
+                url = ''
+                
+                # 6 Set the input zone: curl -s http://"$ipADDR":"$portNUM"/data/rendererData?data=R::"$zoneNAME"%20%28ZP%29 &>/dev/null
+                url = 'http://' + ip_address + ':' + self.tc_serverPort.Value + '/data/rendererData?data=R::' + wx.FindWindowByLabel(i).Label
+                urllib.urlopen(url).read()
+                time.sleep(timeout)
+                urllib.urlopen(url).read()
+
+                if debugMe == True:
+                    guiFunctions.debug('ZONE: ' + i)
+                    guiFunctions.debug('INPUT URL: ' + url)
+                    
+                # Get the volume level for the zonesToMonitor[i]
+                zoneNum = wx.FindWindowByLabel(i).GetName()
+                maxVOL = wx.FindWindowByName('sliderZone' + zoneNum).GetValue()
+                
+                # 7 Grab relevant info about the active zone: INFO=$(curl -s $(echo "http://$ipADDR:$portNUM/data/rendererAction?data=class" | sed 's/ //g'))
+                url = "http://" + ip_address + ":" + self.tc_serverPort.Value +"/data/rendererAction?data=class"
+                INFO = urllib.urlopen(url).read()
+                if debugMe == True:
+                    guiFunctions.debug('INFO URL: ' + url)
+                    guiFunctions.debug('INFO: ' + INFO)
+                # 8 Check for current time to get curTIME
+                curTime = datetime.datetime.now()
+                curTime = curTime.strftime("%H:%M")
+    
+                # 9 Setup loop for curTIME vs. Quiet Hours vs. Mute Hours
+                # get quiet hours start and stop.  get quiet hour volume
+                if self.ck_QuietHours.Value == True:
+                    quietStartHr = self.tc_quietHr.Value
+                    quietEndHr = self.tc_quietHrStop.Value
+                    quietVol = self.tc_QuietVol.Value
+                    if (curTime > quietStartHr) and (curTime < quietEndHr):
+                        guiFunctions.debug('In quiet hour conditional...')
+                        maxVOL = quietVol            
+    
+                # get mute hours start and stop.
+                if self.ck_MuteHours.Value == True:
+                    muteStartHr = self.tc_MuteHr.Value
+                    muteEndHr = self.tc_MuteHrStop.Value                   
+                    if (curTime > muteStartHr) and (curTime < muteEndHr):
+                        guiFunctions.debug('In mute hour conditional...')
+                        maxVOL = 0
+    
+                # 10 Strip INFO to just the Volume number to test against, assign to curVOL
+                curVOL = re.findall('(?<=_\|_VOLUME::).*?(?=_\|_)', INFO)
+ 
+                if curVOL == '':
+                    curVOL = 0
+    
+                # Convert from a list to an int for comparisons below.
+                curVOL = map(int, curVOL)             
+
+                # 13 Check curVOL > maxVOLUME, if true: curl -s http://"$ipADDR":"$portNUM"/data/rendererAction?data=VOLUME::"$maxVOLUME" &>/dev/null                
+                if curVOL[0] > int(maxVOL):
+                    url = "http://" + ip_address + ":" + self.tc_serverPort.Value + "/data/rendererAction?data=VOLUME::" + str(maxVOL)
+                    if debugMe == True:
+                        guiFunctions.debug("INFO: " + INFO)
+                        guiFunctions.debug('SET URL: ' + url)
+                        guiFunctions.debug("Adjusting ZONE: " + i + " from current volume: " + str(curVOL) + " to max volume: " + str(maxVOL))
+                    
+                    urllib.urlopen(url).read()
+                j += 1
+    
+    
+
+
+
+
+        
+        
+        
+        
+        
+        
+        
+
         
     
