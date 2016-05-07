@@ -86,14 +86,16 @@ def configWrite(heading, term, value):
     os.chdir(cmd_folder)
     config = ConfigParser.ConfigParser()
     config.read("GUIpref.ini")
+    if config.has_section(heading) == False:
+        config.add_section(heading)
     config.set(heading, term, value)
     with open('GUIpref.ini', 'wb') as configfile:
         config.write(configfile)
     os.chdir(owd)
 
 ########################################################################################################################
-# scrubDB: Scours the provided path for *.db files to return back to the app so that we can dynamically create
-#          create widgets for the launch tab.
+# scrubDB: Scours the provided path for *.db files to return back to the app so that we can dynamically 
+#          widgets for the launch tab.
 ########################################################################################################################
 import os
 
@@ -110,7 +112,7 @@ def scrubDB(path, ext=False):
 
 ########################################################################################################################
 # scrubINI: Scours the provided path for *.ini files to return back to the app so that we can dynamically create
-#           create create dropdowns for the user index on the launch tab.
+#           dropdowns for the user index on the launch tab.
 ########################################################################################################################
 import os
 

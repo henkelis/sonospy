@@ -41,6 +41,7 @@ import extractTab
 import launchTab
 import virtualsTab
 import guiFunctions
+import volumeTab
 # import scheduleTab
 # import nowPlayingTab
 
@@ -62,13 +63,16 @@ class SonospyNotebook(wx.Notebook):
     #----------------------------------------------------------------------
     def __init__(self, parent):
         wx.Notebook.__init__(self, parent, id=wx.ID_ANY, style=wx.BK_DEFAULT)
-        
-        self.AddPage(launchTab.LaunchPanel(self), "Launch")
-        self.AddPage(scanTab.ScanPanel(self), "Scan")
-        self.AddPage(extractTab.ExtractPanel(self), "Extract")
-        self.AddPage(virtualsTab.VirtualsPanel(self), "Virtuals")
 
-#        self.AddPage(scheduleTab.SchedulePanel(self), "Batch")
+        # Move this down to the bottom of the list when done.
+        self.AddPage(launchTab.LaunchPanel(self), "Launch")         # 0
+        self.AddPage(volumeTab.VolumePanel(self), "Volume")         # 1
+        self.AddPage(scanTab.ScanPanel(self), "Scan")               # 2
+        self.AddPage(extractTab.ExtractPanel(self), "Extract")      # 3
+        self.AddPage(virtualsTab.VirtualsPanel(self), "Virtuals")   # 4
+        
+        # just for debugging - sets page on open to number above. should be 0.
+        self.SetSelection(0)
 
         # Now Playing is SUPER EXPERIMENTAL, WILL PROBABLY BREAK!
 #        self.AddPage(nowPlayingTab.NowPlayingPanel(self), "Now Playing")
@@ -146,6 +150,7 @@ class SonospyFrame(wx.Frame):
         self.Layout()
         self.Show()
 
+        
         # Turning this off now, since we're storing screen position
         # self.Centre()
         self.SetPosition((posx, posy))
@@ -174,27 +179,6 @@ class SonospyFrame(wx.Frame):
                 else:
                     pub.sendMessage(('alreadyRunning'), "alreadyRunning")
             os.chdir(cmd_folder) 
-
-        # Check if we still have a valid windowsPID.pid file, since
-        # that would mean (in theory) that the service is still
-        # running.
-        #if os.name == 'nt':
-        #    os.chdir(cmd_folder)
-        #    os.chdir(os.pardir)
-        #    os.chdir(os.pardir)            
-        #    import codecs
-        #    if os.path.isfile('windowsPID.pid') == True: 
-        #        with codecs.open('windowsPID.pid', encoding='utf-16') as f:
-        #            windowsPid = []
-        #            f.readline()
-        #            windowsPid = f.readline()
-        #            windowsPid = windowsPid.splitlines()
-        #            if windowsPid == []:
-                        # The file is corrupt or empty.
-        #                f.close()
-        #                os.remove('windowsPID.pid')              
-        #            else:
-        #                pub.sendMessage(('alreadyRunning'), "alreadyRunning")
                                         
     def change_statusbar(self, msg):
         self.SetStatusText(msg.data)
