@@ -975,33 +975,34 @@ class VolumePanel(wx.Panel):
             
         curZoneNum = 0
         for i in range(0, len(zoneNAME)):
-            guiFunctions.configWrite(section, "ck" + str(i), wx.FindWindowByName('ck' + str(i)).GetValue())
-            guiFunctions.configWrite(section, "zone" + str(i), str(wx.FindWindowByName('ck' + str(i)).Label))
-            guiFunctions.configWrite(section, "sliderzone" + str(i), wx.FindWindowByName('sliderZone' + str(i)).GetValue())
-            
-            guiFunctions.configWrite(section, "qck" + str(i), wx.FindWindowByName('qck' + str(i)).GetValue())
-            guiFunctions.configWrite(section, "sliderq" + str(i), wx.FindWindowByName('sliderq' + str(i)).GetValue())
-            guiFunctions.configWrite(section, "startquiet" + str(i), wx.FindWindowByName('startquiet' + str(i)).GetValue())
-            guiFunctions.configWrite(section, "stopquiet" + str(i), wx.FindWindowByName('stopquiet' + str(i)).GetValue())
-            guiFunctions.configWrite(section, "mck" + str(i), wx.FindWindowByName('mck' + str(i)).GetValue())
-            guiFunctions.configWrite(section, "startmute" + str(i), wx.FindWindowByName('startmute' + str(i)).GetValue())
-            guiFunctions.configWrite(section, "stopmute" + str(i), wx.FindWindowByName('stopmute' + str(i)).GetValue())
-            
-            if wx.FindWindowByName('ck' + str(i)).GetValue() == True:
-                if guiFunctions.configMe(str(wx.FindWindowByName('ck' + str(i)).Label), "max_volume") != '':
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "max_volume", wx.FindWindowByName('sliderZone' + str(i)).GetValue())
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_volume", wx.FindWindowByName('sliderq' + str(i)).GetValue())
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_start", wx.FindWindowByName('startquiet' + str(i)).GetValue())
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_stop", wx.FindWindowByName('stopquiet' + str(i)).GetValue())
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "mute_start", wx.FindWindowByName('startmute' + str(i)).GetValue())
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "mute_stop", wx.FindWindowByName('stopmute' + str(i)).GetValue())
-                else:
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "max_volume", wx.FindWindowByName('sliderZone' + str(i)).GetValue())
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_volume", wx.FindWindowByName('sliderq' + str(i)).GetValue())
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_start", wx.FindWindowByName('startquiet' + str(i)).GetValue())
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_stop", wx.FindWindowByName('stopquiet' + str(i)).GetValue())
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "mute_start", wx.FindWindowByName('startmute' + str(i)).GetValue())
-                    guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "mute_stop", wx.FindWindowByName('stopmute' + str(i)).GetValue())   
+            if 'no zone found' not in str(wx.FindWindowByName('ck' + str(i)).Label):
+                guiFunctions.configWrite(section, "ck" + str(i), wx.FindWindowByName('ck' + str(i)).GetValue())
+                guiFunctions.configWrite(section, "zone" + str(i), str(wx.FindWindowByName('ck' + str(i)).Label))
+                guiFunctions.configWrite(section, "sliderzone" + str(i), wx.FindWindowByName('sliderZone' + str(i)).GetValue())
+                
+                guiFunctions.configWrite(section, "qck" + str(i), wx.FindWindowByName('qck' + str(i)).GetValue())
+                guiFunctions.configWrite(section, "sliderq" + str(i), wx.FindWindowByName('sliderq' + str(i)).GetValue())
+                guiFunctions.configWrite(section, "startquiet" + str(i), wx.FindWindowByName('startquiet' + str(i)).GetValue())
+                guiFunctions.configWrite(section, "stopquiet" + str(i), wx.FindWindowByName('stopquiet' + str(i)).GetValue())
+                guiFunctions.configWrite(section, "mck" + str(i), wx.FindWindowByName('mck' + str(i)).GetValue())
+                guiFunctions.configWrite(section, "startmute" + str(i), wx.FindWindowByName('startmute' + str(i)).GetValue())
+                guiFunctions.configWrite(section, "stopmute" + str(i), wx.FindWindowByName('stopmute' + str(i)).GetValue())
+                
+                if wx.FindWindowByName('ck' + str(i)).GetValue() == True:
+                    if guiFunctions.configMe(str(wx.FindWindowByName('ck' + str(i)).Label), "max_volume") != '':
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "max_volume", wx.FindWindowByName('sliderZone' + str(i)).GetValue())
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_volume", wx.FindWindowByName('sliderq' + str(i)).GetValue())
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_start", wx.FindWindowByName('startquiet' + str(i)).GetValue())
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_stop", wx.FindWindowByName('stopquiet' + str(i)).GetValue())
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "mute_start", wx.FindWindowByName('startmute' + str(i)).GetValue())
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "mute_stop", wx.FindWindowByName('stopmute' + str(i)).GetValue())
+                    else:
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "max_volume", wx.FindWindowByName('sliderZone' + str(i)).GetValue())
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_volume", wx.FindWindowByName('sliderq' + str(i)).GetValue())
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_start", wx.FindWindowByName('startquiet' + str(i)).GetValue())
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "quiet_stop", wx.FindWindowByName('stopquiet' + str(i)).GetValue())
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "mute_start", wx.FindWindowByName('startmute' + str(i)).GetValue())
+                        guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "mute_stop", wx.FindWindowByName('stopmute' + str(i)).GetValue())   
                     
         self.saveDefaults()
     
