@@ -26,6 +26,8 @@
 # - Do not parse zones with <no zone found> -- since I am not relying on Sonospy for this anymore
 #   I don't need zoneNAME, but I don't know how to parse the upnp stuff yet.
 # - Gray out panel when volMon is active so people can't tweak thing
+# - Add a "set current volumes as default" to selected zones.
+# - Can I turn off the borders of the maxVol textctrl?
 ########################################################################################################################
 # IMPORTS FOR PYTHON
 ########################################################################################################################
@@ -158,6 +160,7 @@ class VolumePanel(wx.Panel):
     # ZONES TO MONITOR
         zoneNum = 0                                     
         sbsIndex = 0
+        # CHECKBOX, SLIDER, TEXTCTRL
         mvName = {'ck0':'ck0', 'sl0':'sliderZone0', 'tc0':'tc_zone0', 
                   'ck1':'ck1', 'sl1':'sliderZone1', 'tc1':'tc_zone1', 
                   'ck2':'ck2', 'sl2':'sliderZone2', 'tc2':'tc_zone2', 
@@ -168,6 +171,8 @@ class VolumePanel(wx.Panel):
                   'ck7':'ck7', 'sl7':'sliderZone7', 'tc7':'tc_zone7', 
                   'ck8':'ck8', 'sl8':'sliderZone8', 'tc8':'tc_zone8', 
                   'ck9':'ck9', 'sl9':'sliderZone9', 'tc9':'tc_zone9'}
+        
+        # CHECKBOX, SLIDER, TEXTCTRL, START, STOP
         qtName = {'qck0':'qck0', 'qsl0':'sliderq0', 'qtc0':'qtc_zone0', 'qstart0':'startquiet0', 'qstop0':'stopquiet0',
                   'qck1':'qck1', 'qsl1':'sliderq1', 'qtc1':'qtc_zone1', 'qstart1':'startquiet1', 'qstop1':'stopquiet1',
                   'qck2':'qck2', 'qsl2':'sliderq2', 'qtc2':'qtc_zone2', 'qstart2':'startquiet2', 'qstop2':'stopquiet2',
@@ -177,8 +182,9 @@ class VolumePanel(wx.Panel):
                   'qck6':'qck6', 'qsl6':'sliderq6', 'qtc6':'qtc_zone6', 'qstart6':'startquiet6', 'qstop6':'stopquiet6',
                   'qck7':'qck7', 'qsl7':'sliderq7', 'qtc7':'qtc_zone7', 'qstart7':'startquiet7', 'qstop7':'stopquiet7',
                   'qck8':'qck8', 'qsl8':'sliderq8', 'qtc8':'qtc_zone8', 'qstart8':'startquiet8', 'qstop8':'stopquiet8',
-                  'qck9':'qck9', 'qsl9':'sliderq9', 'qtc9':'qtc_zone9', 'qstart9':'startquiet9', 'qstop9':'stopquiet9',
-                  }
+                  'qck9':'qck9', 'qsl9':'sliderq9', 'qtc9':'qtc_zone9', 'qstart9':'startquiet9', 'qstop9':'stopquiet9'}
+
+        # CHECKBOX, START, STOP
         mtName = {'mck0':'mck0', 'mstart0':'startmute0', 'mstop0':'stopmute0',
                   'mck1':'mck1', 'mstart1':'startmute1', 'mstop1':'stopmute1',
                   'mck2':'mck2', 'mstart2':'startmute2', 'mstop2':'stopmute2',
@@ -240,7 +246,7 @@ class VolumePanel(wx.Panel):
             self.ck_Vol1.Value = guiFunctions.configMe("volume", mvName['ck0'], bool=True)
             self.sliderZone1 = wx.Slider(self, -1, guiFunctions.configMe("volume", mvName['sl0'], integer=True), 0, 100, size=(sliderWidthHeight), name=mvName['sl0'], style=wx.SL_HORIZONTAL)
             self.tc_zone1 = wx.TextCtrl(panel, -1, guiFunctions.configMe("volume", mvName['sl0']), (0,0), name=mvName['tc0'])
-            
+
             # QUIET VOLUME  - CK, SLIDER, MAX VOL, START, STOP
             self.ck_qVol1 = wx.CheckBox(self, -1, 'Quiet', name=qtName['qck0'])
             self.ck_qVol1.SetToolTip(wx.ToolTip("Click here to turn on quiet hours for this zone"))
@@ -951,9 +957,12 @@ class VolumePanel(wx.Panel):
                 with codecs.open('volMon.pid', encoding='utf-16') as f:
                     f.readline()
                     windowsPid = f.readline()
+                    f.close()
                     windowsPid = windowsPid.splitlines()
                     function = subprocess.Popen("TASKKILL /F /PID " + windowsPid[0] + " > nul", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+                    os.remove('volMon.pid')
                     self.bt_Launch.Label = "Enable Volume Monitor"
+               
             
 ########################################################################################################################
 # setVolumePanel: This is for the pubsub to receive a call to disable or enable the panel buttons.
@@ -1011,7 +1020,7 @@ class VolumePanel(wx.Panel):
             
         curZoneNum = 0
         for i in range(0, len(zoneNAME)): 
- # make this dynamic later when widgets are moved.
+            # make this dynamic later when widgets are moved.
             if wx.FindWindowByName('ck' + str(i)).GetValue() == True:
                 if guiFunctions.configMe(str(wx.FindWindowByName('ck' + str(i)).Label), "max_volume") != '':
                     guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "max_volume", wx.FindWindowByName('sliderZone' + str(i)).GetValue())
@@ -1029,8 +1038,6 @@ class VolumePanel(wx.Panel):
                     guiFunctions.configWrite(str(wx.FindWindowByName('ck' + str(i)).Label), "mute_stop", wx.FindWindowByName('stopmute' + str(i)).GetValue())                    
         guiFunctions.statusText(self, "Defaults saved...")
 
-    
-    
 
 
 

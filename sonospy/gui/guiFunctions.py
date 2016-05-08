@@ -275,6 +275,9 @@ def savePlaylist(dataToSave):
 def debug(msg):
     print "DEBUG -> " + msg
 
+########################################################################################################################
+# getLocalIP(): Get the local machine's IP address
+########################################################################################################################
 def getLocalIP():
     socket.setdefaulttimeout(15)
     def get_ip_address(ifname):
@@ -299,6 +302,10 @@ def getLocalIP():
     active_ifaces = get_active_ifaces()
     ip_address = get_ip_address(active_ifaces[0])
     return ip_address
+
+########################################################################################################################
+# getZones(): Get zone names from a running instance of Sonospy.
+########################################################################################################################
 
 def getZones(ip_address, portNum):
     zoneNAME = []
