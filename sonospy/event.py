@@ -562,7 +562,7 @@ events_rc:
                     
                     if quietTimeStart is not '' and quietTimeStop is not '':
                         if (curTime >= quietTimeStart) and (curTime <= quietTimeStop):
-                            maxVol = config.get(ZP, 'quiet_volume')    
+                            maxVol = int(config.get(ZP, 'quiet_volume'))    
                             
                     if self.current_volume[sid] > maxVol:
                         self.set_volume(self.rc_service[sid], maxVol)
