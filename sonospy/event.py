@@ -60,6 +60,7 @@ from optparse import OptionParser
 
 
 enc = sys.getfilesystemencoding()
+ZPlist = []
 
 ###############################################################################
 # ControlPointEvent class
@@ -388,6 +389,7 @@ class ControlPointEvent(object):
             
     def on_device_event_seq(self, sid, seq, changed_vars):
         volMon = False
+        
         if not sid in self.subscription_ids:
             # notification arrived before subscription callback - queue event
             if self.options.verbose:
@@ -466,6 +468,17 @@ rc: <Event xmlns="urn:schemas-upnp-org:metadata-1-0/RCS/">
                 '''
 
                 ZP = self.zoneattributes[self.rc_subscription_ids[sid]]['CurrentZoneName']
+                if ZP not in ZPlist:
+                    # write zones to GUIpref so we can add widgets for them
+                    ZPlist.append(str(ZP))
+                    config = ConfigParser.ConfigParser()
+                    config.optionxform = str
+                    config.read('gui/GUIpref.ini')       
+                    if config.has_section("volume") == False:
+                        config.add_section("volume")
+                    config.set("volume", "zonelist", ZPlist)
+                    with open('gui/GUIpref.ini', 'wb') as configfile:
+                        config.write(configfile)                    
                 # event from RenderingControl
                 ns = "{urn:schemas-upnp-org:metadata-1-0/RCS/}"
                 elt = self.from_string(changed_vars['LastChange'])
