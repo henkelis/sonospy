@@ -803,15 +803,15 @@ class VolumePanel(wx.Panel):
         self.bt_Update.Bind(wx.EVT_BUTTON, self.updateClick, self.bt_Update)   
 
             
-        # SAVE AS DEFAULTS
-        self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
-        help_SaveDefaults = "Save current settings as default."
-        self.bt_SaveDefaults.SetToolTip(wx.ToolTip(help_SaveDefaults))
-        self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
+        ## SAVE AS DEFAULTS
+        #self.bt_SaveDefaults = wx.Button(panel, label="Save Defaults")
+        #help_SaveDefaults = "Save current settings as default."
+        #self.bt_SaveDefaults.SetToolTip(wx.ToolTip(help_SaveDefaults))
+        #self.bt_SaveDefaults.Bind(wx.EVT_BUTTON, self.bt_SaveDefaultsClick, self.bt_SaveDefaults)
     
         sizer.Add(self.bt_Launch, pos=(xIndex, 0), flag=wx.LEFT|wx.EXPAND|wx.RIGHT|wx.ALIGN_LEFT, border=border)
-        sizer.Add(self.bt_Update, pos=(xIndex, 1), flag=wx.RIGHT|wx.ALIGN_CENTER, border=border)
-        sizer.Add(self.bt_SaveDefaults, pos=(xIndex,3), flag=wx.RIGHT|wx.ALIGN_RIGHT, border=border)
+        sizer.Add(self.bt_Update, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_RIGHT, border=border)
+        #sizer.Add(self.bt_SaveDefaults, pos=(xIndex,3), flag=wx.RIGHT|wx.ALIGN_RIGHT, border=border)
 
         if self.bt_Launch.Label == "Enable Volume Monitor":
             self.bt_Update.Disable()
@@ -961,28 +961,28 @@ class VolumePanel(wx.Panel):
 ########################################################################################################################
 # bt_SaveDefaultsClick: A simple function to write out the defaults for the panel to GUIpref.ini
 ########################################################################################################################
-    def bt_SaveDefaultsClick(self, event):
-        zoneLIST = guiFunctions.getZones(ip_address, portNum)
+    #def bt_SaveDefaultsClick(self, event):
+        #zoneLIST = guiFunctions.getZones(ip_address, portNum)
   
-        section = "volume"
-        guiFunctions.configWrite(section, "serverip", self.tc_serverIP.Value)
+        #section = "volume"
+        #guiFunctions.configWrite(section, "serverip", self.tc_serverIP.Value)
             
-        curZoneNum = 0
-        for i in range(0, len(zoneLIST)):
-            if 'no zone found' not in str(wx.FindWindowByName('ck' + str(i)).Label):
-                guiFunctions.configWrite(section, "ck" + str(i), wx.FindWindowByName('ck' + str(i)).GetValue())
-                guiFunctions.configWrite(section, "zone" + str(i), str(wx.FindWindowByName('ck' + str(i)).Label))
-                guiFunctions.configWrite(section, "sliderzone" + str(i), wx.FindWindowByName('sliderZone' + str(i)).GetValue())
+        #curZoneNum = 0
+        #for i in range(0, len(zoneLIST)):
+            #if 'no zone found' not in str(wx.FindWindowByName('ck' + str(i)).Label):
+                #guiFunctions.configWrite(section, "ck" + str(i), wx.FindWindowByName('ck' + str(i)).GetValue())
+                #guiFunctions.configWrite(section, "zone" + str(i), str(wx.FindWindowByName('ck' + str(i)).Label))
+                #guiFunctions.configWrite(section, "sliderzone" + str(i), wx.FindWindowByName('sliderZone' + str(i)).GetValue())
                 
-                guiFunctions.configWrite(section, "qck" + str(i), wx.FindWindowByName('qck' + str(i)).GetValue())
-                guiFunctions.configWrite(section, "sliderq" + str(i), wx.FindWindowByName('sliderq' + str(i)).GetValue())
-                guiFunctions.configWrite(section, "startquiet" + str(i), wx.FindWindowByName('startquiet' + str(i)).GetValue())
-                guiFunctions.configWrite(section, "stopquiet" + str(i), wx.FindWindowByName('stopquiet' + str(i)).GetValue())
-                guiFunctions.configWrite(section, "mck" + str(i), wx.FindWindowByName('mck' + str(i)).GetValue())
-                guiFunctions.configWrite(section, "startmute" + str(i), wx.FindWindowByName('startmute' + str(i)).GetValue())
-                guiFunctions.configWrite(section, "stopmute" + str(i), wx.FindWindowByName('stopmute' + str(i)).GetValue())
+                #guiFunctions.configWrite(section, "qck" + str(i), wx.FindWindowByName('qck' + str(i)).GetValue())
+                #guiFunctions.configWrite(section, "sliderq" + str(i), wx.FindWindowByName('sliderq' + str(i)).GetValue())
+                #guiFunctions.configWrite(section, "startquiet" + str(i), wx.FindWindowByName('startquiet' + str(i)).GetValue())
+                #guiFunctions.configWrite(section, "stopquiet" + str(i), wx.FindWindowByName('stopquiet' + str(i)).GetValue())
+                #guiFunctions.configWrite(section, "mck" + str(i), wx.FindWindowByName('mck' + str(i)).GetValue())
+                #guiFunctions.configWrite(section, "startmute" + str(i), wx.FindWindowByName('startmute' + str(i)).GetValue())
+                #guiFunctions.configWrite(section, "stopmute" + str(i), wx.FindWindowByName('stopmute' + str(i)).GetValue())
                         
-        self.saveDefaults()
+        #self.saveDefaults()
     
     def saveDefaults(self):
         zoneLIST = guiFunctions.getZones(ip_address, portNum)
