@@ -387,6 +387,7 @@ class ControlPointEvent(object):
         self.event_queue = [event for event in self.event_queue if self.process_event(event, sid)]
             
     def on_device_event_seq(self, sid, seq, changed_vars):
+        volMon = False
         if not sid in self.subscription_ids:
             # notification arrived before subscription callback - queue event
             if self.options.verbose:
@@ -399,11 +400,15 @@ class ControlPointEvent(object):
             out = "service, Zone=%s, seq=%s, sid=%s\nchanged_vars=%s\n\n" % (self.subscription_ids[sid], seq, sid, changed_vars)
             self.write_log(out)
     
+
         # check it is a LastChange event
+        zpSid = sid.split('_')
+        
         if 'LastChange' in changed_vars and changed_vars['LastChange'] != None and changed_vars['LastChange'] != 'NOT_IMPLEMENTED' and changed_vars['LastChange'] != '0':
-
+            if zpSid[1] in sid:
+                volMon = True
+                
             if sid in self.at_subscription_ids:
-
                 ZP = self.zoneattributes[self.at_subscription_ids[sid]]['CurrentZoneName']
                 # event from AVTransport
                 # TODO: check if we need to remove the ns, and if it is actually removed anyway
@@ -424,6 +429,7 @@ class ControlPointEvent(object):
 
                 self.current_play_state[sid] = self.current_renderer_events_avt['TransportState']
                 self.avt_track_URI[sid] = self.current_renderer_events_avt['CurrentTrackURI']
+
                 if self.current_play_state[sid] != 'STOPPED':
                     self.current_transport_metadata[sid] = self.current_renderer_events_avt['{urn:schemas-rinconnetworks-com:metadata-1-0/}EnqueuedTransportURIMetaData']
                 if 'TransportErrorDescription' in self.current_renderer_events_avt:
@@ -460,16 +466,15 @@ rc: <Event xmlns="urn:schemas-upnp-org:metadata-1-0/RCS/">
                 '''
 
                 ZP = self.zoneattributes[self.rc_subscription_ids[sid]]['CurrentZoneName']
-                
                 # event from RenderingControl
                 ns = "{urn:schemas-upnp-org:metadata-1-0/RCS/}"
                 elt = self.from_string(changed_vars['LastChange'])
-                self.remove_namespace(elt, ns)
+                self.remove_namespace(elt, ns)            
+
                 # check if it is initial event message
                 if self.current_renderer_events_rc == {}:
                     # save all tags
                     self.process_event_tags_rc(elt, self.current_renderer_events_rc)
-                    
 #                    print 'events_rc: %s' % self.current_renderer_events_rc
 
                     '''
@@ -538,35 +543,22 @@ events_rc:
                                     
                 #DEBUG - turn me back on to print out volume changes                
                 #print "  volume change: %s in zone: %s" % (self.current_volume[sid], ZP)
-
-                config = ConfigParser.ConfigParser()
-                config.optionxform = str
-                config.read('gui/GUIpref.ini')
-        
-                if config.has_section(ZP):
-                    maxVol = int(config.get(ZP, 'max_volume'))
-
-                    curTime = datetime.datetime.now().strftime("%H:%M")                        
-    
-                    # Is our zone predetermined to be 'muted?'                 
-                    muteTimeStart = config.get(ZP, 'mute_start')
-                    muteTimeStop = config.get(ZP, 'mute_stop')
-                    
-                    if muteTimeStart is not '' and muteTimeStop is not '':
-                        if (curTime >= muteTimeStart) and (curTime <= muteTimeStop):
-                            maxVol = 0    
-                    
-                    # Are we supposed to be quiet?
-                    quietTimeStart = config.get(ZP, 'quiet_start')
-                    quietTimeStop = config.get(ZP, 'quiet_stop')
-                    
-                    if quietTimeStart is not '' and quietTimeStop is not '':
-                        if (curTime >= quietTimeStart) and (curTime <= quietTimeStop):
-                            maxVol = int(config.get(ZP, 'quiet_volume'))    
-                            
-                    if self.current_volume[sid] > maxVol:
-                        self.set_volume(self.rc_service[sid], maxVol)
                 
+                # Run the volume monitor
+                    volMon = True
+                    
+        if volMon == True:
+            # Check to see if the SID is in rc_service. We need this to deal
+            # with track changes, since they are stored in at_service and
+            # have a different sid (usually +- 1 from rc_service)
+            rcKey = [ v for k,v in self.rc_service.items() if zpSid[1] in k ]
+            #print "ZP:\t%s\t\t%s" % (ZP, sid)
+            #print "rcKey: %s" % rcKey[0].event_sid
+            try:
+                self.mon_volume(ZP, rcKey[0].event_sid)  
+                volMon = False
+            except:
+                pass
 
     def process_event_tags_avt(self, elt, event_list):
         # save values
@@ -605,7 +597,37 @@ events_rc:
 
     def set_volume(self, rc, volume):
         rc.SetVolume(InstanceID=0, Channel='Master', DesiredVolume=volume)
-        
+    
+    def mon_volume(self, ZP, sid):
+        config = ConfigParser.ConfigParser()
+        config.optionxform = str
+        config.read('gui/GUIpref.ini')
+
+        if config.has_section(ZP):
+            if config.getboolean(ZP, 'monitor') == True:
+                maxVol = int(config.get(ZP, 'max_volume'))
+
+                curTime = datetime.datetime.now().strftime("%H:%M")                        
+
+                # Is our zone predetermined to be 'muted?'                 
+                muteTimeStart = config.get(ZP, 'mute_start')
+                muteTimeStop = config.get(ZP, 'mute_stop')
+                
+                if muteTimeStart is not '' and muteTimeStop is not '':
+                    if (curTime >= muteTimeStart) and (curTime <= muteTimeStop):
+                        maxVol = 0    
+                
+                # Are we supposed to be quiet?
+                quietTimeStart = config.get(ZP, 'quiet_start')
+                quietTimeStop = config.get(ZP, 'quiet_stop')
+                
+                if quietTimeStart is not '' and quietTimeStop is not '':
+                    if (curTime >= quietTimeStart) and (curTime <= quietTimeStop):
+                        maxVol = int(config.get(ZP, 'quiet_volume'))    
+                        
+                if int(self.current_volume[sid]) > maxVol:
+                    self.set_volume(self.rc_service[sid], maxVol)
+    
     def _main_quit(self):
 #        print "cancelling subscriptions, please wait..."
         self.cancel_subscriptions()
