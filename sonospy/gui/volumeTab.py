@@ -985,8 +985,7 @@ class VolumePanel(wx.Panel):
         #self.saveDefaults()
     
     def saveDefaults(self):
-        zoneLIST = guiFunctions.getZones(ip_address, portNum)
-            
+           
         curZoneNum = 0
         for i in range(0, len(zoneLIST)): 
             # make this dynamic later when widgets are moved.
