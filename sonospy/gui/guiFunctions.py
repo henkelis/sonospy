@@ -61,10 +61,13 @@ def configMe(heading, term, integer=False, bool=False, parse=False, file=False):
                 else:
                     fetchMe = fetchMe
     else:
+        # Was set to 1 for the longest time... setting to 0
+        # since it was setting all sorts of checkboxes to
+        # True...
         if integer == True:
-            return 1
+            return 0
         elif bool == True:
-            return 1
+            return 0
         else:
             return ""
     os.chdir(owd)

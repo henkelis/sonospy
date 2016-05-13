@@ -22,11 +22,8 @@
 # virtualsTab.py Author: John Chowanec <chowanec@gmail.com>
 ########################################################################################################################
 # TO DO:
-# - Remove zones with fixed volume = true
-# - Do not parse zones with <no zone found> -- since I am not relying on Sonospy for this anymore
-#   I don't need zoneLIST, but I don't know how to parse the upnp stuff yet.
+# - Remove zones with fixed volume = true (or flag them?)
 # - Add a "set current volumes as default" to selected zones.
-# - Add bind event to updating the hours in the start/end fields to enable bt_Update
 # - Track songs playing through event.py?
 ########################################################################################################################
 # IMPORTS FOR PYTHON
@@ -223,7 +220,7 @@ class VolumePanel(wx.Panel):
             OptionBoxSizer.Add(hl_SepLine1, pos=(sbsIndex, 0), span=(1,13), flag=wx.EXPAND, border=2)          
             
             sbsIndex += 1
-
+                
             # MONITOR VOLUME - CK, SLIDER, TXTCTRL
             self.ck_Vol1 = wx.CheckBox(self, -1, zonename, name='ck0')
             self.ck_Vol1.SetToolTip(wx.ToolTip("Click here to turn on volume monitoring for this zone"))
@@ -256,7 +253,11 @@ class VolumePanel(wx.Panel):
             wx.FindWindowByName(qtName['qsl0']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl0']), wx.FindWindowByName(qtName['qtc0']),), wx.FindWindowByName(qtName['qsl0']))
             wx.FindWindowByName(qtName['qtc0']).Bind(wx.EVT_TEXT, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl0']), wx.FindWindowByName(qtName['qtc0']),), wx.FindWindowByName(qtName['qtc0']))
             wx.FindWindowByName(qtName['qck0']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck0']), wx.FindWindowByName(qtName['qsl0']), wx.FindWindowByName(qtName['qtc0']),wx.FindWindowByName(qtName['qstart0']),wx.FindWindowByName(qtName['qstop0']),), wx.FindWindowByName(qtName['qck0']))
+            wx.FindWindowByName(qtName['qstart0']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart0']),), wx.FindWindowByName(qtName['qstart0']))
+            wx.FindWindowByName(qtName['qstop0']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop0']),), wx.FindWindowByName(qtName['qstop0']))
             # Mute
+            wx.FindWindowByName(mtName['mstart0']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart0']),), wx.FindWindowByName(mtName['mstart0']))
+            wx.FindWindowByName(mtName['mstop0']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop0']),), wx.FindWindowByName(mtName['mstop0']))
             wx.FindWindowByName(mtName['mck0']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck0']), wx.FindWindowByName(mtName['mstart0']), wx.FindWindowByName(mtName['mstop0']),), wx.FindWindowByName(mtName['mck0']))
             
             # Add to frame
@@ -318,7 +319,11 @@ class VolumePanel(wx.Panel):
             wx.FindWindowByName(qtName['qsl1']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl1']), wx.FindWindowByName(qtName['qtc1']),), wx.FindWindowByName(qtName['qsl1']))
             wx.FindWindowByName(qtName['qtc1']).Bind(wx.EVT_TEXT, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl1']), wx.FindWindowByName(qtName['qtc1']),), wx.FindWindowByName(qtName['qtc1']))
             wx.FindWindowByName(qtName['qck1']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck1']), wx.FindWindowByName(qtName['qsl1']), wx.FindWindowByName(qtName['qtc1']),wx.FindWindowByName(qtName['qstart1']),wx.FindWindowByName(qtName['qstop1']),), wx.FindWindowByName(qtName['qck1']))
+            wx.FindWindowByName(qtName['qstart1']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart1']),), wx.FindWindowByName(qtName['qstart1']))
+            wx.FindWindowByName(qtName['qstop1']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop1']),), wx.FindWindowByName(qtName['qstop1']))
             # Mute
+            wx.FindWindowByName(mtName['mstart1']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart1']),), wx.FindWindowByName(mtName['mstart1']))
+            wx.FindWindowByName(mtName['mstop1']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop1']),), wx.FindWindowByName(mtName['mstop1']))
             wx.FindWindowByName(mtName['mck1']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck1']), wx.FindWindowByName(mtName['mstart1']), wx.FindWindowByName(mtName['mstop1']),), wx.FindWindowByName(mtName['mck1']))
             
             # Add to frame
@@ -380,7 +385,11 @@ class VolumePanel(wx.Panel):
             wx.FindWindowByName(qtName['qsl2']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl2']), wx.FindWindowByName(qtName['qtc2']),), wx.FindWindowByName(qtName['qsl2']))
             wx.FindWindowByName(qtName['qtc2']).Bind(wx.EVT_TEXT, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl2']), wx.FindWindowByName(qtName['qtc2']),), wx.FindWindowByName(qtName['qtc2']))
             wx.FindWindowByName(qtName['qck2']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck2']), wx.FindWindowByName(qtName['qsl2']), wx.FindWindowByName(qtName['qtc2']),wx.FindWindowByName(qtName['qstart2']),wx.FindWindowByName(qtName['qstop2']),), wx.FindWindowByName(qtName['qck2']))
+            wx.FindWindowByName(qtName['qstart2']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart2']),), wx.FindWindowByName(qtName['qstart2']))
+            wx.FindWindowByName(qtName['qstop2']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop2']),), wx.FindWindowByName(qtName['qstop2']))
             # Mute
+            wx.FindWindowByName(mtName['mstart2']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart2']),), wx.FindWindowByName(mtName['mstart2']))
+            wx.FindWindowByName(mtName['mstop2']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop2']),), wx.FindWindowByName(mtName['mstop2']))
             wx.FindWindowByName(mtName['mck2']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck2']), wx.FindWindowByName(mtName['mstart2']), wx.FindWindowByName(mtName['mstop2']),), wx.FindWindowByName(mtName['mck2']))
             
             # Add to frame
@@ -441,7 +450,11 @@ class VolumePanel(wx.Panel):
             wx.FindWindowByName(qtName['qsl3']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl3']), wx.FindWindowByName(qtName['qtc3']),), wx.FindWindowByName(qtName['qsl3']))
             wx.FindWindowByName(qtName['qtc3']).Bind(wx.EVT_TEXT, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl3']), wx.FindWindowByName(qtName['qtc3']),), wx.FindWindowByName(qtName['qtc3']))
             wx.FindWindowByName(qtName['qck3']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck3']), wx.FindWindowByName(qtName['qsl3']), wx.FindWindowByName(qtName['qtc3']),wx.FindWindowByName(qtName['qstart3']),wx.FindWindowByName(qtName['qstop3']),), wx.FindWindowByName(qtName['qck3']))
+            wx.FindWindowByName(qtName['qstart3']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart3']),), wx.FindWindowByName(qtName['qstart3']))
+            wx.FindWindowByName(qtName['qstop3']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop3']),), wx.FindWindowByName(qtName['qstop3']))
             # Mute
+            wx.FindWindowByName(mtName['mstart3']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart3']),), wx.FindWindowByName(mtName['mstart3']))
+            wx.FindWindowByName(mtName['mstop3']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop3']),), wx.FindWindowByName(mtName['mstop3']))
             wx.FindWindowByName(mtName['mck3']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck3']), wx.FindWindowByName(mtName['mstart3']), wx.FindWindowByName(mtName['mstop3']),), wx.FindWindowByName(mtName['mck3']))
             
             # Add to frame
@@ -503,7 +516,11 @@ class VolumePanel(wx.Panel):
             wx.FindWindowByName(qtName['qsl4']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl4']), wx.FindWindowByName(qtName['qtc4']),), wx.FindWindowByName(qtName['qsl4']))
             wx.FindWindowByName(qtName['qtc4']).Bind(wx.EVT_TEXT, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl4']), wx.FindWindowByName(qtName['qtc4']),), wx.FindWindowByName(qtName['qtc4']))
             wx.FindWindowByName(qtName['qck4']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck4']), wx.FindWindowByName(qtName['qsl4']), wx.FindWindowByName(qtName['qtc4']),wx.FindWindowByName(qtName['qstart4']),wx.FindWindowByName(qtName['qstop4']),), wx.FindWindowByName(qtName['qck4']))
+            wx.FindWindowByName(qtName['qstart4']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart4']),), wx.FindWindowByName(qtName['qstart4']))
+            wx.FindWindowByName(qtName['qstop4']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop4']),), wx.FindWindowByName(qtName['qstop4']))
             # Mute
+            wx.FindWindowByName(mtName['mstart4']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart4']),), wx.FindWindowByName(mtName['mstart4']))
+            wx.FindWindowByName(mtName['mstop4']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop4']),), wx.FindWindowByName(mtName['mstop4']))
             wx.FindWindowByName(mtName['mck4']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck4']), wx.FindWindowByName(mtName['mstart4']), wx.FindWindowByName(mtName['mstop4']),), wx.FindWindowByName(mtName['mck4']))
             
             # Add to frame
@@ -565,7 +582,11 @@ class VolumePanel(wx.Panel):
             wx.FindWindowByName(qtName['qsl5']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl5']), wx.FindWindowByName(qtName['qtc5']),), wx.FindWindowByName(qtName['qsl5']))
             wx.FindWindowByName(qtName['qtc5']).Bind(wx.EVT_TEXT, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl5']), wx.FindWindowByName(qtName['qtc5']),), wx.FindWindowByName(qtName['qtc5']))
             wx.FindWindowByName(qtName['qck5']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck5']), wx.FindWindowByName(qtName['qsl5']), wx.FindWindowByName(qtName['qtc5']),wx.FindWindowByName(qtName['qstart5']),wx.FindWindowByName(qtName['qstop5']),), wx.FindWindowByName(qtName['qck5']))
+            wx.FindWindowByName(qtName['qstart5']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart5']),), wx.FindWindowByName(qtName['qstart5']))
+            wx.FindWindowByName(qtName['qstop5']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop5']),), wx.FindWindowByName(qtName['qstop5']))
             # Mute
+            wx.FindWindowByName(mtName['mstart5']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart5']),), wx.FindWindowByName(mtName['mstart5']))
+            wx.FindWindowByName(mtName['mstop5']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop5']),), wx.FindWindowByName(mtName['mstop5']))
             wx.FindWindowByName(mtName['mck5']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck5']), wx.FindWindowByName(mtName['mstart5']), wx.FindWindowByName(mtName['mstop5']),), wx.FindWindowByName(mtName['mck5']))
             
             # Add to frame
@@ -627,7 +648,11 @@ class VolumePanel(wx.Panel):
             wx.FindWindowByName(qtName['qsl6']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl6']), wx.FindWindowByName(qtName['qtc6']),), wx.FindWindowByName(qtName['qsl6']))
             wx.FindWindowByName(qtName['qtc6']).Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl6']), wx.FindWindowByName(qtName['qtc6']),), wx.FindWindowByName(qtName['qtc6']))
             wx.FindWindowByName(qtName['qck6']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck6']), wx.FindWindowByName(qtName['qsl6']), wx.FindWindowByName(qtName['qtc6']),wx.FindWindowByName(qtName['qstart6']),wx.FindWindowByName(qtName['qstop6']),), wx.FindWindowByName(qtName['qck6']))
+            wx.FindWindowByName(qtName['qstart6']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart6']),), wx.FindWindowByName(qtName['qstart6']))
+            wx.FindWindowByName(qtName['qstop6']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop6']),), wx.FindWindowByName(qtName['qstop6']))
             # Mute
+            wx.FindWindowByName(mtName['mstart6']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart6']),), wx.FindWindowByName(mtName['mstart6']))
+            wx.FindWindowByName(mtName['mstop6']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop6']),), wx.FindWindowByName(mtName['mstop6']))
             wx.FindWindowByName(mtName['mck6']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck6']), wx.FindWindowByName(mtName['mstart6']), wx.FindWindowByName(mtName['mstop6']),), wx.FindWindowByName(mtName['mck6']))
             
             # Add to frame
@@ -689,7 +714,11 @@ class VolumePanel(wx.Panel):
             wx.FindWindowByName(qtName['qsl7']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl7']), wx.FindWindowByName(qtName['qtc7']),), wx.FindWindowByName(qtName['qsl7']))
             wx.FindWindowByName(qtName['qtc7']).Bind(wx.EVT_CHAR, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl7']), wx.FindWindowByName(qtName['qtc7']),), wx.FindWindowByName(qtName['qtc7']))
             wx.FindWindowByName(qtName['qck7']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck7']), wx.FindWindowByName(qtName['qsl7']), wx.FindWindowByName(qtName['qtc7']),wx.FindWindowByName(qtName['qstart7']),wx.FindWindowByName(qtName['qstop7']),), wx.FindWindowByName(qtName['qck7']))
+            wx.FindWindowByName(qtName['qstart7']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart7']),), wx.FindWindowByName(qtName['qstart7']))
+            wx.FindWindowByName(qtName['qstop7']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop7']),), wx.FindWindowByName(qtName['qstop7']))
             # Mute
+            wx.FindWindowByName(mtName['mstart7']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart7']),), wx.FindWindowByName(mtName['mstart7']))
+            wx.FindWindowByName(mtName['mstop7']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop7']),), wx.FindWindowByName(mtName['mstop7']))
             wx.FindWindowByName(mtName['mck7']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck7']), wx.FindWindowByName(mtName['mstart7']), wx.FindWindowByName(mtName['mstop7']),), wx.FindWindowByName(mtName['mck7']))
             
             # Add to frame
@@ -751,7 +780,11 @@ class VolumePanel(wx.Panel):
             wx.FindWindowByName(qtName['qsl8']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl8']), wx.FindWindowByName(qtName['qtc8']),), wx.FindWindowByName(qtName['qsl8']))
             wx.FindWindowByName(qtName['qtc8']).Bind(wx.EVT_TEXT, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl8']), wx.FindWindowByName(qtName['qtc8']),), wx.FindWindowByName(qtName['qtc8']))
             wx.FindWindowByName(qtName['qck8']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck8']), wx.FindWindowByName(qtName['qsl8']), wx.FindWindowByName(qtName['qtc8']),wx.FindWindowByName(qtName['qstart8']),wx.FindWindowByName(qtName['qstop8']),), wx.FindWindowByName(qtName['qck8']))
+            wx.FindWindowByName(qtName['qstart8']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart8']),), wx.FindWindowByName(qtName['qstart8']))
+            wx.FindWindowByName(qtName['qstop8']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop8']),), wx.FindWindowByName(qtName['qstop8']))
             # Mute
+            wx.FindWindowByName(mtName['mstart8']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart8']),), wx.FindWindowByName(mtName['mstart8']))
+            wx.FindWindowByName(mtName['mstop8']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop8']),), wx.FindWindowByName(mtName['mstop8']))
             wx.FindWindowByName(mtName['mck8']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck8']), wx.FindWindowByName(mtName['mstart8']), wx.FindWindowByName(mtName['mstop8']),), wx.FindWindowByName(mtName['mck8']))
             
             # Add to frame
@@ -810,7 +843,11 @@ class VolumePanel(wx.Panel):
             wx.FindWindowByName(qtName['qsl9']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl9']), wx.FindWindowByName(qtName['qtc9']),), wx.FindWindowByName(qtName['qsl9']))
             wx.FindWindowByName(qtName['qtc9']).Bind(wx.EVT_TEXT, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl9']), wx.FindWindowByName(qtName['qtc9']),), wx.FindWindowByName(qtName['qtc9']))
             wx.FindWindowByName(qtName['qck9']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck9']), wx.FindWindowByName(qtName['qsl9']), wx.FindWindowByName(qtName['qtc9']),wx.FindWindowByName(qtName['qstart9']),wx.FindWindowByName(qtName['qstop9']),), wx.FindWindowByName(qtName['qck9']))
+            wx.FindWindowByName(qtName['qstart9']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart9']),), wx.FindWindowByName(qtName['qstart9']))
+            wx.FindWindowByName(qtName['qstop9']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop9']),), wx.FindWindowByName(qtName['qstop9']))
             # Mute
+            wx.FindWindowByName(mtName['mstart9']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart9']),), wx.FindWindowByName(mtName['mstart9']))
+            wx.FindWindowByName(mtName['mstop9']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop9']),), wx.FindWindowByName(mtName['mstop9']))
             wx.FindWindowByName(mtName['mck9']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck9']), wx.FindWindowByName(mtName['mstart9']), wx.FindWindowByName(mtName['mstop9']),), wx.FindWindowByName(mtName['mck9']))
             
             # Add to frame
@@ -922,6 +959,13 @@ class VolumePanel(wx.Panel):
             if not self.bt_Update.IsEnabled == False and self.bt_Launch.Label == "Disable Volume Monitor":
                 self.bt_Update.Enable()            
 
+    def hoursUpdate(self, event, textctrl):
+        if textctrl.Value is not '':
+            textctrl.SetBackgroundColour(None)
+            textctrl.SetFocus()
+            if not self.bt_Update.IsEnabled == False and self.bt_Launch.Label == "Disable Volume Monitor":
+                self.bt_Update.Enable()   
+                
     def zoneCkClick(self, event, ck, slider, textctrl):
         if ck.Value == False:
             slider.Disable()
@@ -968,18 +1012,44 @@ class VolumePanel(wx.Panel):
         self.bt_Update.Disable()
         
     def launchVolClick(self, event):
+        self.saveDefaults()
         cmd_folder = os.path.dirname(os.path.abspath(__file__))
         os.chdir(cmd_folder)        
         
         if self.bt_Launch.Label == "Enable Volume Monitor":
-                if os.path.isfile('volMon.pid') == False:    # Then we're not yet running... 
-                    os.chdir(os.pardir)             
-                    function = subprocess.Popen('pythonw event.py', stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
-                    os.chdir(os.pardir)                
-                    temp = os.system('wmic process where ^(CommandLine like "pythonw%event%")get ProcessID > volMon.pid 2> nul') 
-                    self.bt_Launch.Label = "Disable Volume Monitor"
-                    #self.enableDisableAll(False)
-                    self.bt_Update.Enable()
+            # Double check that quiet or mute is not TRUE while the start/stop hours are empty.
+            for i in range(0, len(zoneLIST)):
+                if wx.FindWindowByName('qck' + str(i)).Value == True:
+                    if wx.FindWindowByName('startquiet' + str(i)).Value == '':
+                        guiFunctions.errorMsg('Error!', 'Zone: ' + wx.FindWindowByName('ck' + str(i)).Label + ' has nothing set for quiet start hour.')
+                        wx.FindWindowByName('startquiet' + str(i)).SetBackgroundColour((255,0,0))
+                        wx.FindWindowByName('startquiet' + str(i)).SetFocus()
+                        return None
+                    if wx.FindWindowByName('stopquiet' + str(i)).Value == '':
+                        guiFunctions.errorMsg('Error!', 'Zone: ' + wx.FindWindowByName('ck' + str(i)).Label + ' has nothing set for quiet stop hour.')
+                        wx.FindWindowByName('stopquiet' + str(i)).SetBackgroundColour((255,0,0))
+                        wx.FindWindowByName('stopquiet' + str(i)).SetFocus()                        
+                        return None
+                if wx.FindWindowByName('mck' + str(i)).Value == True:
+                    if wx.FindWindowByName('startmute' + str(i)).Value == '':
+                        guiFunctions.errorMsg('Error!', 'Zone: ' + wx.FindWindowByName('ck' + str(i)).Label + ' has nothing set for mute start hour.')
+                        wx.FindWindowByName('startmute' + str(i)).SetBackgroundColour((255,0,0))
+                        wx.FindWindowByName('startmute' + str(i)).SetFocus()                        
+                        return None
+                    if wx.FindWindowByName('stopmute' + str(i)).Value == '':
+                        guiFunctions.errorMsg('Error!', 'Zone: ' + wx.FindWindowByName('ck' + str(i)).Label + ' has nothing set for mute stop hour.')
+                        wx.FindWindowByName('stopmute' + str(i)).SetBackgroundColour((255,0,0))
+                        wx.FindWindowByName('stopmute' + str(i)).SetFocus()                        
+                        return None
+                
+            if os.path.isfile('volMon.pid') == False:    # Then we're not yet running... 
+                os.chdir(os.pardir)             
+                function = subprocess.Popen('pythonw event.py', stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+                os.chdir(os.pardir)                
+                temp = os.system('wmic process where ^(CommandLine like "pythonw%event%")get ProcessID > volMon.pid 2> nul') 
+                self.bt_Launch.Label = "Disable Volume Monitor"
+                #self.enableDisableAll(False)
+                self.bt_Update.Enable()
         else:
             os.chdir(os.pardir)     
             os.chdir(os.pardir) 
