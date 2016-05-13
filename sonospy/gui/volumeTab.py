@@ -45,6 +45,8 @@ import sys
 import time
 import threading
 import datetime
+import codecs
+    
 cmd_folder = os.path.dirname(os.path.abspath(__file__))
 if cmd_folder not in sys.path:
     sys.path.insert(0, cmd_folder)
@@ -55,14 +57,32 @@ if cmd_folder not in sys.path:
 list_checkboxIDNames = []                                                                   # Used later to store check box ids for retrieval
 zonesToMonitor = []                                                                         # Global for storing zones to monitor.
 maxVolPerZone = []                                                                          # Global to store max vol per zone checked.                                                                 
-zoneLIST = guiFunctions.configMe("volume", "zoneLIST")                                      # Getting active zones from Sonospy
-zoneLIST = zoneLIST.replace('[','')
-zoneLIST = zoneLIST.replace(']','')
-zoneLIST = zoneLIST.replace('\'','')
-zoneLIST = zoneLIST.split(", ")
-debugMe=False                                                                               # Set to TRUE to turn on debug logging.
+zoneLIST = guiFunctions.configMe("volume", "zonelist")                                      # Getting active zones from Sonospy
+if zoneLIST is not '':
+    zoneLIST = zoneLIST.replace('[','')                                                     # If we have a zone list, parse it to particulars.
+    zoneLIST = zoneLIST.replace(']','')
+    zoneLIST = zoneLIST.replace('\'','')
+    zoneLIST = zoneLIST.split(", ")
+debugMe = False                                                                             # Set to TRUE to turn on debug logging.
 # -------------------------------------------------------------------------------------------------------------------------------
+########################################################################
+class SampleDialog(wx.Dialog):
+    """"""
 
+    #----------------------------------------------------------------------
+    def __init__(self, parent):
+        """Constructor"""
+        wx.Dialog.__init__(self, parent, title="Tutorial")
+
+        btnOk = wx.Button(self, wx.ID_OK)
+        btnCancel = wx.Button(self, wx.ID_CANCEL)
+
+        btnSizer = wx.StdDialogButtonSizer()
+        btnSizer.AddButton(btnOk)
+        btnSizer.AddButton(btnCancel)
+        btnSizer.Realize()
+        self.SetSizer(btnSizer)
+        
 ########################################################################################################################
 # VolumePanel: The layout and binding section for the frame.
 ########################################################################################################################
@@ -89,8 +109,36 @@ class VolumePanel(wx.Panel):
         sliderWidthHeight = 168, 5
         flag = wx.LEFT|wx.ALIGN_CENTER_VERTICAL
         sliderFlag = wx.LEFT|wx.EXPAND|wx.ALIGN_CENTER_VERTICAL
+        global zoneLIST
+        if zoneLIST == '':
+            dlg = wx.BusyInfo('Please wait while we scan for zones...')
+            
+            # Run event.py to capture zones
+            cmd_folder = os.path.dirname(os.path.abspath(__file__))
+            os.chdir(cmd_folder)        
+            if os.path.isfile('volMon.pid') == False:    # Then we're not yet running... 
+                os.chdir(os.pardir)             
+                function = subprocess.Popen('pythonw event.py', stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+                os.chdir(os.pardir)                
+                temp = os.system('wmic process where ^(CommandLine like "pythonw%event%")get ProcessID > volMon.pid 2> nul') 
+                time.sleep(5)
 
+            if os.path.isfile('volMon.pid') == True: 
+                with codecs.open('volMon.pid', encoding='utf-16') as f:
+                    f.readline()
+                    windowsPid = f.readline()
+                    f.close()
+                    windowsPid = windowsPid.splitlines()
+                    function = subprocess.Popen("TASKKILL /F /PID " + windowsPid[0] + " > nul", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True)
+                    os.remove('volMon.pid')
+                    
+            zoneLIST = guiFunctions.configMe("volume", "zonelist")                                      # Getting active zones from Sonospy
+            zoneLIST = zoneLIST.replace('[','')
+            zoneLIST = zoneLIST.replace(']','')
+            zoneLIST = zoneLIST.replace('\'','')
+            zoneLIST = zoneLIST.split(", ")
 
+            dlg.Destroy()
 
     # -------------------------------------------------------------------------
     # ZONES TO MONITOR
