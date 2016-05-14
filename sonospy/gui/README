@@ -5,7 +5,7 @@ SONOSPY GUI READ ME
 -------------------------------------------------------------------------------------------------
 INSTALLATION
 -------------------------------------------------------------------------------------------------
-You will need to get wxPython 3.0 in order to run the GUI (http://www.wxpython.org/download.php)
+You will need to get wxPython 3.0+ in order to run the GUI (http://www.wxpython.org/download.php)
 
 -------------------------------------------------------------------------------------------------
 USAGE
@@ -27,6 +27,9 @@ sonospyGUI.py file in your root sonospy folder.
  - AUTO POPULATE will search for databases (extensions can be set in
    GUIpref.ini) and will autopopulate the databases and proxy names for you.
 
+[VOLUME TAB]
+ - Allows for zone volume limits, quiet hours with volume limits and mute hours.
+
 [SCAN TAB]
  - SCAN and REPAIR both log to the log window, but it comes through
    chunk at a time.  Not quite in realtime, but close enough.
@@ -34,7 +37,7 @@ sonospyGUI.py file in your root sonospy folder.
 [EXTRACT TAB]
  - Last <X> Albums is experimental, it gets the job done, but it's not
    perfect.
-
+   
 -------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 -------------------------------------------------------------------------------------------------
@@ -46,9 +49,8 @@ KNOWN ISSUES
 TO DO
 -------------------------------------------------------------------------------------------------
 [GENERAL]
- - Look at the PIP installer.  Py2Exe?
+ - Look at the PIP installer.  PyInstaller?
  - Find out how to store comments in the GUIpref.ini
- - Add icons to pref and about popups.
 
 [LAUNCH]
  - Add a logging window that reads playcount.log and reports back to a TextCtrl

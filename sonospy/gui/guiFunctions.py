@@ -1,6 +1,6 @@
-###############################################################################
+########################################################################################################################
 # guiFunctions - shared functions across the Sonospy GUI project.
-###############################################################################
+########################################################################################################################
 # guiFunctions.py copyright (c) 2010-2014 John Chowanec
 # mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is Licensed under GPL version 2.0)
 # Sonospy Project copyright (c) 2010-2014 Mark Henkelis
@@ -19,13 +19,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # guiFunctions.py Author: John Chowanec <chowanec@gmail.com>
-###############################################################################
+########################################################################################################################
 import wx
 import socket
 import sys
 import re
 import urllib
-#from wxPython.wx import *
 from wx.lib.pubsub import setuparg1
 from wx.lib.pubsub import pub
 

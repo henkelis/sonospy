@@ -313,6 +313,16 @@ class PreferencesFrame(wx.Frame):
         prefPanel = wx.Panel(self)
         prefPanel.SetSize((600,600))
  
+    # ADD THE SONOSPY ICON
+        ib = wx.IconBundle()
+        ib.AddIconFromFile('icon16.xpm', wx.BITMAP_TYPE_XPM)
+        ib.AddIconFromFile('icon32.xpm', wx.BITMAP_TYPE_XPM)
+        ib.AddIconFromFile('icon64.xpm', wx.BITMAP_TYPE_XPM)
+        
+        self.SetIcons(ib)
+
+        self.tbicon = wx.TaskBarIcon() # This assigns the Icon control that will be used when minimixed to tray
+        
     # SET THE SIZER OBJECT UP
         prefSizer = wx.GridBagSizer(9, 5)
         
@@ -469,7 +479,7 @@ class PreferencesFrame(wx.Frame):
         guiFunctions.configWrite(section, "supresswarnings", self.ck_SuppressWarnings.Value)
         
         self.SetStatusText("Defaults saved...")
-
+            
 class AboutFrame(wx.Frame):
     """"""
 
@@ -485,13 +495,23 @@ class AboutFrame(wx.Frame):
     # SET THE SIZER OBJECT UP
         aboutSizer = wx.BoxSizer(wx.VERTICAL)
  
+    # ADD THE SONOSPY ICON
+        ib = wx.IconBundle()
+        ib.AddIconFromFile('icon16.xpm', wx.BITMAP_TYPE_XPM)
+        ib.AddIconFromFile('icon32.xpm', wx.BITMAP_TYPE_XPM)
+        ib.AddIconFromFile('icon64.xpm', wx.BITMAP_TYPE_XPM)
+        
+        self.SetIcons(ib)
+
+        self.tbicon = wx.TaskBarIcon() # This assigns the Icon control that will be used when minimixed to tray
+ 
     # SETUP CLOSE FUNCTION
         self.Bind(wx.EVT_CLOSE, self.OnCloseAbout)
         
     # DEFAULT DATABSE EXTENSIONS
         AboutText = """
-Sonospy Project copyright (c) 2010-2014 Mark Henkelis <mark.henkelis@tesco.net>
-sonospyGUI copyright (c) 2010-2014 John Chowanec <chowanec@gmail.com>
+Sonospy Project copyright (c) 2010-2016 Mark Henkelis <mark.henkelis@tesco.net>
+sonospyGUI copyright (c) 2010-2016 John Chowanec <chowanec@gmail.com>
 mutagen copyright (c) 2005 Joe Wreschnig, Michael Urman (mutagen is 
 Licensed under GPL version 2.0)
 

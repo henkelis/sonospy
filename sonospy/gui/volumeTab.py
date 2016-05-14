@@ -21,7 +21,9 @@
 #
 # virtualsTab.py Author: John Chowanec <chowanec@gmail.com>
 ########################################################################################################################
-# TO DO:
+# TO DO (VOLUMETAB)
+# 
+# TO DO (REQUIRES EVENT.PY)
 # - Remove zones with fixed volume = true (or flag them?)
 # - Add a "set current volumes as default" to selected zones.
 # - Track songs playing through event.py?
@@ -169,12 +171,7 @@ class VolumePanel(wx.Panel):
 
         # ---------------------------------------------------------------- ZONE 1 -
         if zoneNum < len(zoneLIST):
-            #zone = 'zone' + str(zoneNum)
             zonename = zoneLIST[zoneNum]
-            #if guiFunctions.configMe(zoneLIST[zoneNum], 'max_volume') is '':
-                #zonename = zoneLIST[zoneNum]
-            #else:
-                #zonename = guiFunctions.configMe('volume', zone)
             
             if '(ZP)' in zonename:
                 zonename = zonename.replace('(ZP)','')
@@ -185,13 +182,13 @@ class VolumePanel(wx.Panel):
             OptionBoxSizer = wx.GridBagSizer(13, 4)     
         # -------------------------------------------------------------------------
         # Make Header Columns 
-            self.label_Zone = wx.StaticText(panel, label="Zone") # Span 1-3
-            self.label_maxVol = wx.StaticText(panel, label="Max. Volume %") # Span 1-3
-            self.label_QuietVol = wx.StaticText(panel, label="Max. Quiet Volume %") # Span 5-7
-            self.label_Qstart = wx.StaticText(panel, label="Start") # Span 8
-            self.label_qEnd = wx.StaticText(panel, label="End") # Span 9
-            self.label_mStart = wx.StaticText(panel, label="Start") # Span 10
-            self.label_mEnd = wx.StaticText(panel, label="End") # Span 11
+            self.label_Zone = wx.StaticText(panel, label="Zone")
+            self.label_maxVol = wx.StaticText(panel, label="Max. Volume %") 
+            self.label_QuietVol = wx.StaticText(panel, label="Max. Quiet Volume %") 
+            self.label_Qstart = wx.StaticText(panel, label="Start") 
+            self.label_qEnd = wx.StaticText(panel, label="End")
+            self.label_mStart = wx.StaticText(panel, label="Start") 
+            self.label_mEnd = wx.StaticText(panel, label="End") 
         
             OptionBoxSizer.Add(self.label_Zone, pos=(sbsIndex, 0), flag=flag|wx.ALIGN_CENTER_HORIZONTAL, border=2)
             OptionBoxSizer.Add(self.label_maxVol, pos=(sbsIndex, 1), span=(1,3), flag=flag|wx.ALIGN_CENTER_HORIZONTAL, border=2)
@@ -1059,8 +1056,7 @@ class VolumePanel(wx.Panel):
 ########################################################################################################################
 # saveDefaults: A simple function to write out the defaults for the zones to GUIpref.ini
 ########################################################################################################################
-    def saveDefaults(self):
-           
+    def saveDefaults(self):      
         curZoneNum = 0
         for i in range(0, len(zoneLIST)): 
             # make this dynamic later when widgets are moved.
