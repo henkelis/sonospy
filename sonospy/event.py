@@ -552,7 +552,15 @@ events_rc:
                             self.current_renderer_output_fixed[sid] = value
                             self.current_volume[sid] = float(value)
                             if self.current_renderer_output_fixed[sid] == '1':
-                                    self.volume_fixed[sid] = 1
+                                config = ConfigParser.ConfigParser()
+                                config.optionxform = str
+                                config.read('gui/GUIpref.ini')       
+                                if config.has_section(ZP) == False:
+                                    config.add_section(ZP)
+                                config.set(ZP, "fixedvol", True)
+                                with open('gui/GUIpref.ini', 'wb') as configfile:
+                                    config.write(configfile)                                     
+                                self.volume_fixed[sid] = 1
                                     
                 #DEBUG - turn me back on to print out volume changes                
                 #print "  volume change: %s in zone: %s" % (self.current_volume[sid], ZP)

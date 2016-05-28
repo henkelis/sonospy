@@ -44,6 +44,10 @@ KNOWN ISSUES
  - Loading virtuals only works with one "set".  If you store more than one
    virtual/work in an .SP file, it won't work.  Best to use the SP files
    created with the GUI until I find a solution here in terms of GUI layout.
+   
+ - On the Volume tab, the volume monitor seems to stop working after an extended
+   period of time.  Disable and re-enabling it seems to fix things.  Not sure
+   why this is happening.
 
 -------------------------------------------------------------------------------------------------
 TO DO
@@ -65,7 +69,12 @@ TO DO
 [VIRTUALS]
  - How to handle multiple SPs in one file? Do I bother?
  - Implement an ignoreChar list to manage lines to ignore based on line[0]
-
+ 
+ [VOLUME]
+ (REQUIRES EVENT.PY)
+ - Add a "set current volumes as default" to selected zones.
+ - Track songs playing through event.py?
+ 
 -------------------------------------------------------------------------------------------------
 CHANGELIST
 -------------------------------------------------------------------------------------------------

@@ -21,12 +21,7 @@
 #
 # virtualsTab.py Author: John Chowanec <chowanec@gmail.com>
 ########################################################################################################################
-# TO DO (VOLUMETAB)
-# 
-# TO DO (REQUIRES EVENT.PY)
-# - Remove zones with fixed volume = true (or flag them?)
-# - Add a "set current volumes as default" to selected zones.
-# - Track songs playing through event.py?
+
 ########################################################################################################################
 # IMPORTS FOR PYTHON
 ########################################################################################################################
@@ -230,34 +225,39 @@ class VolumePanel(wx.Panel):
             self.ck_mVol1.Value = guiFunctions.configMe(zonename, 'monitorm', bool=True)
             self.tc_mZone1hrstart = wx.TextCtrl(panel, -1, guiFunctions.configMe(zonename, 'mute_start'), (0,0), name=mtName['mstart0'],  style=textStyle)
             self.tc_mZone1hrstop = wx.TextCtrl(panel, -1, guiFunctions.configMe(zonename, 'mute_stop'), (0,0), name=mtName['mstop0'],  style=textStyle)
-    
-            # Bind events
-            # Monitor
-            wx.FindWindowByName(mvName['sl0']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(mvName['sl0']), wx.FindWindowByName(mvName['tc0']),), wx.FindWindowByName(mvName['sl0']))
-            wx.FindWindowByName(mvName['tc0']).Bind(wx.EVT_TEXT, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(mvName['sl0']), wx.FindWindowByName(mvName['tc0']),), wx.FindWindowByName(mvName['tc0']))
-            wx.FindWindowByName(mvName['ck0']).Bind(wx.EVT_CHECKBOX, lambda event: self.zoneCkClick(event, wx.FindWindowByName(mvName['ck0']), wx.FindWindowByName(mvName['sl0']), wx.FindWindowByName(mvName['tc0']),), wx.FindWindowByName(mvName['ck0']))
-            # Quiet
-            wx.FindWindowByName(qtName['qsl0']).Bind(wx.EVT_SLIDER, lambda event: self.sliderUpdate(event, wx.FindWindowByName(qtName['qsl0']), wx.FindWindowByName(qtName['qtc0']),), wx.FindWindowByName(qtName['qsl0']))
-            wx.FindWindowByName(qtName['qtc0']).Bind(wx.EVT_TEXT, lambda event: self.tcVolUpdate(event, wx.FindWindowByName(qtName['qsl0']), wx.FindWindowByName(qtName['qtc0']),), wx.FindWindowByName(qtName['qtc0']))
-            wx.FindWindowByName(qtName['qck0']).Bind(wx.EVT_CHECKBOX, lambda event: self.quietCkClick(event, wx.FindWindowByName(qtName['qck0']), wx.FindWindowByName(qtName['qsl0']), wx.FindWindowByName(qtName['qtc0']),wx.FindWindowByName(qtName['qstart0']),wx.FindWindowByName(qtName['qstop0']),), wx.FindWindowByName(qtName['qck0']))
-            wx.FindWindowByName(qtName['qstart0']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstart0']),), wx.FindWindowByName(qtName['qstart0']))
-            wx.FindWindowByName(qtName['qstop0']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(qtName['qstop0']),), wx.FindWindowByName(qtName['qstop0']))
+            
             # Mute
             wx.FindWindowByName(mtName['mstart0']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstart0']),), wx.FindWindowByName(mtName['mstart0']))
             wx.FindWindowByName(mtName['mstop0']).Bind(wx.EVT_TEXT, lambda event: self.hoursUpdate(event, wx.FindWindowByName(mtName['mstop0']),), wx.FindWindowByName(mtName['mstop0']))
             wx.FindWindowByName(mtName['mck0']).Bind(wx.EVT_CHECKBOX, lambda event: self.muteHoursClick(event, wx.FindWindowByName(mtName['mck0']), wx.FindWindowByName(mtName['mstart0']), wx.FindWindowByName(mtName['mstop0']),), wx.FindWindowByName(mtName['mck0']))
-            
+           
             # Add to frame
             # Monitor
             OptionBoxSizer.Add(wx.FindWindowByName(mvName['ck0']), pos=(sbsIndex, 0), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl0']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc0']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
-            # Quiet
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck0']), pos=(sbsIndex, 4), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl0']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc0']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart0']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop0']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)    
+
+            # FIXED VOLUME
+            self.label_fixedVol0 = wx.StaticText(panel, label="< this zone has been set in the sonos software as fixed volume >")      
+            if guiFunctions.configMe(zonename, 'fixedvol', bool=True) == True: 
+           
+                wx.FindWindowByName(mvName['sl0']).Hide()
+                wx.FindWindowByName(mvName['tc0']).Hide()
+                wx.FindWindowByName(qtName['qsl0']).Hide()
+                wx.FindWindowByName(qtName['qtc0']).Hide()
+                wx.FindWindowByName(qtName['qck0']).Hide()
+                wx.FindWindowByName(qtName['qstart0']).Hide()
+                wx.FindWindowByName(qtName['qstop0']).Hide()
+                OptionBoxSizer.Add(self.label_fixedVol0, pos=(sbsIndex, 1), span=(1,9),flag=wx.ALIGN_CENTER, border=border)
+                self.label_fixedVol0.Disable()
+            else:
+                self.label_fixedVol0.Hide()
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl0']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc0']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
+                # Quiet
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck0']), pos=(sbsIndex, 4), flag=flag, border=border)     
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl0']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc0']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart0']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop0']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)                   
             # Mute
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mck0']), pos=(sbsIndex, 10), flag=flag, border=border)      
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mstart0']), pos=(sbsIndex,11), flag=flag, border=border).SetMinSize(timeDim) 
@@ -316,14 +316,31 @@ class VolumePanel(wx.Panel):
             # Add to frame
             # Monitor
             OptionBoxSizer.Add(wx.FindWindowByName(mvName['ck1']), pos=(sbsIndex, 0), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl1']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc1']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
-            # Quiet
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck1']), pos=(sbsIndex, 4), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl1']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc1']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart1']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop1']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)    
+
+            # FIXED VOLUME
+            self.label_fixedVol1 = wx.StaticText(panel, label="< this zone has been set in the sonos software as fixed volume >")  
+
+            if guiFunctions.configMe(zonename, 'fixedvol', bool=True) == True: 
+                wx.FindWindowByName(mvName['sl1']).Hide()
+                wx.FindWindowByName(mvName['tc1']).Hide()
+                wx.FindWindowByName(qtName['qsl1']).Hide()
+                wx.FindWindowByName(qtName['qtc1']).Hide()
+                wx.FindWindowByName(qtName['qck1']).Hide()
+                wx.FindWindowByName(qtName['qstart1']).Hide()
+                wx.FindWindowByName(qtName['qstop1']).Hide()
+                OptionBoxSizer.Add(self.label_fixedVol1, pos=(sbsIndex, 1), span=(1,9),flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER, border=border)
+                self.label_fixedVol1.Disable()
+            else:
+                self.label_fixedVol1.Hide()
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl1']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc1']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
+                # Quiet
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck1']), pos=(sbsIndex, 4), flag=flag, border=border)     
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl1']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc1']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart1']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop1']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)      
+                
             # Mute
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mck1']), pos=(sbsIndex, 10), flag=flag, border=border)      
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mstart1']), pos=(sbsIndex,11), flag=flag, border=border).SetMinSize(timeDim) 
@@ -382,14 +399,29 @@ class VolumePanel(wx.Panel):
             # Add to frame
             # Monitor
             OptionBoxSizer.Add(wx.FindWindowByName(mvName['ck2']), pos=(sbsIndex, 0), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl2']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc2']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
-            # Quiet
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck2']), pos=(sbsIndex, 4), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl2']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc2']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart2']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop2']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)    
+            # FIXED VOLUME
+            self.label_fixedVol2 = wx.StaticText(panel, label="< this zone has been set in the sonos software as fixed volume >")  
+
+            if guiFunctions.configMe(zonename, 'fixedvol', bool=True) == True: 
+                wx.FindWindowByName(mvName['sl2']).Hide()
+                wx.FindWindowByName(mvName['tc2']).Hide()
+                wx.FindWindowByName(qtName['qsl2']).Hide()
+                wx.FindWindowByName(qtName['qtc2']).Hide()
+                wx.FindWindowByName(qtName['qck2']).Hide()
+                wx.FindWindowByName(qtName['qstart2']).Hide()
+                wx.FindWindowByName(qtName['qstop2']).Hide()
+                OptionBoxSizer.Add(self.label_fixedVol2, pos=(sbsIndex, 1), span=(1,9),flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER, border=border)
+                self.label_fixedVol2.Disable()
+            else:
+                self.label_fixedVol2.Hide()
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl2']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc2']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
+                # Quiet
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck2']), pos=(sbsIndex, 4), flag=flag, border=border)     
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl2']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc2']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart2']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop2']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)             
             # Mute
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mck2']), pos=(sbsIndex, 10), flag=flag, border=border)      
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mstart2']), pos=(sbsIndex,11), flag=flag, border=border).SetMinSize(timeDim) 
@@ -447,14 +479,29 @@ class VolumePanel(wx.Panel):
             # Add to frame
             # Monitor
             OptionBoxSizer.Add(wx.FindWindowByName(mvName['ck3']), pos=(sbsIndex, 0), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl3']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc3']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
-            # Quiet
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck3']), pos=(sbsIndex, 4), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl3']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc3']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart3']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop3']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)    
+            # FIXED VOLUME
+            self.label_fixedVol3 = wx.StaticText(panel, label="< this zone has been set in the sonos software as fixed volume >")  
+
+            if guiFunctions.configMe(zonename, 'fixedvol', bool=True) == True: 
+                wx.FindWindowByName(mvName['sl3']).Hide()
+                wx.FindWindowByName(mvName['tc3']).Hide()
+                wx.FindWindowByName(qtName['qsl3']).Hide()
+                wx.FindWindowByName(qtName['qtc3']).Hide()
+                wx.FindWindowByName(qtName['qck3']).Hide()
+                wx.FindWindowByName(qtName['qstart3']).Hide()
+                wx.FindWindowByName(qtName['qstop3']).Hide()
+                OptionBoxSizer.Add(self.label_fixedVol3, pos=(sbsIndex, 1), span=(1,9),flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER, border=border)
+                self.label_fixedVol3.Disable()
+            else:
+                self.label_fixedVol3.Hide()
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl3']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc3']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
+                # Quiet
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck3']), pos=(sbsIndex, 4), flag=flag, border=border)     
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl3']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc3']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart3']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop3']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)     
             # Mute
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mck3']), pos=(sbsIndex, 10), flag=flag, border=border)      
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mstart3']), pos=(sbsIndex,11), flag=flag, border=border).SetMinSize(timeDim) 
@@ -513,14 +560,29 @@ class VolumePanel(wx.Panel):
             # Add to frame
             # Monitor
             OptionBoxSizer.Add(wx.FindWindowByName(mvName['ck4']), pos=(sbsIndex, 0), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl4']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc4']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
-            # Quiet
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck4']), pos=(sbsIndex, 4), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl4']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc4']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart4']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop4']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)    
+            # FIXED VOLUME
+            self.label_fixedVol4 = wx.StaticText(panel, label="< this zone has been set in the sonos software as fixed volume >")  
+
+            if guiFunctions.configMe(zonename, 'fixedvol', bool=True) == True: 
+                wx.FindWindowByName(mvName['sl4']).Hide()
+                wx.FindWindowByName(mvName['tc4']).Hide()
+                wx.FindWindowByName(qtName['qsl4']).Hide()
+                wx.FindWindowByName(qtName['qtc4']).Hide()
+                wx.FindWindowByName(qtName['qck4']).Hide()
+                wx.FindWindowByName(qtName['qstart4']).Hide()
+                wx.FindWindowByName(qtName['qstop4']).Hide()
+                OptionBoxSizer.Add(self.label_fixedVol4, pos=(sbsIndex, 1), span=(1,9),flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER, border=border)
+                self.label_fixedVol4.Disable()
+            else:
+                self.label_fixedVol4.Hide()
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl4']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc4']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
+                # Quiet
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck4']), pos=(sbsIndex, 4), flag=flag, border=border)     
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl4']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc4']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart4']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop4']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)     
             # Mute
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mck4']), pos=(sbsIndex, 10), flag=flag, border=border)      
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mstart4']), pos=(sbsIndex,11), flag=flag, border=border).SetMinSize(timeDim) 
@@ -579,14 +641,29 @@ class VolumePanel(wx.Panel):
             # Add to frame
             # Monitor
             OptionBoxSizer.Add(wx.FindWindowByName(mvName['ck5']), pos=(sbsIndex, 0), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl5']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc5']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
-            # Quiet
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck5']), pos=(sbsIndex, 4), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl5']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc5']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart5']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop5']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)    
+            # FIXED VOLUME
+            self.label_fixedVol5 = wx.StaticText(panel, label="< this zone has been set in the sonos software as fixed volume >")  
+
+            if guiFunctions.configMe(zonename, 'fixedvol', bool=True) == True: 
+                wx.FindWindowByName(mvName['sl5']).Hide()
+                wx.FindWindowByName(mvName['tc5']).Hide()
+                wx.FindWindowByName(qtName['qsl5']).Hide()
+                wx.FindWindowByName(qtName['qtc5']).Hide()
+                wx.FindWindowByName(qtName['qck5']).Hide()
+                wx.FindWindowByName(qtName['qstart5']).Hide()
+                wx.FindWindowByName(qtName['qstop5']).Hide()
+                OptionBoxSizer.Add(self.label_fixedVol5, pos=(sbsIndex, 1), span=(1,9),flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER, border=border)
+                self.label_fixedVol5.Disable()
+            else:
+                self.label_fixedVol5.Hide()
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl5']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc5']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
+                # Quiet
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck5']), pos=(sbsIndex, 4), flag=flag, border=border)     
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl5']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc5']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart5']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop5']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)     
             # Mute
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mck5']), pos=(sbsIndex, 10), flag=flag, border=border)      
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mstart5']), pos=(sbsIndex,11), flag=flag, border=border).SetMinSize(timeDim) 
@@ -645,14 +722,29 @@ class VolumePanel(wx.Panel):
             # Add to frame
             # Monitor
             OptionBoxSizer.Add(wx.FindWindowByName(mvName['ck6']), pos=(sbsIndex, 0), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl6']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc6']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
-            # Quiet
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck6']), pos=(sbsIndex, 4), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl6']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc6']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart6']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop6']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)    
+            # FIXED VOLUME
+            self.label_fixedVol6 = wx.StaticText(panel, label="< this zone has been set in the sonos software as fixed volume >")  
+
+            if guiFunctions.configMe(zonename, 'fixedvol', bool=True) == True: 
+                wx.FindWindowByName(mvName['sl6']).Hide()
+                wx.FindWindowByName(mvName['tc6']).Hide()
+                wx.FindWindowByName(qtName['qsl6']).Hide()
+                wx.FindWindowByName(qtName['qtc6']).Hide()
+                wx.FindWindowByName(qtName['qck6']).Hide()
+                wx.FindWindowByName(qtName['qstart6']).Hide()
+                wx.FindWindowByName(qtName['qstop6']).Hide()
+                OptionBoxSizer.Add(self.label_fixedVol6, pos=(sbsIndex, 1), span=(1,9),flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER, border=border)
+                self.label_fixedVol6.Disable()
+            else:
+                self.label_fixedVol6.Hide()
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl6']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc6']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
+                # Quiet
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck6']), pos=(sbsIndex, 4), flag=flag, border=border)     
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl6']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc6']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart6']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop6']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)     
             # Mute
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mck6']), pos=(sbsIndex, 10), flag=flag, border=border)      
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mstart6']), pos=(sbsIndex,11), flag=flag, border=border).SetMinSize(timeDim) 
@@ -711,14 +803,29 @@ class VolumePanel(wx.Panel):
             # Add to frame
             # Monitor
             OptionBoxSizer.Add(wx.FindWindowByName(mvName['ck7']), pos=(sbsIndex, 0), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl7']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc7']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
-            # Quiet
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck7']), pos=(sbsIndex, 4), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl7']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc7']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart7']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop7']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)    
+            # FIXED VOLUME
+            self.label_fixedVol7 = wx.StaticText(panel, label="< this zone has been set in the sonos software as fixed volume >")  
+
+            if guiFunctions.configMe(zonename, 'fixedvol', bool=True) == True: 
+                wx.FindWindowByName(mvName['sl7']).Hide()
+                wx.FindWindowByName(mvName['tc7']).Hide()
+                wx.FindWindowByName(qtName['qsl7']).Hide()
+                wx.FindWindowByName(qtName['qtc7']).Hide()
+                wx.FindWindowByName(qtName['qck7']).Hide()
+                wx.FindWindowByName(qtName['qstart7']).Hide()
+                wx.FindWindowByName(qtName['qstop7']).Hide()
+                OptionBoxSizer.Add(self.label_fixedVol7, pos=(sbsIndex, 1), span=(1,9),flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER, border=border)
+                self.label_fixedVol7.Disable()
+            else:
+                self.label_fixedVol7.Hide()
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl7']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc7']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
+                # Quiet
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck7']), pos=(sbsIndex, 4), flag=flag, border=border)     
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl7']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc7']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart7']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop7']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)     
             # Mute
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mck7']), pos=(sbsIndex, 10), flag=flag, border=border)      
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mstart7']), pos=(sbsIndex,11), flag=flag, border=border).SetMinSize(timeDim) 
@@ -777,14 +884,29 @@ class VolumePanel(wx.Panel):
             # Add to frame
             # Monitor
             OptionBoxSizer.Add(wx.FindWindowByName(mvName['ck8']), pos=(sbsIndex, 0), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl8']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc8']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
-            # Quiet
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck8']), pos=(sbsIndex, 4), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl8']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc8']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart8']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop8']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)    
+            # FIXED VOLUME
+            self.label_fixedVol8 = wx.StaticText(panel, label="< this zone has been set in the sonos software as fixed volume >")  
+
+            if guiFunctions.configMe(zonename, 'fixedvol', bool=True) == True: 
+                wx.FindWindowByName(mvName['sl8']).Hide()
+                wx.FindWindowByName(mvName['tc8']).Hide()
+                wx.FindWindowByName(qtName['qsl8']).Hide()
+                wx.FindWindowByName(qtName['qtc8']).Hide()
+                wx.FindWindowByName(qtName['qck8']).Hide()
+                wx.FindWindowByName(qtName['qstart8']).Hide()
+                wx.FindWindowByName(qtName['qstop8']).Hide()
+                OptionBoxSizer.Add(self.label_fixedVol8, pos=(sbsIndex, 1), span=(1,9),flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER, border=border)
+                self.label_fixedVol8.Disable()
+            else:
+                self.label_fixedVol8.Hide()
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl8']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc8']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
+                # Quiet
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck8']), pos=(sbsIndex, 4), flag=flag, border=border)     
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl8']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc8']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart8']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop8']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)     
             # Mute
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mck8']), pos=(sbsIndex, 10), flag=flag, border=border)      
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mstart8']), pos=(sbsIndex,11), flag=flag, border=border).SetMinSize(timeDim) 
@@ -840,14 +962,29 @@ class VolumePanel(wx.Panel):
             # Add to frame
             # Monitor
             OptionBoxSizer.Add(wx.FindWindowByName(mvName['ck9']), pos=(sbsIndex, 0), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl9']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc9']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
-            # Quiet
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck9']), pos=(sbsIndex, 4), flag=flag, border=border)     
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl9']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc9']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart9']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
-            OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop9']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)    
+            # FIXED VOLUME
+            self.label_fixedVol9 = wx.StaticText(panel, label="< this zone has been set in the sonos software as fixed volume >")  
+
+            if guiFunctions.configMe(zonename, 'fixedvol', bool=True) == True: 
+                wx.FindWindowByName(mvName['sl9']).Hide()
+                wx.FindWindowByName(mvName['tc9']).Hide()
+                wx.FindWindowByName(qtName['qsl9']).Hide()
+                wx.FindWindowByName(qtName['qtc9']).Hide()
+                wx.FindWindowByName(qtName['qck9']).Hide()
+                wx.FindWindowByName(qtName['qstart9']).Hide()
+                wx.FindWindowByName(qtName['qstop9']).Hide()
+                OptionBoxSizer.Add(self.label_fixedVol9, pos=(sbsIndex, 1), span=(1,9),flag=wx.ALIGN_CENTER_HORIZONTAL|wx.ALIGN_CENTER, border=border)
+                self.label_fixedVol9.Disable()
+            else:
+                self.label_fixedVol9.Hide()
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['sl9']), pos=(sbsIndex, 1), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(mvName['tc9']), pos=(sbsIndex, 3), flag=flag, border=border).SetMinSize(volDim)       
+                # Quiet
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qck9']), pos=(sbsIndex, 4), flag=flag, border=border)     
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qsl9']), pos=(sbsIndex, 5), span=(1,2),flag=sliderFlag, border=border)
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qtc9']), pos=(sbsIndex, 7), flag=flag, border=border).SetMinSize((volDim))
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstart9']), pos=(sbsIndex, 8), flag=flag, border=border).SetMinSize(timeDim) 
+                OptionBoxSizer.Add(wx.FindWindowByName(qtName['qstop9']), pos=(sbsIndex, 9), flag=flag, border=border).SetMinSize(timeDim)     
             # Mute
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mck9']), pos=(sbsIndex, 10), flag=flag, border=border)      
             OptionBoxSizer.Add(wx.FindWindowByName(mtName['mstart9']), pos=(sbsIndex,11), flag=flag, border=border).SetMinSize(timeDim) 
