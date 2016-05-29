@@ -19,36 +19,44 @@ button.
 
 You can run this by ./sonospyGUI.py (Linux) or python sonospyGUI.py
 (Linux/Windows).  Databases created here are still stored where scan, etc.
-uses them.  If you have Windows setup right, you can double clicke on the
+uses them.  If you have Windows setup right, you can double click on the
 sonospyGUI.py file in your root sonospy folder.
 
-[LAUNCH TAB]
+[LAUNCH]
  - Will launch and stop Sonospy.
  - AUTO POPULATE will search for databases (extensions can be set in
    GUIpref.ini) and will autopopulate the databases and proxy names for you.
 
-[VOLUME TAB]
+[VOLUME]
  - Allows for zone volume limits, quiet hours with volume limits and mute hours.
 
-[SCAN TAB]
+[SCAN]
  - SCAN and REPAIR both log to the log window, but it comes through
    chunk at a time.  Not quite in realtime, but close enough.
 
-[EXTRACT TAB]
- - Last <X> Albums is experimental, it gets the job done, but it's not
-   perfect.
-   
+[EXTRACT]
+ - Lets you subdivide a database into multiple databases.
+
+[VIRTUALS]
+ - Manages virtual playlists.   
+ 
 -------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 -------------------------------------------------------------------------------------------------
+[VIRTUALS]
  - Loading virtuals only works with one "set".  If you store more than one
    virtual/work in an .SP file, it won't work.  Best to use the SP files
    created with the GUI until I find a solution here in terms of GUI layout.
-   
+
+[VOLUME]
  - On the Volume tab, the volume monitor seems to stop working after an extended
    period of time.  Disable and re-enabling it seems to fix things.  Not sure
    why this is happening.
 
+[EXTRACT]
+ - Last <X> Albums is experimental, it gets the job done, but it's not
+   perfect.
+   
 -------------------------------------------------------------------------------------------------
 TO DO
 -------------------------------------------------------------------------------------------------
@@ -71,9 +79,6 @@ TO DO
  - Implement an ignoreChar list to manage lines to ignore based on line[0]
  
  [VOLUME]
- (REQUIRES EVENT.PY)
- - Add a "set current volumes as default" to selected zones.
- - Track songs playing through event.py?
  
 -------------------------------------------------------------------------------------------------
 CHANGELIST
