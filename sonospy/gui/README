@@ -69,7 +69,6 @@ TO DO
 [LAUNCH]
  - Add a logging window that reads playcount.log and reports back to a TextCtrl
    to keep track of what has been played.
- - Activate logging via a logging window below scratchpad on launch.
 
 [SCAN]
 
@@ -81,7 +80,7 @@ TO DO
  - Implement an ignoreChar list to manage lines to ignore based on line[0]
  
  [VOLUME]
- 
+  
 -------------------------------------------------------------------------------------------------
 CHANGELIST
 -------------------------------------------------------------------------------------------------

@@ -1016,13 +1016,19 @@ class VolumePanel(wx.Panel):
         help_bt_Launch = "Click here to enable the volume monitor."
         self.bt_Launch.SetToolTip(wx.ToolTip(help_bt_Launch))
         self.bt_Launch.Bind(wx.EVT_BUTTON, self.launchVolClick, self.bt_Launch)    
-    
+
+        self.bt_GetVol = wx.Button(panel, label="Get Current Zone Volumes")
+        help_bt_GetVol = "Click here to grab the current zone volumes and set them as quiet levels."
+        self.bt_GetVol.SetToolTip(wx.ToolTip(help_bt_GetVol))
+        self.bt_GetVol.Bind(wx.EVT_BUTTON, self.getZoneVolume, self.bt_GetVol)    
+        
         self.bt_Update = wx.Button(panel, label="Update Monitor Settings")
         bt_Update = "Monitor is running, click this to update settings."
         self.bt_Update.SetToolTip(wx.ToolTip(bt_Update))
         self.bt_Update.Bind(wx.EVT_BUTTON, self.updateClick, self.bt_Update)   
     
         sizer.Add(self.bt_Launch, pos=(xIndex, 0), flag=wx.LEFT|wx.EXPAND|wx.RIGHT|wx.ALIGN_LEFT, border=border)
+        sizer.Add(self.bt_GetVol, pos=(xIndex, 1), span=(1,2), flag=wx.LEFT|wx.EXPAND|wx.RIGHT|wx.ALIGN_CENTER, border=border)        
         sizer.Add(self.bt_Update, pos=(xIndex, 3), flag=wx.RIGHT|wx.ALIGN_RIGHT, border=border)
 
         if self.bt_Launch.Label == "Enable Volume Monitor":
@@ -1072,7 +1078,16 @@ class VolumePanel(wx.Panel):
 ########################################################################################################################
 # BIND Events per the panel above
 ########################################################################################################################
-
+    def getZoneVolume(self, event):      
+        curZoneNum = 0
+        for i in range(0, len(zoneLIST)): 
+            currentVol = guiFunctions.configMe(str(wx.FindWindowByName('ck' + str(i)).Label), "current_volume")
+            if wx.FindWindowByName('ck' + str(i)).GetValue() == True:
+                if currentVol != '':
+                    wx.FindWindowByName('tc_zone' + str(i)).SetValue(currentVol)
+                    
+        guiFunctions.statusText(self, "Zone volumes received and updated...")
+        
     def sliderUpdate(self, event, slider, textctrl):
         textctrl.SetValue(str(slider.GetValue()))
         if not self.bt_Update.IsEnabled == False and self.bt_Launch.Label == "Disable Volume Monitor":
