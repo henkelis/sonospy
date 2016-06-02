@@ -648,6 +648,11 @@ events_rc:
                         
                 if int(self.current_volume[sid]) > maxVol:
                     self.set_volume(self.rc_service[sid], maxVol)
+                
+                if config.getboolean("volume", 'get_current_volume') == True:
+                    config.set(ZP, "current_volume", int(self.current_volume[sid]))
+                    with open('gui/GUIpref.ini', 'wb') as configfile:
+                        config.write(configfile)                         
     
     def _main_quit(self):
 #        print "cancelling subscriptions, please wait..."
