@@ -25,8 +25,11 @@ import socket
 import sys
 import re
 import urllib
+import datetime
 from wx.lib.pubsub import setuparg1
 from wx.lib.pubsub import pub
+
+debugMe = False
 
 ########################################################################################################################
 # configMe: Reads GUIpref.ini for settings in the various tab files.
@@ -70,14 +73,15 @@ def configMe(heading, term, integer=False, bool=False, parse=False, file=False):
         else:
             return ""
     os.chdir(owd)
-    return(fetchMe)
 
-    # DEBUG: Uncomment to dump entire config file ----------------------------------
-    # for section in config.sections():
-    #    print section
-    #    for option in config.options(section):
-    #        print " ", option, "=", config.get(section, option)
+    # DEBUG ------------------------------------------------------------------------
+    if debugMe:
+        for section in config.sections():
+            print section
+            for option in config.options(section):
+                print " ", option, "=", config.get(section, option)
     # ------------------------------------------------------------------------------
+    return(fetchMe)
 
 ########################################################################################################################
 # configWrite: Writes GUIpref.ini for settings in the various tab files.
@@ -222,8 +226,7 @@ def fileBrowse(dialogMsg, defaultPathToLook, defaultWildcards=False, multiple=Fa
         return selected
 
     dialog.Destroy()
-
-    # set back to original working directory
+    os.chdir(cmd_folder)
 
 ########################################################################################################################
 # saveLog: Use this when we need to repeatedly append to a text control (like on scan tab's music folders)
@@ -274,8 +277,9 @@ def savePlaylist(dataToSave):
 ########################################################################################################################
 # debug: global function to print debugging strings
 ########################################################################################################################
-def debug(msg):
-    print "DEBUG -> " + msg
+def debug(msg, state=bool):
+    if state:
+        print "DEBUG (%s) -> %s" %(datetime.datetime.now().time(), msg)
 
 ########################################################################################################################
 # getLocalIP(): Get the local machine's IP address

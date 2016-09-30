@@ -276,7 +276,7 @@ class VolumePanel(wx.Panel):
     
             sbsIndex += 1
             zoneNum += 1
-
+            
         # ---------------------------------------------------------------- ZONE 2 -
         if zoneNum < len(zoneLIST):
             zone = 'zone' + str(zoneNum)
@@ -359,6 +359,7 @@ class VolumePanel(wx.Panel):
     
             sbsIndex += 1
             zoneNum += 1
+
 
         # ---------------------------------------------------------------- ZONE 3 -
         if zoneNum < len(zoneLIST):
@@ -1017,8 +1018,8 @@ class VolumePanel(wx.Panel):
         self.bt_Launch.SetToolTip(wx.ToolTip(help_bt_Launch))
         self.bt_Launch.Bind(wx.EVT_BUTTON, self.launchVolClick, self.bt_Launch)    
 
-        self.bt_GetVol = wx.Button(panel, label="Get Current Zone Volumes")
-        help_bt_GetVol = "Click here to grab the current zone volumes and set them as quiet levels."
+        self.bt_GetVol = wx.Button(panel, label="Get Selected Zone Volumes")
+        help_bt_GetVol = "Click here to grab the selected zone volumes and set them as quiet levels."
         self.bt_GetVol.SetToolTip(wx.ToolTip(help_bt_GetVol))
         self.bt_GetVol.Bind(wx.EVT_BUTTON, self.getZoneVolume, self.bt_GetVol)    
         

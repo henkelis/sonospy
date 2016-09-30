@@ -45,6 +45,7 @@ list_buttonID = []
 list_userindexLabel = []
 list_userindexID = []
 sonospyRunning = False
+debugMe = False
 
 class LaunchPanel(wx.Panel):
     """
@@ -626,12 +627,13 @@ class LaunchPanel(wx.Panel):
     #          the scratchpad to reflect changes.
     ########################################################################################################################
     def OnCheck(self, event):
-    # DEBUG ------------------------------------------------------------------------
-    #    for item in range(len(list_checkboxID)):
-    #        print "Checkbox " + str(item) + ":\t\tID:" + str(list_checkboxID[item]) + "\tLABEL:" + list_checkboxLabel[item]
-    #        print "Text Control " + str(item) + ":\t\tID:" + str(list_txtctrlID[item]) + "\tLABEL:" + list_txtctrlLabel[item]
-    #        print "User Index " + str(item) + ":\t\tID:" + str(list_userindexID[item]) + "\tLABEL:" + list_userindexLabel[item]
-    #------------------------------------------------------------------------------
+        # DEBUG -----------------------------------------------------------------------
+        if debugMe:
+            for item in range(len(list_checkboxID)):
+                guiFunctions.debug("Checkbox " + str(item) + ":\t\t\tID:" + str(list_checkboxID[item]) + "\tLABEL:" + list_checkboxLabel[item], debugMe)
+                guiFunctions.debug("Text Control " + str(item) + ":\t\tID:" + str(list_txtctrlID[item]) + "\tLABEL:" + list_txtctrlLabel[item], debugMe)
+                guiFunctions.debug("User Index " + str(item) + ":\t\tID:" + str(list_userindexID[item]) + "\tLABEL:" + list_userindexLabel[item], debugMe)
+        # -----------------------------------------------------------------------------
         self.buildLaunch()
 
     ########################################################################################################################
@@ -697,11 +699,10 @@ class LaunchPanel(wx.Panel):
             if guiFunctions.configMe("general", "supresswarnings", bool=True) == False:
                 if launchCMD.count("-sSonospy=") > 1:
                     wx.MessageBox('Please make sure that you have enough ports open to run multiple SMAPI services in pycpoint.ini', 'Warning!', wx.OK | wx.ICON_INFORMATION)
-    
-            # DEBUG ------------------------------------------------------------------------
-            # print launchCMD
-            # ------------------------------------------------------------------------------
-    
+            
+            # DEBUG -----------------------------------------------------------------------
+            guiFunctions.debug(launchCMD, debugMe)
+            # -----------------------------------------------------------------------------    
             if os.name != 'nt':
                 proc = subprocess.Popen([launchCMD],shell=True)
                 if self.bt_Launch.Label == "Stop":
@@ -850,15 +851,16 @@ class LaunchPanel(wx.Panel):
 
             curCount +=1
 
-             # DEBUG ------------------------------------------------------------------------
-             # Save references to the widgets created dynamically
-             #   list_checkboxID.append(check.GetId())
-             #   list_checkboxLabel.append(check.GetLabel())
-             #   list_txtctrlID.append(name.GetId())
-             #   list_txtctrlLabel.append(name.Value)
+            # DEBUG ------------------------------------------------------------------------
+            # Save references to the widgets created dynamically
+            if debugMe:
+                list_checkboxID.append(check.GetId())
+                list_checkboxLabel.append(check.GetLabel())
+                list_txtctrlID.append(name.GetId())
+                list_txtctrlLabel.append(name.Value)
 
-             # Bind to event for later (DEBUG)
-             #   check.Bind(wx.EVT_CHECKBOX, self.OnCheck, check)
+             # Bind to event for later
+                check.Bind(wx.EVT_CHECKBOX, self.OnCheck, check)
              # ------------------------------------------------------------------------------
              
         self.buildLaunch()

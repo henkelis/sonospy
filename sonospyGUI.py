@@ -508,7 +508,7 @@ class AboutFrame(wx.Frame):
     # SETUP CLOSE FUNCTION
         self.Bind(wx.EVT_CLOSE, self.OnCloseAbout)
         
-    # DEFAULT DATABSE EXTENSIONS
+    # ABOUT TEXT
         AboutText = """
 Sonospy Project copyright (c) 2010-2016 Mark Henkelis <mark.henkelis@tesco.net>
 sonospyGUI copyright (c) 2010-2016 John Chowanec <chowanec@gmail.com>

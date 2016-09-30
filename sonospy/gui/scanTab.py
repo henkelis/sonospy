@@ -36,6 +36,8 @@ from datetime import datetime
 from wx.lib.pubsub import setuparg1
 from wx.lib.pubsub import pub
 
+debugMe = False
+
 ########################################################################################################################
 # EVT_RESULT: 
 # ResultEvent:

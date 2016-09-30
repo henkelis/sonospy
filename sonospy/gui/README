@@ -10,31 +10,27 @@ You will need to get wxPython 3.0+ in order to run the GUI (http://www.wxpython.
 -------------------------------------------------------------------------------------------------
 USAGE
 -------------------------------------------------------------------------------------------------
-In general, everything has a tool tip associated with it for some attempts
-at clarity.
+In general, everything has a tool tip associated with it for some attempts at clarity.
 
-Preferences are stored in gui/GUIpref.ini and can be manually edited or
-can be saved within the app on each specific tab using the SAVE DEFAULTS
-button.
+Preferences are stored in gui/GUIpref.ini and can be manually edited or can be saved within 
+the app on each specific tab using the SAVE DEFAULTS button.
 
 On first run it will can for available Sonos zones.
 
-You can run this by ./sonospyGUI.py (Linux) or python sonospyGUI.py
-(Linux/Windows).  Databases created here are still stored where scan, etc.
-uses them.  If you have Windows setup right, you can double clicke on the
-sonospyGUI.py file in your root sonospy folder.
+You can run this by ./sonospyGUI.py (Linux) or python sonospyGUI.py (Linux/Windows).  
+Databases created here are still stored where scan, etc. uses them.  If you have Windows 
+setup right, you can double click on the sonospyGUI.py file in your root sonospy folder.
 
 [LAUNCH]
  - Will launch and stop Sonospy.
- - AUTO POPULATE will search for databases (extensions can be set in
-   GUIpref.ini) and will autopopulate the databases and proxy names for you.
+ - AUTO POPULATE will search for databases (extensions can be set in GUIpref.ini) and 
+   will autopopulate the databases and proxy names for you.
 
 [VOLUME]
  - Allows for zone volume limits, quiet hours with volume limits and mute hours.
 
 [SCAN]
- - SCAN and REPAIR both log to the log window, but it comes through
-   chunk at a time.  Not quite in realtime, but close enough.
+ - Scans selected music folders for music and stores it to a database for Sonospy.
 
 [EXTRACT]
  - Allows for subdividing of 1 database into mulitple databases.
@@ -45,15 +41,18 @@ sonospyGUI.py file in your root sonospy folder.
 -------------------------------------------------------------------------------------------------
 KNOWN ISSUES
 -------------------------------------------------------------------------------------------------
+[SCAN]
+ - SCAN and REPAIR both log to the log window, but it comes through chunk at a time.  
+   Not quite in realtime, but close enough.
+
 [VIRTUALS]
  - Loading virtuals only works with one "set".  If you store more than one
    virtual/work in an .SP file, it won't work.  Best to use the SP files
    created with the GUI until I find a solution here in terms of GUI layout.
 
 [VOLUME]   
- - The volume monitor seems to stop working after an extended
-   period of time.  Disable and re-enabling it seems to fix things.  Not sure
-   why this is happening.
+ - The volume monitor seems to stop working after an extended period of time (i.e. >24hrs).  
+   Disable and re-enabling it seems to fix things.  Not sure why this is happening.
 
 [EXTRACT]
  - Last <X> Albums is experimental, it gets the job done, but it's not
@@ -79,7 +78,7 @@ TO DO
  - How to handle multiple SPs in one file? Do I bother?
  - Implement an ignoreChar list to manage lines to ignore based on line[0]
  
- [VOLUME]
+[VOLUME]
   
 -------------------------------------------------------------------------------------------------
 CHANGELIST
