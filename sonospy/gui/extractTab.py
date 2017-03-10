@@ -37,6 +37,7 @@ from wx.lib.pubsub import setuparg1
 from wx.lib.pubsub import pub
 import sqlite3
 
+debugMe = True
 
 ########################################################################################################################
 # EVT_RESULT: 
@@ -476,19 +477,21 @@ class ExtractPanel(wx.Panel):
         selected = guiFunctions.fileBrowse("Select database...", dbPath, "Sonospy Database (" + extensions + ")|" + \
                                 extensions.replace(" ", ";") + "|All files (*.*)|*.*")
 
-        for selection in selected:
-            self.tc_MainDatabase.Value = selection
-            guiFunctions.statusText(self, "Main Database: " + selection + " selected...")
-
-            # This is for extracting the valid genres from the database you just opened.
-            os.chdir(dbPath)
-            db = sqlite3.connect(selection)
-            cur = db.cursor()
-            cur.execute('SELECT DISTINCT genre FROM tags')
-            a = []
-            self.cmb_Genre.Clear()
-            for row in cur:
-                self.cmb_Genre.AppendItems(row)
+        if dbPath == '': guiFunctions.errorMsg("ERROR!", "You need to set the default database path in File -> Preferences.")
+        if dbPath is not '':
+            for selection in selected:
+                self.tc_MainDatabase.Value = selection
+                guiFunctions.statusText(self, "Main Database: " + selection + " selected...")
+    
+                # This is for extracting the valid genres from the database you just opened.
+                os.chdir(dbPath)
+                db = sqlite3.connect(selection)
+                cur = db.cursor()
+                cur.execute('SELECT DISTINCT genre FROM tags')
+                a = []
+                self.cmb_Genre.Clear()
+                for row in cur:
+                    self.cmb_Genre.AppendItems(row)
         
         os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -676,11 +679,10 @@ class ExtractPanel(wx.Panel):
                 self.LogWindow.AppendText("Command: " + scanCMD + "\n\n")
                 guiFunctions.statusText(self, "Extracting from " + self.tc_MainDatabase.Value +" into " + self.tc_TargetDatabase.Value + "...")
 
-
                 return scanCMD
-# DEBUG ------------------------------------------------------------------------
-#                self.LogWindow.AppendText(scanCMD)
-# ------------------------------------------------------------------------------
+            # DEBUG ------------------------------------------------------------------------
+            if debugMe: self.LogWindow.AppendText(scanCMD)
+            # ------------------------------------------------------------------------------
             else:
                 return 0
 
