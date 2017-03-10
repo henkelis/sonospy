@@ -409,6 +409,7 @@ class ControlPointEvent(object):
         if 'LastChange' in changed_vars and changed_vars['LastChange'] != None and changed_vars['LastChange'] != 'NOT_IMPLEMENTED' and changed_vars['LastChange'] != '0':
             if zpSid[1] in sid:
                 volMon = True
+                #CHOW: LOG HERE
                 
             if sid in self.at_subscription_ids:
                 ZP = self.zoneattributes[self.at_subscription_ids[sid]]['CurrentZoneName']
@@ -478,7 +479,9 @@ rc: <Event xmlns="urn:schemas-upnp-org:metadata-1-0/RCS/">
                         config.add_section("volume")
                     config.set("volume", "zonelist", ZPlist)
                     with open('gui/GUIpref.ini', 'wb') as configfile:
-                        config.write(configfile)                    
+                        config.write(configfile)  
+                        #CHOW: LOG HERE
+                        
                 # event from RenderingControl
                 ns = "{urn:schemas-upnp-org:metadata-1-0/RCS/}"
                 elt = self.from_string(changed_vars['LastChange'])
@@ -559,7 +562,9 @@ events_rc:
                                     config.add_section(ZP)
                                 config.set(ZP, "fixedvol", True)
                                 with open('gui/GUIpref.ini', 'wb') as configfile:
-                                    config.write(configfile)                                     
+                                    config.write(configfile)
+                                    #CHOW: LOG HERE
+                                    
                                 self.volume_fixed[sid] = 1
                                     
                 #DEBUG - turn me back on to print out volume changes                
@@ -577,6 +582,8 @@ events_rc:
             #print "rcKey: %s" % rcKey[0].event_sid
             try:
                 self.mon_volume(ZP, rcKey[0].event_sid)  
+                #CHOW: LOG HERE
+                #print('Testing logging...')
                 volMon = False
             except:
                 pass
@@ -620,6 +627,8 @@ events_rc:
         rc.SetVolume(InstanceID=0, Channel='Master', DesiredVolume=volume)
     
     def mon_volume(self, ZP, sid):
+        #CHOW: LOG HERE
+        #print ZP + " changed."
         config = ConfigParser.ConfigParser()
         config.optionxform = str
         config.read('gui/GUIpref.ini')
