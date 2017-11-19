@@ -2,6 +2,7 @@ import urllib2
 import urllib
 import time
 from brisa.core import log
+import xml.etree.ElementTree as ET
 
 def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
 
@@ -55,8 +56,21 @@ def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
         log.debug(response)
 
 def call_sonos(url, args):
-    data = urllib.urlencode(args, doseq=True)
+#    print url
     try:
+    
+        handle = urllib2.urlopen(url)
+        response = handle.read()
+#        print response
+        root = ET.fromstring(response.replace('&nbsp;', ' '))
+        csrfinput = root.findall(".//form/input[@type='hidden']")
+        if csrfinput != []:
+            csrftoken = csrfinput[0].attrib['value']
+#            print csrftoken
+            args['csrfToken'] = csrftoken
+            
+        data = urllib.urlencode(args, doseq=True)
+        
         handle = urllib2.urlopen(url, data, 5)
         response = handle.read()
     except IOError, e:
