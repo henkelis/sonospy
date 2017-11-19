@@ -2,7 +2,7 @@ import urllib2
 import urllib
 import time
 from brisa.core import log
-import xml.etree.ElementTree as ET
+from lxml import etree as ET
 
 def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
 
@@ -56,17 +56,23 @@ def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
         log.debug(response)
 
 def call_sonos(url, args):
-#    print url
+    print url
     try:
     
         handle = urllib2.urlopen(url)
         response = handle.read()
+        log.debug('customsd response 1: %s', response)
 #        print response
-        root = ET.fromstring(response.replace('&nbsp;', ' '))
+        
+        parser = ET.XMLParser(recover=True)
+        root = ET.fromstring(response, parser=parser)
+
+        log.debug('customsd root: %s', root)
         csrfinput = root.findall(".//form/input[@type='hidden']")
+        log.debug('customsd csrfinput: %s', csrfinput)
         if csrfinput != []:
             csrftoken = csrfinput[0].attrib['value']
-#            print csrftoken
+            print csrftoken
             args['csrfToken'] = csrftoken
             
         data = urllib.urlencode(args, doseq=True)
@@ -81,6 +87,11 @@ def call_sonos(url, args):
             log.error('Failed to reach server. Reason: %s'% (e.reason))
             print 'Failed to reach server. Reason: %s'% (e.reason)
         return False, e
+    except ET.ParseError, e:
+        log.error('Error parsing customsd response. Error code: %s, Reason: %s' % (e.code, e.reason))
+        print 'Error parsing customsd response. Error code: %s, Reason: %s' % (e.code, e.reason)
+        return False, e
+        
     log.debug('customsd return: %s', response)
 #    print 'customsd return: %s', response
     return True, response
