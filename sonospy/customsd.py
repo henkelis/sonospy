@@ -2,7 +2,28 @@ import urllib2
 import urllib
 import time
 from brisa.core import log
-from lxml import etree as ET
+from HTMLParser import HTMLParser
+
+csrftoken = None
+
+class MyHTMLParser(HTMLParser):
+    def handle_starttag(self, tag, attrs):
+        global csrftoken
+        if tag.lower() == 'input':
+            hidden = False
+            csrf = False
+            token = None
+            for attr, value in attrs:
+#                print "     %s = %s" % (attr, value)
+                if attr.lower() == 'type' and value.lower() == 'hidden':
+                    hidden = True
+                if attr.lower() == 'name' and value.lower() == 'csrftoken':
+                    csrf = True
+                if attr.lower() == 'value':
+                    token = value
+            if hidden and csrf and token != None:
+                csrftoken = token
+#                print "Encountered a hidden input tag:", csrftoken
 
 def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
 
@@ -56,23 +77,20 @@ def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
         log.debug(response)
 
 def call_sonos(url, args):
-    print url
+#    print url
     try:
     
         handle = urllib2.urlopen(url)
         response = handle.read()
         log.debug('customsd response 1: %s', response)
 #        print response
-        
-        parser = ET.XMLParser(recover=True)
-        root = ET.fromstring(response, parser=parser)
 
-        log.debug('customsd root: %s', root)
-        csrfinput = root.findall(".//form/input[@type='hidden']")
-        log.debug('customsd csrfinput: %s', csrfinput)
-        if csrfinput != []:
-            csrftoken = csrfinput[0].attrib['value']
-            print csrftoken
+        parser = MyHTMLParser()
+        parser.feed(response)
+
+        log.debug('customsd csrftoken: %s', csrftoken)
+        if csrftoken != None:
+#            print csrftoken
             args['csrfToken'] = csrftoken
             
         data = urllib.urlencode(args, doseq=True)
@@ -86,10 +104,6 @@ def call_sonos(url, args):
         elif hasattr(e, 'reason'):
             log.error('Failed to reach server. Reason: %s'% (e.reason))
             print 'Failed to reach server. Reason: %s'% (e.reason)
-        return False, e
-    except ET.ParseError, e:
-        log.error('Error parsing customsd response. Error code: %s, Reason: %s' % (e.code, e.reason))
-        print 'Error parsing customsd response. Error code: %s, Reason: %s' % (e.code, e.reason)
         return False, e
         
     log.debug('customsd return: %s', response)
