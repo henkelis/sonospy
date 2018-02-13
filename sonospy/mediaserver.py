@@ -31,6 +31,7 @@ import datetime
 import string
 import copy
 from operator import itemgetter
+from numbers import Number
 
 from brisa.core import log
 from brisa.core import webserver
@@ -6470,7 +6471,10 @@ class MediaServer(object):
                                 log.debug('data before: %s' % data)
                                 log.debug('%s=%s' % (fix, data))
                                 log.debug('data=%s' % snippet)
-                                exec('%s=%s' % (fix, data))
+                                if isinstance(data, Number):
+                                    exec('%s=%s' % (fix, data))
+                                else:
+                                    exec('%s="%s"' % (fix, data))
                                 exec('data=%s' % snippet)
                                 log.debug('data after: %s' % data)
                         outfix += replace % data
@@ -6526,7 +6530,10 @@ class MediaServer(object):
                             log.debug('data before: %s' % data)
                             log.debug('%s=%s' % (fix, data))
                             log.debug('data=%s' % snippet)
-                            exec('%s=%s' % (fix, data))
+                            if isinstance(data, Number):
+                                exec('%s=%s' % (fix, data))
+                            else:
+                                exec('%s="%s"' % (fix, data))
                             exec('data=%s' % snippet)
                             log.debug('data after: %s' % data)
                     outfix += replace % data
