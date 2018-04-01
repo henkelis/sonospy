@@ -880,7 +880,7 @@ What do we do if a result is not in alpha order? - spec says it has to be
         log.debug(items)
         log.debug(total)
 
-        ret = ''
+        ret_list = []
         count = 0
 
         if total <= 0:
@@ -934,38 +934,39 @@ What do we do if a result is not in alpha order? - spec says it has to be
                 if searchtype != prevsearchtype:
                     prevsearchtype = searchtype
                     # is a separator
-                    ret += '<ns0:mediaCollection>'
-                    ret += '<ns0:id>%s</ns0:id>' % (id)
-                    ret += '<ns0:title>%s</ns0:title>' % (self.mediaServer.keywordsearchdelimiter % searchtype)
+                    ret_list.append('<ns0:mediaCollection>')
+                    ret_list.append('<ns0:id>%s</ns0:id>' % (id))
+                    ret_list.append('<ns0:title>%s</ns0:title>' % (self.mediaServer.keywordsearchdelimiter % searchtype))
                     if albumarturi != None:
-                        ret += '<ns0:albumArtURI>%s</ns0:albumArtURI>' % (albumarturi)
-                    ret += '<ns0:itemType>search</ns0:itemType>'
-                    ret += '<ns0:canPlay>%i</ns0:canPlay>' % (False)
-                    ret += '<ns0:canScroll>%i</ns0:canScroll>' % (False)
-                    ret += '<ns0:canEnumerate>%i</ns0:canEnumerate>' % (False)
-                    ret += '</ns0:mediaCollection>'
+                        ret_list.append('<ns0:albumArtURI>%s</ns0:albumArtURI>' % (albumarturi))
+                    ret_list.append('<ns0:itemType>search</ns0:itemType>')
+                    ret_list.append('<ns0:canPlay>%i</ns0:canPlay>' % (False))
+                    ret_list.append('<ns0:canScroll>%i</ns0:canScroll>' % (False))
+                    ret_list.append('<ns0:canEnumerate>%i</ns0:canEnumerate>' % (False))
+                    ret_list.append('</ns0:mediaCollection>')
                     count += 1
 #                    index += 1
                     total += 1
                 '''
-             
+
             count += 1
             if len(item) == 2 or len(item) == 3 or len(item) == 4:
                 # is a container
-                ret += '<ns0:mediaCollection>'
-                ret += '<ns0:id>%s</ns0:id>' % (id)
-                ret += '<ns0:title>%s</ns0:title>' % (title)
+                ret_list.append('<ns0:mediaCollection>')
+                ret_list.append('<ns0:id>%s</ns0:id>' % (id))
+                ret_list.append('<ns0:title>%s</ns0:title>' % (title))
                 if albumarturi != None:
-                    ret += '<ns0:albumArtURI>%s</ns0:albumArtURI>' % (albumarturi)
-                ret += '<ns0:itemType>container</ns0:itemType>'
-                ret += '<ns0:canPlay>%i</ns0:canPlay>' % (canplay)
-                ret += '<ns0:canScroll>%i</ns0:canScroll>' % (canscroll)
-                ret += '<ns0:canEnumerate>%i</ns0:canEnumerate>' % (canenumerate)
-                ret += '</ns0:mediaCollection>'
+                    ret_list.append('<ns0:albumArtURI>%s</ns0:albumArtURI>' % (albumarturi))
+                ret_list.append('<ns0:itemType>container</ns0:itemType>')
+                ret_list.append('<ns0:canPlay>%i</ns0:canPlay>' % (canplay))
+                ret_list.append('<ns0:canScroll>%i</ns0:canScroll>' % (canscroll))
+                ret_list.append('<ns0:canEnumerate>%i</ns0:canEnumerate>' % (canenumerate))
+                ret_list.append('</ns0:mediaCollection>')
             else:
                 # is a track
-                ret += self.make_metadataresult([item], total, index, nototal=True)
+                ret_list.append(self.make_metadataresult([item], total, index, nototal=True))
 
+        ret = ''.join(ret_list)
         log.debug(ret)
 
         pre  = '<ns0:index>%s</ns0:index>' % (index)
