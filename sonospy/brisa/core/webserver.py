@@ -529,15 +529,6 @@ class StaticFileSonos(object):
 
         @note: path supplied must exist and point to a file
         """
-        #if not os.path.exists(path):
-        #    warnings.warn(invalid_path_exists)
-        #if not os.path.isabs(path):
-        #    log.warning('path---->%s',path)
-        #    warnings.warn(invalid_path_abs)
-        #if os.path.isdir(path):
-        #    raise TypeError(invalid_path_dir)
-
-	#log.info('staticFileSonos checks done')
         self.dummyname = dummyname
         self.name = name
         self.path = path
