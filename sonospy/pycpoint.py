@@ -816,19 +816,30 @@ Music/Rating                101     object.container
     # customsd queue and sender
     customsd_queue = []
     customsd_posted = False
+    zp_queue = []
     def queue_customsd(self, sid, servicename, localip, localport, proxyuuid):
         log.debug('queue customsd: %s, %s' % (sid, servicename))
         self.customsd_queue += [(sid, servicename, localip, localport, proxyuuid)]
     
     def send_customsd(self, zpip):
+        self.zp_queue += [zpip]         # queue requests in case they fail
+        self.send_customsd_zp(zpip)
+        
+    def send_customsd_zp(self, zpip):
         if self.customsd_posted == False:
-            self.customsd_posted = True
+            self.customsd_posted = True # while we are trying it
             log.debug('customsd_queue: %s' % (self.customsd_queue))
             for (sid, servicename, localip, localport, proxyuuid) in self.customsd_queue:
                 log.debug('post customsd: %s, %s' % (sid, servicename))
-                post_customsd(zpip, sid, servicename, localip, localport, proxyuuid)
-            # at this point we could stop the controller if we want,
-            # as we don't attempt to reuse the zpip after this point
+                success = post_customsd(zpip, sid, servicename, localip, localport, proxyuuid)
+                if success == False:
+                    self.zp_queue.remove(zpip)
+                    self.customsd_posted = False
+                    if len(self.zp_queue) > 0:
+                        self.send_customsd_zp(self.zp_queue[0])
+
+        # at this point we could stop the controller if we want,
+        # as we don't attempt to reuse the zpip after this point
 
     ###########################################################################
     # webserver resource functions
@@ -5433,6 +5444,9 @@ Music/Rating                101     object.container
             log.debug('new device udn: %s' % str(device_item.udn))                                    
             log.debug('new device type: %s' % str(device_item.device_type))
             log.debug('new device services: %s' % str(device_item.services))
+            
+#            pp.pprint(vars(device_item))
+            
             # assumes root device is processed first so that zone name is known
             newmediaserver = False
             newmediarenderer = False

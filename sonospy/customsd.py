@@ -50,8 +50,10 @@ def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
             'name': ''}
     log.debug('customsd call args: %s', args)
     success, response = call_sonos(url, args)
-    print 'customsd call success: %s,  args: %s' % (success, args)
+    print 'customsd call return: %s,  args: %s' % (success, args)
     log.debug(response)
+    if not success:
+        return False
 
     # pause
     time.sleep(1)
@@ -73,11 +75,13 @@ def post_customsd(zpip, sid, servicename, localip, localport, proxyuuid):
                 'caps': ['search', 'trFavorites', 'alFavorites', 'arFavorites', 'ucPlaylists']}
         log.debug('customsd call args: %s', args)
         success, response = call_sonos(url, args)
-        print 'customsd call success: %s,  args: %s' % (success, args)
+        print 'customsd call return: %s,  args: %s' % (success, args)
         log.debug(response)
+        
+    return success
 
 def call_sonos(url, args):
-#    print url
+    #print url
     try:
     
         handle = urllib2.urlopen(url)
